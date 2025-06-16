@@ -1,0 +1,110 @@
+[
+{
+  "directory": "/home/ixilminiussi/Desktop/gamedev/whisper-engine/build",
+  "command": "/usr/bin/c++ -DEDITOR_FILES=\\\"\\\" -DGAME_FILES=\\\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/demo/\\\" -DSHADER_FILES=\\\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/build/shaders/\\\" -D_SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING -I/home/ixilminiussi/Desktop/gamedev/whisper-engine -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/wsp -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/stb -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/wsp/rendering -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui/backends -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui-filebrowser -isystem /home/ixilminiussi/Builds/vulkan/1.3.296.0/x86_64/include -g -std=gnu++17 -o CMakeFiles/Whisper.dir/demo/main.cpp.o -c /home/ixilminiussi/Desktop/gamedev/whisper-engine/demo/main.cpp",
+  "file": "/home/ixilminiussi/Desktop/gamedev/whisper-engine/demo/main.cpp",
+  "output": "CMakeFiles/Whisper.dir/demo/main.cpp.o"
+},
+{
+  "directory": "/home/ixilminiussi/Desktop/gamedev/whisper-engine/build",
+  "command": "/usr/bin/c++ -DEDITOR_FILES=\\\"\\\" -DGAME_FILES=\\\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/demo/\\\" -DSHADER_FILES=\\\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/build/shaders/\\\" -DVULKAN_HPP_TYPESAFE_CONVERSION -D_SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING -I/home/ixilminiussi/Desktop/gamedev/whisper-engine -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui/backends -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui-filebrowser -isystem /home/ixilminiussi/Builds/vulkan/1.3.296.0/x86_64/include -g -std=gnu++17 -o .external/CMakeFiles/imgui.dir/imgui/imgui.cpp.o -c /home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui/imgui.cpp",
+  "file": "/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui/imgui.cpp",
+  "output": ".external/CMakeFiles/imgui.dir/imgui/imgui.cpp.o"
+},
+{
+  "directory": "/home/ixilminiussi/Desktop/gamedev/whisper-engine/build",
+  "command": "/usr/bin/c++ -DEDITOR_FILES=\\\"\\\" -DGAME_FILES=\\\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/demo/\\\" -DSHADER_FILES=\\\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/build/shaders/\\\" -DVULKAN_HPP_TYPESAFE_CONVERSION -D_SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING -I/home/ixilminiussi/Desktop/gamedev/whisper-engine -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui/backends -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui-filebrowser -isystem /home/ixilminiussi/Builds/vulkan/1.3.296.0/x86_64/include -g -std=gnu++17 -o .external/CMakeFiles/imgui.dir/imgui/imgui_draw.cpp.o -c /home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui/imgui_draw.cpp",
+  "file": "/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui/imgui_draw.cpp",
+  "output": ".external/CMakeFiles/imgui.dir/imgui/imgui_draw.cpp.o"
+},
+{
+  "directory": "/home/ixilminiussi/Desktop/gamedev/whisper-engine/build",
+  "command": "/usr/bin/c++ -DEDITOR_FILES=\\\"\\\" -DGAME_FILES=\\\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/demo/\\\" -DSHADER_FILES=\\\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/build/shaders/\\\" -DVULKAN_HPP_TYPESAFE_CONVERSION -D_SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING -I/home/ixilminiussi/Desktop/gamedev/whisper-engine -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui/backends -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui-filebrowser -isystem /home/ixilminiussi/Builds/vulkan/1.3.296.0/x86_64/include -g -std=gnu++17 -o .external/CMakeFiles/imgui.dir/imgui/imgui_widgets.cpp.o -c /home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui/imgui_widgets.cpp",
+  "file": "/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui/imgui_widgets.cpp",
+  "output": ".external/CMakeFiles/imgui.dir/imgui/imgui_widgets.cpp.o"
+},
+{
+  "directory": "/home/ixilminiussi/Desktop/gamedev/whisper-engine/build",
+  "command": "/usr/bin/c++ -DEDITOR_FILES=\\\"\\\" -DGAME_FILES=\\\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/demo/\\\" -DSHADER_FILES=\\\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/build/shaders/\\\" -DVULKAN_HPP_TYPESAFE_CONVERSION -D_SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING -I/home/ixilminiussi/Desktop/gamedev/whisper-engine -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui/backends -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui-filebrowser -isystem /home/ixilminiussi/Builds/vulkan/1.3.296.0/x86_64/include -g -std=gnu++17 -o .external/CMakeFiles/imgui.dir/imgui/imgui_tables.cpp.o -c /home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui/imgui_tables.cpp",
+  "file": "/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui/imgui_tables.cpp",
+  "output": ".external/CMakeFiles/imgui.dir/imgui/imgui_tables.cpp.o"
+},
+{
+  "directory": "/home/ixilminiussi/Desktop/gamedev/whisper-engine/build",
+  "command": "/usr/bin/c++ -DEDITOR_FILES=\\\"\\\" -DGAME_FILES=\\\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/demo/\\\" -DSHADER_FILES=\\\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/build/shaders/\\\" -DVULKAN_HPP_TYPESAFE_CONVERSION -D_SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING -I/home/ixilminiussi/Desktop/gamedev/whisper-engine -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui/backends -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui-filebrowser -isystem /home/ixilminiussi/Builds/vulkan/1.3.296.0/x86_64/include -g -std=gnu++17 -o .external/CMakeFiles/imgui.dir/imgui/backends/imgui_impl_glfw.cpp.o -c /home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui/backends/imgui_impl_glfw.cpp",
+  "file": "/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui/backends/imgui_impl_glfw.cpp",
+  "output": ".external/CMakeFiles/imgui.dir/imgui/backends/imgui_impl_glfw.cpp.o"
+},
+{
+  "directory": "/home/ixilminiussi/Desktop/gamedev/whisper-engine/build",
+  "command": "/usr/bin/c++ -DEDITOR_FILES=\\\"\\\" -DGAME_FILES=\\\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/demo/\\\" -DSHADER_FILES=\\\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/build/shaders/\\\" -DVULKAN_HPP_TYPESAFE_CONVERSION -D_SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING -I/home/ixilminiussi/Desktop/gamedev/whisper-engine -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui/backends -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui-filebrowser -isystem /home/ixilminiussi/Builds/vulkan/1.3.296.0/x86_64/include -g -std=gnu++17 -o .external/CMakeFiles/imgui.dir/imgui/backends/imgui_impl_vulkan.cpp.o -c /home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui/backends/imgui_impl_vulkan.cpp",
+  "file": "/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui/backends/imgui_impl_vulkan.cpp",
+  "output": ".external/CMakeFiles/imgui.dir/imgui/backends/imgui_impl_vulkan.cpp.o"
+},
+{
+  "directory": "/home/ixilminiussi/Desktop/gamedev/whisper-engine/build",
+  "command": "/usr/bin/c++ -DEDITOR_FILES=\\\"\\\" -DGAME_FILES=\\\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/demo/\\\" -DSHADER_FILES=\\\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/build/shaders/\\\" -DVULKAN_HPP_TYPESAFE_CONVERSION -D_SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING -I/home/ixilminiussi/Desktop/gamedev/whisper-engine -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imguizmo -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui/backends -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui-filebrowser -isystem /home/ixilminiussi/Builds/vulkan/1.3.296.0/x86_64/include -g -std=gnu++17 -o .external/CMakeFiles/imguizmo.dir/imguizmo/GraphEditor.cpp.o -c /home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imguizmo/GraphEditor.cpp",
+  "file": "/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imguizmo/GraphEditor.cpp",
+  "output": ".external/CMakeFiles/imguizmo.dir/imguizmo/GraphEditor.cpp.o"
+},
+{
+  "directory": "/home/ixilminiussi/Desktop/gamedev/whisper-engine/build",
+  "command": "/usr/bin/c++ -DEDITOR_FILES=\\\"\\\" -DGAME_FILES=\\\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/demo/\\\" -DSHADER_FILES=\\\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/build/shaders/\\\" -DVULKAN_HPP_TYPESAFE_CONVERSION -D_SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING -I/home/ixilminiussi/Desktop/gamedev/whisper-engine -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imguizmo -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui/backends -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui-filebrowser -isystem /home/ixilminiussi/Builds/vulkan/1.3.296.0/x86_64/include -g -std=gnu++17 -o .external/CMakeFiles/imguizmo.dir/imguizmo/ImCurveEdit.cpp.o -c /home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imguizmo/ImCurveEdit.cpp",
+  "file": "/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imguizmo/ImCurveEdit.cpp",
+  "output": ".external/CMakeFiles/imguizmo.dir/imguizmo/ImCurveEdit.cpp.o"
+},
+{
+  "directory": "/home/ixilminiussi/Desktop/gamedev/whisper-engine/build",
+  "command": "/usr/bin/c++ -DEDITOR_FILES=\\\"\\\" -DGAME_FILES=\\\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/demo/\\\" -DSHADER_FILES=\\\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/build/shaders/\\\" -DVULKAN_HPP_TYPESAFE_CONVERSION -D_SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING -I/home/ixilminiussi/Desktop/gamedev/whisper-engine -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imguizmo -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui/backends -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui-filebrowser -isystem /home/ixilminiussi/Builds/vulkan/1.3.296.0/x86_64/include -g -std=gnu++17 -o .external/CMakeFiles/imguizmo.dir/imguizmo/ImGradient.cpp.o -c /home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imguizmo/ImGradient.cpp",
+  "file": "/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imguizmo/ImGradient.cpp",
+  "output": ".external/CMakeFiles/imguizmo.dir/imguizmo/ImGradient.cpp.o"
+},
+{
+  "directory": "/home/ixilminiussi/Desktop/gamedev/whisper-engine/build",
+  "command": "/usr/bin/c++ -DEDITOR_FILES=\\\"\\\" -DGAME_FILES=\\\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/demo/\\\" -DSHADER_FILES=\\\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/build/shaders/\\\" -DVULKAN_HPP_TYPESAFE_CONVERSION -D_SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING -I/home/ixilminiussi/Desktop/gamedev/whisper-engine -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imguizmo -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui/backends -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui-filebrowser -isystem /home/ixilminiussi/Builds/vulkan/1.3.296.0/x86_64/include -g -std=gnu++17 -o .external/CMakeFiles/imguizmo.dir/imguizmo/ImGuizmo.cpp.o -c /home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imguizmo/ImGuizmo.cpp",
+  "file": "/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imguizmo/ImGuizmo.cpp",
+  "output": ".external/CMakeFiles/imguizmo.dir/imguizmo/ImGuizmo.cpp.o"
+},
+{
+  "directory": "/home/ixilminiussi/Desktop/gamedev/whisper-engine/build",
+  "command": "/usr/bin/c++ -DEDITOR_FILES=\\\"\\\" -DGAME_FILES=\\\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/demo/\\\" -DSHADER_FILES=\\\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/build/shaders/\\\" -DVULKAN_HPP_TYPESAFE_CONVERSION -D_SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING -I/home/ixilminiussi/Desktop/gamedev/whisper-engine -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imguizmo -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui/backends -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui-filebrowser -isystem /home/ixilminiussi/Builds/vulkan/1.3.296.0/x86_64/include -g -std=gnu++17 -o .external/CMakeFiles/imguizmo.dir/imguizmo/ImSequencer.cpp.o -c /home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imguizmo/ImSequencer.cpp",
+  "file": "/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imguizmo/ImSequencer.cpp",
+  "output": ".external/CMakeFiles/imguizmo.dir/imguizmo/ImSequencer.cpp.o"
+},
+{
+  "directory": "/home/ixilminiussi/Desktop/gamedev/whisper-engine/build",
+  "command": "/usr/bin/c++ -DEDITOR_FILES=\\\"\\\" -DGAME_FILES=\\\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/demo/\\\" -DSHADER_FILES=\\\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/build/shaders/\\\" -DVULKAN_HPP_TYPESAFE_CONVERSION -D_SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING -I/home/ixilminiussi/Desktop/gamedev/whisper-engine -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/wsp -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/stb -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/wsp/rendering -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui/backends -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui-filebrowser -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imguizmo -isystem /home/ixilminiussi/Builds/vulkan/1.3.296.0/x86_64/include -g -std=gnu++17 -Wno-cpp -o wsp/CMakeFiles/wsp.dir/wsp_engine.cpp.o -c /home/ixilminiussi/Desktop/gamedev/whisper-engine/wsp/wsp_engine.cpp",
+  "file": "/home/ixilminiussi/Desktop/gamedev/whisper-engine/wsp/wsp_engine.cpp",
+  "output": "wsp/CMakeFiles/wsp.dir/wsp_engine.cpp.o"
+},
+{
+  "directory": "/home/ixilminiussi/Desktop/gamedev/whisper-engine/build",
+  "command": "/usr/bin/c++ -DEDITOR_FILES=\\\"\\\" -DGAME_FILES=\\\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/demo/\\\" -DSHADER_FILES=\\\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/build/shaders/\\\" -DVULKAN_HPP_TYPESAFE_CONVERSION -D_SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING -I/home/ixilminiussi/Desktop/gamedev/whisper-engine -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/wsp -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/stb -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/wsp/rendering -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui/backends -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui-filebrowser -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imguizmo -isystem /home/ixilminiussi/Builds/vulkan/1.3.296.0/x86_64/include -g -std=gnu++17 -Wno-cpp -o wsp/CMakeFiles/wsp.dir/rendering/wsp_device.cpp.o -c /home/ixilminiussi/Desktop/gamedev/whisper-engine/wsp/rendering/wsp_device.cpp",
+  "file": "/home/ixilminiussi/Desktop/gamedev/whisper-engine/wsp/rendering/wsp_device.cpp",
+  "output": "wsp/CMakeFiles/wsp.dir/rendering/wsp_device.cpp.o"
+},
+{
+  "directory": "/home/ixilminiussi/Desktop/gamedev/whisper-engine/build",
+  "command": "/usr/bin/c++ -DEDITOR_FILES=\\\"\\\" -DGAME_FILES=\\\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/demo/\\\" -DSHADER_FILES=\\\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/build/shaders/\\\" -DVULKAN_HPP_TYPESAFE_CONVERSION -D_SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING -I/home/ixilminiussi/Desktop/gamedev/whisper-engine -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/wsp -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/stb -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/wsp/rendering -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui/backends -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui-filebrowser -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imguizmo -isystem /home/ixilminiussi/Builds/vulkan/1.3.296.0/x86_64/include -g -std=gnu++17 -Wno-cpp -o wsp/CMakeFiles/wsp.dir/rendering/wsp_render_graph.cpp.o -c /home/ixilminiussi/Desktop/gamedev/whisper-engine/wsp/rendering/wsp_render_graph.cpp",
+  "file": "/home/ixilminiussi/Desktop/gamedev/whisper-engine/wsp/rendering/wsp_render_graph.cpp",
+  "output": "wsp/CMakeFiles/wsp.dir/rendering/wsp_render_graph.cpp.o"
+},
+{
+  "directory": "/home/ixilminiussi/Desktop/gamedev/whisper-engine/build",
+  "command": "/usr/bin/c++ -DEDITOR_FILES=\\\"\\\" -DGAME_FILES=\\\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/demo/\\\" -DSHADER_FILES=\\\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/build/shaders/\\\" -DVULKAN_HPP_TYPESAFE_CONVERSION -D_SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING -I/home/ixilminiussi/Desktop/gamedev/whisper-engine -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/wsp -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/stb -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/wsp/rendering -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui/backends -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui-filebrowser -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imguizmo -isystem /home/ixilminiussi/Builds/vulkan/1.3.296.0/x86_64/include -g -std=gnu++17 -Wno-cpp -o wsp/CMakeFiles/wsp.dir/rendering/wsp_renderer.cpp.o -c /home/ixilminiussi/Desktop/gamedev/whisper-engine/wsp/rendering/wsp_renderer.cpp",
+  "file": "/home/ixilminiussi/Desktop/gamedev/whisper-engine/wsp/rendering/wsp_renderer.cpp",
+  "output": "wsp/CMakeFiles/wsp.dir/rendering/wsp_renderer.cpp.o"
+},
+{
+  "directory": "/home/ixilminiussi/Desktop/gamedev/whisper-engine/build",
+  "command": "/usr/bin/c++ -DEDITOR_FILES=\\\"\\\" -DGAME_FILES=\\\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/demo/\\\" -DSHADER_FILES=\\\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/build/shaders/\\\" -DVULKAN_HPP_TYPESAFE_CONVERSION -D_SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING -I/home/ixilminiussi/Desktop/gamedev/whisper-engine -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/wsp -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/stb -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/wsp/rendering -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui/backends -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui-filebrowser -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imguizmo -isystem /home/ixilminiussi/Builds/vulkan/1.3.296.0/x86_64/include -g -std=gnu++17 -Wno-cpp -o wsp/CMakeFiles/wsp.dir/rendering/wsp_window.cpp.o -c /home/ixilminiussi/Desktop/gamedev/whisper-engine/wsp/rendering/wsp_window.cpp",
+  "file": "/home/ixilminiussi/Desktop/gamedev/whisper-engine/wsp/rendering/wsp_window.cpp",
+  "output": "wsp/CMakeFiles/wsp.dir/rendering/wsp_window.cpp.o"
+},
+{
+  "directory": "/home/ixilminiussi/Desktop/gamedev/whisper-engine/build",
+  "command": "/usr/bin/c++ -DEDITOR_FILES=\\\"\\\" -DGAME_FILES=\\\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/demo/\\\" -DSHADER_FILES=\\\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/build/shaders/\\\" -D_SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING -I/home/ixilminiussi/Desktop/gamedev/whisper-engine -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/wsp -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/stb -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/wsp/rendering -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui/backends -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui-filebrowser -isystem /home/ixilminiussi/Builds/vulkan/1.3.296.0/x86_64/include -g -std=gnu++17 -o demo/CMakeFiles/demo.dir/main.cpp.o -c /home/ixilminiussi/Desktop/gamedev/whisper-engine/demo/main.cpp",
+  "file": "/home/ixilminiussi/Desktop/gamedev/whisper-engine/demo/main.cpp",
+  "output": "demo/CMakeFiles/demo.dir/main.cpp.o"
+}
+]
