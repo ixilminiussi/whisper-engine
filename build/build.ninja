@@ -18,7 +18,7 @@
 #############################################
 # Minimal version of Ninja required by this file
 
-ninja_required_version = 1.5
+ninja_required_version = 1.8
 
 
 #############################################
@@ -40,42 +40,6 @@ include CMakeFiles/rules.ninja
 # Logical path to working directory; prefix for absolute paths.
 
 cmake_ninja_workdir = /home/ixilminiussi/Desktop/gamedev/whisper-engine/build/
-# =============================================================================
-# Object build statements for EXECUTABLE target Whisper
-
-
-#############################################
-# Order-only phony target for Whisper
-
-build cmake_object_order_depends_target_Whisper: phony || cmake_object_order_depends_target_demo cmake_object_order_depends_target_imgui cmake_object_order_depends_target_imguizmo cmake_object_order_depends_target_wsp
-
-build CMakeFiles/Whisper.dir/demo/main.cpp.o: CXX_COMPILER__Whisper_unscanned_Debug /home/ixilminiussi/Desktop/gamedev/whisper-engine/demo/main.cpp || cmake_object_order_depends_target_Whisper
-  DEFINES = -DEDITOR_FILES=\"\" -DGAME_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/demo/\" -DSHADER_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/build/shaders/\" -D_SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING
-  DEP_FILE = CMakeFiles/Whisper.dir/demo/main.cpp.o.d
-  FLAGS = -g -std=gnu++17
-  INCLUDES = -I/home/ixilminiussi/Desktop/gamedev/whisper-engine -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/wsp -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/stb -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/wsp/rendering -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui/backends -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui-filebrowser -isystem /home/ixilminiussi/Builds/vulkan/1.3.296.0/x86_64/include
-  OBJECT_DIR = CMakeFiles/Whisper.dir
-  OBJECT_FILE_DIR = CMakeFiles/Whisper.dir/demo
-
-
-# =============================================================================
-# Link build statements for EXECUTABLE target Whisper
-
-
-#############################################
-# Link the executable Whisper
-
-build Whisper: CXX_EXECUTABLE_LINKER__Whisper_Debug CMakeFiles/Whisper.dir/demo/main.cpp.o | wsp/libwsp.a demo/libdemo.a wsp/libwsp.a .external/libimguizmo.a .external/libimgui.a /usr/lib64/libglfw.so.3.4 /home/ixilminiussi/Builds/vulkan/1.3.296.0/x86_64/lib/libvulkan.so || .external/libimgui.a .external/libimguizmo.a demo/libdemo.a wsp/libwsp.a
-  DEP_FILE = CMakeFiles/Whisper.dir/link.d
-  FLAGS = -g
-  LINK_FLAGS = -Wl,--dependency-file=CMakeFiles/Whisper.dir/link.d
-  LINK_LIBRARIES = -Wl,-rpath,/home/ixilminiussi/Builds/vulkan/1.3.296.0/x86_64/lib  wsp/libwsp.a  demo/libdemo.a  wsp/libwsp.a  .external/libimguizmo.a  -ltinyobjloader  -lglfw  -ldl  -lpthread  -lX11  -lXxf86vm  -lXrandr  -lXi  -ltinyxml2  .external/libimgui.a  /usr/lib64/libglfw.so.3.4  /home/ixilminiussi/Builds/vulkan/1.3.296.0/x86_64/lib/libvulkan.so  -lspdlog
-  OBJECT_DIR = CMakeFiles/Whisper.dir
-  POST_BUILD = :
-  PRE_LINK = :
-  TARGET_FILE = Whisper
-  TARGET_PDB = Whisper.dbg
-
 
 #############################################
 # Utility command for clean_all
@@ -327,6 +291,14 @@ build wsp/CMakeFiles/wsp.dir/rendering/wsp_renderer.cpp.o: CXX_COMPILER__wsp_uns
   OBJECT_DIR = wsp/CMakeFiles/wsp.dir
   OBJECT_FILE_DIR = wsp/CMakeFiles/wsp.dir/rendering
 
+build wsp/CMakeFiles/wsp.dir/rendering/wsp_swapchain.cpp.o: CXX_COMPILER__wsp_unscanned_Debug /home/ixilminiussi/Desktop/gamedev/whisper-engine/wsp/rendering/wsp_swapchain.cpp || cmake_object_order_depends_target_wsp
+  DEFINES = -DEDITOR_FILES=\"\" -DGAME_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/demo/\" -DSHADER_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/build/shaders/\" -DVULKAN_HPP_TYPESAFE_CONVERSION -D_SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING
+  DEP_FILE = wsp/CMakeFiles/wsp.dir/rendering/wsp_swapchain.cpp.o.d
+  FLAGS = -g -std=gnu++17 -Wno-cpp
+  INCLUDES = -I/home/ixilminiussi/Desktop/gamedev/whisper-engine -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/wsp -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/stb -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/wsp/rendering -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui/backends -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui-filebrowser -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imguizmo -isystem /home/ixilminiussi/Builds/vulkan/1.3.296.0/x86_64/include
+  OBJECT_DIR = wsp/CMakeFiles/wsp.dir
+  OBJECT_FILE_DIR = wsp/CMakeFiles/wsp.dir/rendering
+
 build wsp/CMakeFiles/wsp.dir/rendering/wsp_window.cpp.o: CXX_COMPILER__wsp_unscanned_Debug /home/ixilminiussi/Desktop/gamedev/whisper-engine/wsp/rendering/wsp_window.cpp || cmake_object_order_depends_target_wsp
   DEFINES = -DEDITOR_FILES=\"\" -DGAME_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/demo/\" -DSHADER_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/build/shaders/\" -DVULKAN_HPP_TYPESAFE_CONVERSION -D_SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING
   DEP_FILE = wsp/CMakeFiles/wsp.dir/rendering/wsp_window.cpp.o.d
@@ -343,7 +315,7 @@ build wsp/CMakeFiles/wsp.dir/rendering/wsp_window.cpp.o: CXX_COMPILER__wsp_unsca
 #############################################
 # Link the static library wsp/libwsp.a
 
-build wsp/libwsp.a: CXX_STATIC_LIBRARY_LINKER__wsp_Debug wsp/CMakeFiles/wsp.dir/wsp_engine.cpp.o wsp/CMakeFiles/wsp.dir/rendering/wsp_device.cpp.o wsp/CMakeFiles/wsp.dir/rendering/wsp_render_graph.cpp.o wsp/CMakeFiles/wsp.dir/rendering/wsp_renderer.cpp.o wsp/CMakeFiles/wsp.dir/rendering/wsp_window.cpp.o || .external/libimgui.a .external/libimguizmo.a
+build wsp/libwsp.a: CXX_STATIC_LIBRARY_LINKER__wsp_Debug wsp/CMakeFiles/wsp.dir/wsp_engine.cpp.o wsp/CMakeFiles/wsp.dir/rendering/wsp_device.cpp.o wsp/CMakeFiles/wsp.dir/rendering/wsp_render_graph.cpp.o wsp/CMakeFiles/wsp.dir/rendering/wsp_renderer.cpp.o wsp/CMakeFiles/wsp.dir/rendering/wsp_swapchain.cpp.o wsp/CMakeFiles/wsp.dir/rendering/wsp_window.cpp.o || .external/libimgui.a .external/libimguizmo.a
   LANGUAGE_COMPILE_FLAGS = -g
   OBJECT_DIR = wsp/CMakeFiles/wsp.dir
   POST_BUILD = :
@@ -410,7 +382,7 @@ build wsp/rendering/rebuild_cache: phony wsp/rendering/CMakeFiles/rebuild_cache.
 # =============================================================================
 
 # =============================================================================
-# Object build statements for STATIC_LIBRARY target demo
+# Object build statements for EXECUTABLE target demo
 
 
 #############################################
@@ -428,19 +400,22 @@ build demo/CMakeFiles/demo.dir/main.cpp.o: CXX_COMPILER__demo_unscanned_Debug /h
 
 
 # =============================================================================
-# Link build statements for STATIC_LIBRARY target demo
+# Link build statements for EXECUTABLE target demo
 
 
 #############################################
-# Link the static library demo/libdemo.a
+# Link the executable demo/demo
 
-build demo/libdemo.a: CXX_STATIC_LIBRARY_LINKER__demo_Debug demo/CMakeFiles/demo.dir/main.cpp.o || .external/libimgui.a .external/libimguizmo.a wsp/libwsp.a
-  LANGUAGE_COMPILE_FLAGS = -g
+build demo/demo: CXX_EXECUTABLE_LINKER__demo_Debug demo/CMakeFiles/demo.dir/main.cpp.o | wsp/libwsp.a .external/libimgui.a .external/libimguizmo.a .external/libimgui.a /usr/lib64/libglfw.so.3.4 /home/ixilminiussi/Builds/vulkan/1.3.296.0/x86_64/lib/libvulkan.so || .external/libimgui.a .external/libimguizmo.a wsp/libwsp.a
+  DEP_FILE = demo/CMakeFiles/demo.dir/link.d
+  FLAGS = -g
+  LINK_FLAGS = -Wl,--dependency-file=demo/CMakeFiles/demo.dir/link.d
+  LINK_LIBRARIES = -Wl,-rpath,/home/ixilminiussi/Builds/vulkan/1.3.296.0/x86_64/lib  wsp/libwsp.a  -ltinyxml2  .external/libimgui.a  -lspdlog  .external/libimguizmo.a  .external/libimgui.a  /usr/lib64/libglfw.so.3.4  /home/ixilminiussi/Builds/vulkan/1.3.296.0/x86_64/lib/libvulkan.so  -ltinyobjloader  -lspdlog  -lglfw  -ldl  -lpthread  -lX11  -lXxf86vm  -lXrandr  -lXi
   OBJECT_DIR = demo/CMakeFiles/demo.dir
   POST_BUILD = :
   PRE_LINK = :
-  TARGET_FILE = demo/libdemo.a
-  TARGET_PDB = demo.a.dbg
+  TARGET_FILE = demo/demo
+  TARGET_PDB = demo.dbg
 
 
 #############################################
@@ -469,13 +444,11 @@ build demo/rebuild_cache: phony demo/CMakeFiles/rebuild_cache.util
 # =============================================================================
 # Target aliases.
 
-build demo: phony demo/libdemo.a
+build demo: phony demo/demo
 
 build imgui: phony .external/libimgui.a
 
 build imguizmo: phony .external/libimguizmo.a
-
-build libdemo.a: phony demo/libdemo.a
 
 build libimgui.a: phony .external/libimgui.a
 
@@ -493,7 +466,7 @@ build wsp: phony wsp/libwsp.a
 #############################################
 # Folder: /home/ixilminiussi/Desktop/gamedev/whisper-engine/build
 
-build all: phony Whisper .external/all wsp/all demo/all
+build all: phony .external/all wsp/all demo/all
 
 # =============================================================================
 
@@ -507,7 +480,7 @@ build .external/all: phony .external/libimgui.a .external/libimguizmo.a
 #############################################
 # Folder: /home/ixilminiussi/Desktop/gamedev/whisper-engine/build/demo
 
-build demo/all: phony demo/libdemo.a
+build demo/all: phony demo/demo
 
 # =============================================================================
 
@@ -528,16 +501,30 @@ build wsp/rendering/all: phony
 
 
 #############################################
+# Phony target to force glob verification run.
+
+build /home/ixilminiussi/Desktop/gamedev/whisper-engine/build/CMakeFiles/VerifyGlobs.cmake_force: phony
+
+
+#############################################
+# Re-run CMake to check if globbed directories changed.
+
+build /home/ixilminiussi/Desktop/gamedev/whisper-engine/build/CMakeFiles/cmake.verify_globs: VERIFY_GLOBS | /home/ixilminiussi/Desktop/gamedev/whisper-engine/build/CMakeFiles/VerifyGlobs.cmake_force
+  pool = console
+  restat = 1
+
+
+#############################################
 # Re-run CMake if any of its inputs changed.
 
-build build.ninja: RERUN_CMAKE | /home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/CMakeLists.txt /home/ixilminiussi/Desktop/gamedev/whisper-engine/CMakeLists.txt /home/ixilminiussi/Desktop/gamedev/whisper-engine/demo/CMakeLists.txt /home/ixilminiussi/Desktop/gamedev/whisper-engine/wsp/CMakeLists.txt /home/ixilminiussi/Desktop/gamedev/whisper-engine/wsp/rendering/CMakeLists.txt /usr/lib64/cmake/glfw3/glfw3Config.cmake /usr/lib64/cmake/glfw3/glfw3ConfigVersion.cmake /usr/lib64/cmake/glfw3/glfw3Targets-noconfig.cmake /usr/lib64/cmake/glfw3/glfw3Targets.cmake /usr/lib64/cmake/tinyxml2/tinyxml2-config-version.cmake /usr/lib64/cmake/tinyxml2/tinyxml2-config.cmake /usr/lib64/cmake/tinyxml2/tinyxml2-shared-targets-noconfig.cmake /usr/lib64/cmake/tinyxml2/tinyxml2-shared-targets.cmake /usr/lib64/tinyobjloader/cmake/tinyobjloader-config-version.cmake /usr/lib64/tinyobjloader/cmake/tinyobjloader-config.cmake /usr/lib64/tinyobjloader/cmake/tinyobjloader-targets-noconfig.cmake /usr/lib64/tinyobjloader/cmake/tinyobjloader-targets.cmake /usr/local/lib64/cmake/spdlog/spdlogConfig.cmake /usr/local/lib64/cmake/spdlog/spdlogConfigTargets-release.cmake /usr/local/lib64/cmake/spdlog/spdlogConfigTargets.cmake /usr/local/lib64/cmake/spdlog/spdlogConfigVersion.cmake /usr/share/cmake/Modules/CMakeCInformation.cmake /usr/share/cmake/Modules/CMakeCXXInformation.cmake /usr/share/cmake/Modules/CMakeCommonLanguageInclude.cmake /usr/share/cmake/Modules/CMakeFindDependencyMacro.cmake /usr/share/cmake/Modules/CMakeGenericSystem.cmake /usr/share/cmake/Modules/CMakeInitializeConfigs.cmake /usr/share/cmake/Modules/CMakeLanguageInformation.cmake /usr/share/cmake/Modules/CMakeSystemSpecificInformation.cmake /usr/share/cmake/Modules/CMakeSystemSpecificInitialize.cmake /usr/share/cmake/Modules/CheckCXXSourceCompiles.cmake /usr/share/cmake/Modules/CheckIncludeFileCXX.cmake /usr/share/cmake/Modules/CheckLibraryExists.cmake /usr/share/cmake/Modules/Compiler/CMakeCommonCompilerMacros.cmake /usr/share/cmake/Modules/Compiler/GNU-C.cmake /usr/share/cmake/Modules/Compiler/GNU-CXX.cmake /usr/share/cmake/Modules/Compiler/GNU.cmake /usr/share/cmake/Modules/ExternalProject/shared_internal_commands.cmake /usr/share/cmake/Modules/FetchContent.cmake /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake /usr/share/cmake/Modules/FindPackageMessage.cmake /usr/share/cmake/Modules/FindThreads.cmake /usr/share/cmake/Modules/FindVulkan.cmake /usr/share/cmake/Modules/Internal/CMakeCLinkerInformation.cmake /usr/share/cmake/Modules/Internal/CMakeCXXLinkerInformation.cmake /usr/share/cmake/Modules/Internal/CMakeCommonLinkerInformation.cmake /usr/share/cmake/Modules/Internal/CheckSourceCompiles.cmake /usr/share/cmake/Modules/Linker/GNU-C.cmake /usr/share/cmake/Modules/Linker/GNU-CXX.cmake /usr/share/cmake/Modules/Linker/GNU.cmake /usr/share/cmake/Modules/Platform/Linker/GNU.cmake /usr/share/cmake/Modules/Platform/Linker/Linux-GNU-C.cmake /usr/share/cmake/Modules/Platform/Linker/Linux-GNU-CXX.cmake /usr/share/cmake/Modules/Platform/Linker/Linux-GNU.cmake /usr/share/cmake/Modules/Platform/Linux-GNU-C.cmake /usr/share/cmake/Modules/Platform/Linux-GNU-CXX.cmake /usr/share/cmake/Modules/Platform/Linux-GNU.cmake /usr/share/cmake/Modules/Platform/Linux-Initialize.cmake /usr/share/cmake/Modules/Platform/Linux.cmake /usr/share/cmake/Modules/Platform/UnixPaths.cmake CMakeCache.txt CMakeFiles/3.31.6/CMakeCCompiler.cmake CMakeFiles/3.31.6/CMakeCXXCompiler.cmake CMakeFiles/3.31.6/CMakeSystem.cmake
+build build.ninja: RERUN_CMAKE /home/ixilminiussi/Desktop/gamedev/whisper-engine/build/CMakeFiles/cmake.verify_globs | /home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/CMakeLists.txt /home/ixilminiussi/Desktop/gamedev/whisper-engine/CMakeLists.txt /home/ixilminiussi/Desktop/gamedev/whisper-engine/build/CMakeFiles/VerifyGlobs.cmake /home/ixilminiussi/Desktop/gamedev/whisper-engine/demo/CMakeLists.txt /home/ixilminiussi/Desktop/gamedev/whisper-engine/wsp/CMakeLists.txt /home/ixilminiussi/Desktop/gamedev/whisper-engine/wsp/rendering/CMakeLists.txt /usr/lib64/cmake/glfw3/glfw3Config.cmake /usr/lib64/cmake/glfw3/glfw3ConfigVersion.cmake /usr/lib64/cmake/glfw3/glfw3Targets-noconfig.cmake /usr/lib64/cmake/glfw3/glfw3Targets.cmake /usr/lib64/cmake/tinyxml2/tinyxml2-config-version.cmake /usr/lib64/cmake/tinyxml2/tinyxml2-config.cmake /usr/lib64/cmake/tinyxml2/tinyxml2-shared-targets-noconfig.cmake /usr/lib64/cmake/tinyxml2/tinyxml2-shared-targets.cmake /usr/lib64/tinyobjloader/cmake/tinyobjloader-config-version.cmake /usr/lib64/tinyobjloader/cmake/tinyobjloader-config.cmake /usr/lib64/tinyobjloader/cmake/tinyobjloader-targets-noconfig.cmake /usr/lib64/tinyobjloader/cmake/tinyobjloader-targets.cmake /usr/local/lib64/cmake/spdlog/spdlogConfig.cmake /usr/local/lib64/cmake/spdlog/spdlogConfigTargets-release.cmake /usr/local/lib64/cmake/spdlog/spdlogConfigTargets.cmake /usr/local/lib64/cmake/spdlog/spdlogConfigVersion.cmake /usr/share/cmake/Modules/CMakeCInformation.cmake /usr/share/cmake/Modules/CMakeCXXInformation.cmake /usr/share/cmake/Modules/CMakeCommonLanguageInclude.cmake /usr/share/cmake/Modules/CMakeFindDependencyMacro.cmake /usr/share/cmake/Modules/CMakeGenericSystem.cmake /usr/share/cmake/Modules/CMakeInitializeConfigs.cmake /usr/share/cmake/Modules/CMakeLanguageInformation.cmake /usr/share/cmake/Modules/CMakeSystemSpecificInformation.cmake /usr/share/cmake/Modules/CMakeSystemSpecificInitialize.cmake /usr/share/cmake/Modules/CheckCXXSourceCompiles.cmake /usr/share/cmake/Modules/CheckIncludeFileCXX.cmake /usr/share/cmake/Modules/CheckLibraryExists.cmake /usr/share/cmake/Modules/Compiler/CMakeCommonCompilerMacros.cmake /usr/share/cmake/Modules/Compiler/GNU-C.cmake /usr/share/cmake/Modules/Compiler/GNU-CXX.cmake /usr/share/cmake/Modules/Compiler/GNU.cmake /usr/share/cmake/Modules/ExternalProject/shared_internal_commands.cmake /usr/share/cmake/Modules/FetchContent.cmake /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake /usr/share/cmake/Modules/FindPackageMessage.cmake /usr/share/cmake/Modules/FindThreads.cmake /usr/share/cmake/Modules/FindVulkan.cmake /usr/share/cmake/Modules/Internal/CMakeCLinkerInformation.cmake /usr/share/cmake/Modules/Internal/CMakeCXXLinkerInformation.cmake /usr/share/cmake/Modules/Internal/CMakeCommonLinkerInformation.cmake /usr/share/cmake/Modules/Internal/CheckSourceCompiles.cmake /usr/share/cmake/Modules/Linker/GNU-C.cmake /usr/share/cmake/Modules/Linker/GNU-CXX.cmake /usr/share/cmake/Modules/Linker/GNU.cmake /usr/share/cmake/Modules/Platform/Linker/GNU.cmake /usr/share/cmake/Modules/Platform/Linker/Linux-GNU-C.cmake /usr/share/cmake/Modules/Platform/Linker/Linux-GNU-CXX.cmake /usr/share/cmake/Modules/Platform/Linker/Linux-GNU.cmake /usr/share/cmake/Modules/Platform/Linux-GNU-C.cmake /usr/share/cmake/Modules/Platform/Linux-GNU-CXX.cmake /usr/share/cmake/Modules/Platform/Linux-GNU.cmake /usr/share/cmake/Modules/Platform/Linux-Initialize.cmake /usr/share/cmake/Modules/Platform/Linux.cmake /usr/share/cmake/Modules/Platform/UnixPaths.cmake CMakeCache.txt CMakeFiles/3.31.6/CMakeCCompiler.cmake CMakeFiles/3.31.6/CMakeCXXCompiler.cmake CMakeFiles/3.31.6/CMakeSystem.cmake
   pool = console
 
 
 #############################################
 # A missing CMake input file is not an error.
 
-build /home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/CMakeLists.txt /home/ixilminiussi/Desktop/gamedev/whisper-engine/CMakeLists.txt /home/ixilminiussi/Desktop/gamedev/whisper-engine/demo/CMakeLists.txt /home/ixilminiussi/Desktop/gamedev/whisper-engine/wsp/CMakeLists.txt /home/ixilminiussi/Desktop/gamedev/whisper-engine/wsp/rendering/CMakeLists.txt /usr/lib64/cmake/glfw3/glfw3Config.cmake /usr/lib64/cmake/glfw3/glfw3ConfigVersion.cmake /usr/lib64/cmake/glfw3/glfw3Targets-noconfig.cmake /usr/lib64/cmake/glfw3/glfw3Targets.cmake /usr/lib64/cmake/tinyxml2/tinyxml2-config-version.cmake /usr/lib64/cmake/tinyxml2/tinyxml2-config.cmake /usr/lib64/cmake/tinyxml2/tinyxml2-shared-targets-noconfig.cmake /usr/lib64/cmake/tinyxml2/tinyxml2-shared-targets.cmake /usr/lib64/tinyobjloader/cmake/tinyobjloader-config-version.cmake /usr/lib64/tinyobjloader/cmake/tinyobjloader-config.cmake /usr/lib64/tinyobjloader/cmake/tinyobjloader-targets-noconfig.cmake /usr/lib64/tinyobjloader/cmake/tinyobjloader-targets.cmake /usr/local/lib64/cmake/spdlog/spdlogConfig.cmake /usr/local/lib64/cmake/spdlog/spdlogConfigTargets-release.cmake /usr/local/lib64/cmake/spdlog/spdlogConfigTargets.cmake /usr/local/lib64/cmake/spdlog/spdlogConfigVersion.cmake /usr/share/cmake/Modules/CMakeCInformation.cmake /usr/share/cmake/Modules/CMakeCXXInformation.cmake /usr/share/cmake/Modules/CMakeCommonLanguageInclude.cmake /usr/share/cmake/Modules/CMakeFindDependencyMacro.cmake /usr/share/cmake/Modules/CMakeGenericSystem.cmake /usr/share/cmake/Modules/CMakeInitializeConfigs.cmake /usr/share/cmake/Modules/CMakeLanguageInformation.cmake /usr/share/cmake/Modules/CMakeSystemSpecificInformation.cmake /usr/share/cmake/Modules/CMakeSystemSpecificInitialize.cmake /usr/share/cmake/Modules/CheckCXXSourceCompiles.cmake /usr/share/cmake/Modules/CheckIncludeFileCXX.cmake /usr/share/cmake/Modules/CheckLibraryExists.cmake /usr/share/cmake/Modules/Compiler/CMakeCommonCompilerMacros.cmake /usr/share/cmake/Modules/Compiler/GNU-C.cmake /usr/share/cmake/Modules/Compiler/GNU-CXX.cmake /usr/share/cmake/Modules/Compiler/GNU.cmake /usr/share/cmake/Modules/ExternalProject/shared_internal_commands.cmake /usr/share/cmake/Modules/FetchContent.cmake /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake /usr/share/cmake/Modules/FindPackageMessage.cmake /usr/share/cmake/Modules/FindThreads.cmake /usr/share/cmake/Modules/FindVulkan.cmake /usr/share/cmake/Modules/Internal/CMakeCLinkerInformation.cmake /usr/share/cmake/Modules/Internal/CMakeCXXLinkerInformation.cmake /usr/share/cmake/Modules/Internal/CMakeCommonLinkerInformation.cmake /usr/share/cmake/Modules/Internal/CheckSourceCompiles.cmake /usr/share/cmake/Modules/Linker/GNU-C.cmake /usr/share/cmake/Modules/Linker/GNU-CXX.cmake /usr/share/cmake/Modules/Linker/GNU.cmake /usr/share/cmake/Modules/Platform/Linker/GNU.cmake /usr/share/cmake/Modules/Platform/Linker/Linux-GNU-C.cmake /usr/share/cmake/Modules/Platform/Linker/Linux-GNU-CXX.cmake /usr/share/cmake/Modules/Platform/Linker/Linux-GNU.cmake /usr/share/cmake/Modules/Platform/Linux-GNU-C.cmake /usr/share/cmake/Modules/Platform/Linux-GNU-CXX.cmake /usr/share/cmake/Modules/Platform/Linux-GNU.cmake /usr/share/cmake/Modules/Platform/Linux-Initialize.cmake /usr/share/cmake/Modules/Platform/Linux.cmake /usr/share/cmake/Modules/Platform/UnixPaths.cmake CMakeCache.txt CMakeFiles/3.31.6/CMakeCCompiler.cmake CMakeFiles/3.31.6/CMakeCXXCompiler.cmake CMakeFiles/3.31.6/CMakeSystem.cmake: phony
+build /home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/CMakeLists.txt /home/ixilminiussi/Desktop/gamedev/whisper-engine/CMakeLists.txt /home/ixilminiussi/Desktop/gamedev/whisper-engine/build/CMakeFiles/VerifyGlobs.cmake /home/ixilminiussi/Desktop/gamedev/whisper-engine/demo/CMakeLists.txt /home/ixilminiussi/Desktop/gamedev/whisper-engine/wsp/CMakeLists.txt /home/ixilminiussi/Desktop/gamedev/whisper-engine/wsp/rendering/CMakeLists.txt /usr/lib64/cmake/glfw3/glfw3Config.cmake /usr/lib64/cmake/glfw3/glfw3ConfigVersion.cmake /usr/lib64/cmake/glfw3/glfw3Targets-noconfig.cmake /usr/lib64/cmake/glfw3/glfw3Targets.cmake /usr/lib64/cmake/tinyxml2/tinyxml2-config-version.cmake /usr/lib64/cmake/tinyxml2/tinyxml2-config.cmake /usr/lib64/cmake/tinyxml2/tinyxml2-shared-targets-noconfig.cmake /usr/lib64/cmake/tinyxml2/tinyxml2-shared-targets.cmake /usr/lib64/tinyobjloader/cmake/tinyobjloader-config-version.cmake /usr/lib64/tinyobjloader/cmake/tinyobjloader-config.cmake /usr/lib64/tinyobjloader/cmake/tinyobjloader-targets-noconfig.cmake /usr/lib64/tinyobjloader/cmake/tinyobjloader-targets.cmake /usr/local/lib64/cmake/spdlog/spdlogConfig.cmake /usr/local/lib64/cmake/spdlog/spdlogConfigTargets-release.cmake /usr/local/lib64/cmake/spdlog/spdlogConfigTargets.cmake /usr/local/lib64/cmake/spdlog/spdlogConfigVersion.cmake /usr/share/cmake/Modules/CMakeCInformation.cmake /usr/share/cmake/Modules/CMakeCXXInformation.cmake /usr/share/cmake/Modules/CMakeCommonLanguageInclude.cmake /usr/share/cmake/Modules/CMakeFindDependencyMacro.cmake /usr/share/cmake/Modules/CMakeGenericSystem.cmake /usr/share/cmake/Modules/CMakeInitializeConfigs.cmake /usr/share/cmake/Modules/CMakeLanguageInformation.cmake /usr/share/cmake/Modules/CMakeSystemSpecificInformation.cmake /usr/share/cmake/Modules/CMakeSystemSpecificInitialize.cmake /usr/share/cmake/Modules/CheckCXXSourceCompiles.cmake /usr/share/cmake/Modules/CheckIncludeFileCXX.cmake /usr/share/cmake/Modules/CheckLibraryExists.cmake /usr/share/cmake/Modules/Compiler/CMakeCommonCompilerMacros.cmake /usr/share/cmake/Modules/Compiler/GNU-C.cmake /usr/share/cmake/Modules/Compiler/GNU-CXX.cmake /usr/share/cmake/Modules/Compiler/GNU.cmake /usr/share/cmake/Modules/ExternalProject/shared_internal_commands.cmake /usr/share/cmake/Modules/FetchContent.cmake /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake /usr/share/cmake/Modules/FindPackageMessage.cmake /usr/share/cmake/Modules/FindThreads.cmake /usr/share/cmake/Modules/FindVulkan.cmake /usr/share/cmake/Modules/Internal/CMakeCLinkerInformation.cmake /usr/share/cmake/Modules/Internal/CMakeCXXLinkerInformation.cmake /usr/share/cmake/Modules/Internal/CMakeCommonLinkerInformation.cmake /usr/share/cmake/Modules/Internal/CheckSourceCompiles.cmake /usr/share/cmake/Modules/Linker/GNU-C.cmake /usr/share/cmake/Modules/Linker/GNU-CXX.cmake /usr/share/cmake/Modules/Linker/GNU.cmake /usr/share/cmake/Modules/Platform/Linker/GNU.cmake /usr/share/cmake/Modules/Platform/Linker/Linux-GNU-C.cmake /usr/share/cmake/Modules/Platform/Linker/Linux-GNU-CXX.cmake /usr/share/cmake/Modules/Platform/Linker/Linux-GNU.cmake /usr/share/cmake/Modules/Platform/Linux-GNU-C.cmake /usr/share/cmake/Modules/Platform/Linux-GNU-CXX.cmake /usr/share/cmake/Modules/Platform/Linux-GNU.cmake /usr/share/cmake/Modules/Platform/Linux-Initialize.cmake /usr/share/cmake/Modules/Platform/Linux.cmake /usr/share/cmake/Modules/Platform/UnixPaths.cmake CMakeCache.txt CMakeFiles/3.31.6/CMakeCCompiler.cmake CMakeFiles/3.31.6/CMakeCXXCompiler.cmake CMakeFiles/3.31.6/CMakeSystem.cmake: phony
 
 
 #############################################

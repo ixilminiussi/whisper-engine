@@ -4,6 +4,18 @@ project(Whisper CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    add_compile_options(
+        -Wall
+        -Wextra
+        -Wpedantic
+        -Wconst-qual
+        -Wduplicate-decl-specifier
+        -Wuninitialized
+        -Wshadow
+    )
+endif()
+
 if(NOT DEFINED GAME)
     set(GAME "demo" CACHE STRING "Choose game module to build (e.g. demo, descent)")
 endif()
@@ -28,14 +40,6 @@ add_subdirectory(.external)
 add_subdirectory(wsp)
 add_subdirectory(${GAME})
 # add_subdirectory(shaders)
-
-# Executable
-add_executable(Whisper ${GAME}/main.cpp)
-
-target_link_libraries(Whisper PRIVATE
-    wsp
-    ${GAME}
-)
 
 # Copy assets
 # file(GLOB WSP_ASSETS "${WSP_FILES}/*")

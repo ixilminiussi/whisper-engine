@@ -252,9 +252,6 @@ Whisper_IS_TOP_LEVEL:STATIC=ON
 //Value Computed by CMake
 Whisper_SOURCE_DIR:STATIC=/home/ixilminiussi/Desktop/gamedev/whisper-engine
 
-//Dependencies for the target
-demo_LIB_DEPENDS:STATIC=general;wsp;general;tinyxml2;general;imgui;general;spdlog;
-
 //The directory containing a CMake configuration file for glfw3.
 glfw3_DIR:PATH=/usr/lib64/cmake/glfw3
 

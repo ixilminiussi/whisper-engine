@@ -7,14 +7,15 @@ namespace wsp
 class Renderer
 {
   public:
-    static Renderer *Get();
+    Renderer(const class Device *, const class Window *);
+    ~Renderer();
 
-    ~Renderer() = default;
+    void Free(const class Device *);
 
   private:
-    Renderer() = default;
+    const class Window *_window;
 
-    static Renderer *_instance;
+    bool _freed;
 };
 
 } // namespace wsp

@@ -77,9 +77,12 @@ int main()
 
     // renderGraph.Compile();
     // renderGraph.Execute();
-    wsp::Engine::Kickstart();
+    if (!wsp::engine::Initialize())
+    {
+        return 1;
+    }
 
-    wsp::Engine::Get()->Run();
+    wsp::engine::Run();
 
-    wsp::Engine::Shutdown();
+    wsp::engine::Terminate();
 }

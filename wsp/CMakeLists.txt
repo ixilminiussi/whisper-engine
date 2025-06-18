@@ -6,9 +6,9 @@ add_library(wsp)
 
 target_include_directories(wsp PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
-file(GLOB RENDERING_SOURCES *.cpp)
+file(GLOB WSP_SOURCES CONFIGURE_DEPENDS *.cpp)
 
-target_sources(wsp PRIVATE ${RENDERING_SOURCES})
+target_sources(wsp PRIVATE ${WSP_SOURCES})
 
 target_include_directories(wsp PUBLIC ${CMAKE_SOURCE_DIR}/.external/stb)
 
