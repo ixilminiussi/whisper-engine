@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<inputs>
+    <axisAction modifierX="1" modifierY="1" type="AXES" name="movement speed update">
+        <axis code="2" source="MOUSE" id="0"/>
+        <axis code="2" source="MOUSE" id="1"/>
+    </axisAction>
+    <axisAction modifierX="1" modifierY="1" type="AXES" name="viewport rotation">
+        <axis code="0" source="MOUSE" id="1"/>
+        <axis code="1" source="MOUSE" id="1"/>
+    </axisAction>
+    <buttonAction type="SHORTCUT" name="duplicate selected">
+        <button code="341" source="KEYBOARD" id="0"/>
+        <button code="68" source="KEYBOARD" id="0"/>
+    </buttonAction>
+    <axisAction modifierX="1" modifierY="1" type="BUTTONS" name="viewport movement">
+        <button code="68" source="KEYBOARD" id="0"/>
+        <button code="65" source="KEYBOARD" id="0"/>
+        <button code="87" source="KEYBOARD" id="0"/>
+        <button code="83" source="KEYBOARD" id="0"/>
+    </axisAction>
+    <buttonAction type="TOGGLE" name="viewport toggle">
+        <button code="0" source="MOUSE" id="0"/>
+    </buttonAction>
+    <buttonAction type="PRESSED" name="translate mode">
+        <button code="84" source="KEYBOARD" id="0"/>
+    </buttonAction>
+    <buttonAction type="PRESSED" name="editor exit">
+        <button code="256" source="KEYBOARD" id="0"/>
+    </buttonAction>
+    <buttonAction type="PRESSED" name="rotate mode">
+        <button code="82" source="KEYBOARD" id="0"/>
+    </buttonAction>
+    <buttonAction type="PRESSED" name="scale mode">
+        <button code="83" source="KEYBOARD" id="0"/>
+    </buttonAction>
+</inputs>

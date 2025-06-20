@@ -1,5 +1,5 @@
-#ifndef WSP_RENDER_GRAPH_H
-#define WSP_RENDER_GRAPH_H
+#ifndef WSP_RENDER_GRAPH
+#define WSP_RENDER_GRAPH
 
 #include <functional>
 #include <limits>

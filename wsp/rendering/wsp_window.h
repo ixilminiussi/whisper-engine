@@ -1,5 +1,5 @@
-#ifndef WSP_WINDOW_H
-#define WSP_WINDOW_H
+#ifndef WSP_WINDOW
+#define WSP_WINDOW
 
 // std
 #include "wsp_swapchain.h"
@@ -16,7 +16,7 @@ namespace wsp
 class Window
 {
   public:
-    Window(const vk::Instance &, size_t width, size_t height, std::string name);
+    Window(vk::Instance, size_t width, size_t height, std::string name);
     ~Window();
 
     Window(const Window &) = delete;
@@ -26,7 +26,7 @@ class Window
 
     bool ShouldClose() const;
 
-    vk::Extent2D GetExtent();
+    vk::Extent2D GetExtent() const;
 
     GLFWwindow *GetGLFWHandle() const;
 
@@ -38,7 +38,7 @@ class Window
     void BuildSwapchain();
 
   private:
-    void CreateSurface(const vk::Instance &);
+    void CreateSurface(vk::Instance);
 
     static void FramebufferResizeCallback(GLFWwindow *glfwWindow, int width, int height);
 

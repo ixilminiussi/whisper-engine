@@ -1,3 +1,7 @@
+#ifndef WSP_STATIC_UTILS
+#define WSP_STATIC_UTILS
+
+#include <imgui.h>
 #include <spdlog/spdlog.h>
 #include <vulkan/vulkan.h>
 #include <vulkan/vulkan.hpp>
@@ -7,6 +11,19 @@
 
 namespace wsp
 {
+
+inline float decodeSRGB(float c)
+{
+    if (c <= 0.04045f)
+        return c * (1.0f / 12.92f);
+    else
+        return powf((c + 0.055f) / 1.055f, 2.4f);
+}
+
+inline ImVec4 decodeSRGB(const ImVec4 &srgb)
+{
+    return ImVec4(decodeSRGB(srgb.x), decodeSRGB(srgb.y), decodeSRGB(srgb.z), srgb.w);
+}
 
 #ifndef NDEBUG
 
@@ -66,3 +83,5 @@ inline void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMesse
 #endif
 
 } // namespace wsp
+
+#endif

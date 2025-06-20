@@ -30,6 +30,7 @@ add_compile_definitions(_SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING)
 
 # Asset and shader paths
 set(WSP_FILES "${CMAKE_SOURCE_DIR}/assets/")
+set(WSP_EDITOR_FILES "${CMAKE_SOURCE_DIR}/editor/")
 add_definitions(-DEDITOR_FILES="${WSP_EDITOR_FILES}")
 
 set(SHADER_FILES "${CMAKE_BINARY_DIR}/shaders/")

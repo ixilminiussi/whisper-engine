@@ -10,7 +10,7 @@
 namespace wsp
 {
 
-Window::Window(const vk::Instance &instance, size_t width, size_t height, std::string name)
+Window::Window(vk::Instance instance, size_t width, size_t height, std::string name)
     : _width{width}, _height{height}, _name{name}, _freed{false}, _glfwWindow{}, _swapchain{}, _device{}
 {
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
@@ -59,7 +59,7 @@ void Window::FramebufferResizeCallback(GLFWwindow *glfwWindow, int width, int he
     window->_height = height;
 }
 
-void Window::CreateSurface(const vk::Instance &instance)
+void Window::CreateSurface(vk::Instance instance)
 {
     VkResult const result = glfwCreateWindowSurface(static_cast<VkInstance>(instance), _glfwWindow, nullptr,
                                                     reinterpret_cast<VkSurfaceKHR *>(&_surface));
@@ -97,7 +97,7 @@ bool Window::ShouldClose() const
     return glfwWindowShouldClose(_glfwWindow);
 }
 
-vk::Extent2D Window::GetExtent()
+vk::Extent2D Window::GetExtent() const
 {
     return {static_cast<uint32_t>(_width), static_cast<uint32_t>(_height)};
 }

@@ -11,5 +11,6 @@
 /home/ixilminiussi/Desktop/gamedev/whisper-engine/build/wsp/rendering/CMakeFiles/edit_cache.dir
 /home/ixilminiussi/Desktop/gamedev/whisper-engine/build/wsp/rendering/CMakeFiles/rebuild_cache.dir
 /home/ixilminiussi/Desktop/gamedev/whisper-engine/build/demo/CMakeFiles/demo.dir
+/home/ixilminiussi/Desktop/gamedev/whisper-engine/build/demo/CMakeFiles/sizeof.dir
 /home/ixilminiussi/Desktop/gamedev/whisper-engine/build/demo/CMakeFiles/edit_cache.dir
 /home/ixilminiussi/Desktop/gamedev/whisper-engine/build/demo/CMakeFiles/rebuild_cache.dir

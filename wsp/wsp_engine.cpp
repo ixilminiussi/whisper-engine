@@ -1,6 +1,8 @@
 #include "wsp_engine.h"
 
 #include "wsp_device.h"
+#include "wsp_editor.h"
+#include "wsp_renderer.h"
 #include "wsp_static_utils.h"
 #include "wsp_window.h"
 
@@ -28,6 +30,8 @@ bool terminated{false};
 vk::Instance vkInstance;
 Window *window{nullptr};
 Device *device{nullptr};
+Renderer *renderer{nullptr};
+Editor *editor{nullptr};
 
 const vk::Instance &GetVulkanInstance()
 {
@@ -42,7 +46,7 @@ Device *GetDevice()
 #ifndef NDEBUG
 bool CheckValidationLayerSupport()
 {
-    std::vector<vk::LayerProperties> availableLayers = vk::enumerateInstanceLayerProperties();
+    const std::vector<vk::LayerProperties> availableLayers = vk::enumerateInstanceLayerProperties();
 
     for (const char *layerName : validationLayers)
     {
@@ -84,7 +88,7 @@ std::vector<const char *> GetRequiredExtensions()
 
 void ExtensionsCompatibilityTest()
 {
-    std::vector<vk::ExtensionProperties> extensions = vk::enumerateInstanceExtensionProperties();
+    const std::vector<vk::ExtensionProperties> extensions = vk::enumerateInstanceExtensionProperties();
 
     spdlog::info("available extensions:");
     std::unordered_set<std::string> available;
@@ -159,14 +163,14 @@ void CreateInstance()
     createInfo.pNext = nullptr;
 #endif
 
-    if (vk::Result result = vk::createInstance(&createInfo, nullptr, &vkInstance); result != vk::Result::eSuccess)
+    if (const vk::Result result = vk::createInstance(&createInfo, nullptr, &vkInstance); result != vk::Result::eSuccess)
     {
         spdlog::critical("Error: {}", vk::to_string(static_cast<vk::Result>(result)));
         throw std::runtime_error("Engine: failed to create vkInstance!");
     }
 
 #ifndef NDEBUG
-    if (vk::Result result = CreateDebugUtilsMessengerEXT(vkInstance, &debugCreateInfo, nullptr, &debugMessenger);
+    if (const vk::Result result = CreateDebugUtilsMessengerEXT(vkInstance, &debugCreateInfo, nullptr, &debugMessenger);
         result != vk::Result::eSuccess)
     {
         spdlog::critical("Error: {}", vk::to_string(static_cast<vk::Result>(result)));
@@ -204,6 +208,9 @@ bool Initialize()
         window->SetDevice(device);
         window->BuildSwapchain();
 
+        renderer = new Renderer(device, window);
+        editor = new Editor(window, device, vkInstance);
+
         initialized = true;
         terminated = false;
 
@@ -224,27 +231,11 @@ void Run()
     {
         glfwPollEvents();
 
-        vk::ClearColorValue clearColor = vk::ClearColorValue{0, 0, 0, 255};
+        const vk::CommandBuffer commandBuffer = renderer->BeginRender(device);
 
-        VkCommandBufferBeginInfo beginInfo = {};
-        beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+        editor->Render(commandBuffer);
 
-        vkBeginCommandBuffer(commandBuffer, &beginInfo);
-
-        VkRenderPassBeginInfo renderPassInfo = {};
-        renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-        renderPassInfo.renderPass = renderPass;
-        renderPassInfo.framebuffer = framebuffers[imageIndex]; // For acquired swapchain image
-        renderPassInfo.renderArea.offset = {0, 0};
-        renderPassInfo.renderArea.extent = swapchainExtent;
-        renderPassInfo.clearValueCount = 1;
-        renderPassInfo.pClearValues = &clearColor;
-
-        vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
-
-        // Nothing else, just end the pass
-        vkCmdEndRenderPass(commandBuffer);
-        vkEndCommandBuffer(commandBuffer);
+        renderer->EndRender(device);
     }
 }
 
@@ -263,7 +254,15 @@ void Terminate()
 
     try
     {
+        device->WaitIdle();
+
         spdlog::info("Engine: began termination");
+
+        editor->Free(device);
+        delete editor;
+
+        renderer->Free(device);
+        delete renderer;
 
         window->Free(vkInstance);
         delete window;

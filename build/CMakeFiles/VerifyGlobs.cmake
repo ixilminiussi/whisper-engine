@@ -5,6 +5,7 @@ cmake_policy(SET CMP0009 NEW)
 # WSP_SOURCES at wsp/CMakeLists.txt:9 (file)
 file(GLOB NEW_GLOB LIST_DIRECTORIES true "/home/ixilminiussi/Desktop/gamedev/whisper-engine/wsp/*.cpp")
 set(OLD_GLOB
+  "/home/ixilminiussi/Desktop/gamedev/whisper-engine/wsp/wsp_editor.cpp"
   "/home/ixilminiussi/Desktop/gamedev/whisper-engine/wsp/wsp_engine.cpp"
   )
 if(NOT "${NEW_GLOB}" STREQUAL "${OLD_GLOB}")

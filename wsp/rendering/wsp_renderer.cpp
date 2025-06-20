@@ -1,14 +1,18 @@
 #include "wsp_renderer.h"
 
+#include "wsp_device.h"
 #include "wsp_window.h"
 #include <spdlog/spdlog.h>
 
 namespace wsp
 {
 
-Renderer::Renderer(const Device *device, const Window *window) : _freed{false}
+Renderer::Renderer(const Device *device, const Window *window)
+    : _freed{false}, _currentImageIndex{0}, _currentFrameIndex{0}
 {
     _window = window;
+
+    CreateCommandBuffers(device);
 }
 
 Renderer::~Renderer()
@@ -21,131 +25,53 @@ Renderer::~Renderer()
 
 void Renderer::Free(const Device *device)
 {
+    device->FreeCommandBuffers(&_commandBuffers);
+    _commandBuffers.clear();
+
     _freed = true;
     spdlog::info("Renderer: succesfully freed");
 }
 
-} // namespace wsp
-
-/**
-void Renderer::free()
+vk::CommandBuffer Renderer::BeginRender(const Device *device)
 {
-    _swapChain->free();
-    delete _swapChain.release();
+    const Swapchain *swapchain = _window->GetSwapchain();
+    swapchain->AcquireNextImage(device, _currentFrameIndex, &_currentImageIndex);
 
-    freeCommandBuffers();
+    const vk::CommandBuffer commandBuffer = _commandBuffers[_currentFrameIndex];
 
-    _freed = true;
-}
-
-
-void Renderer::freeCommandBuffers()
-{
-    _device.device().freeCommandBuffers(_device.getCommandPool(), static_cast<uint32_t>(_commandBuffers.size()),
-                                        _commandBuffers.data());
-    _commandBuffers.clear();
-}
-
-vk::CommandBuffer Renderer::beginFrame()
-{
-    assert(!_isFrameStarted && "Can't call beginFrame while already in progress");
-
-    vk::Result result = _swapChain->acquireNextImage(&_currentImageIndex);
-
-    if (result == vk::Result::eErrorOutOfDateKHR)
-    {
-        recreateSwapChain();
-        return nullptr;
-    }
-    if (result != vk::Result::eSuccess && result != vk::Result::eSuboptimalKHR)
-    {
-        throw std::runtime_error("failed to acquire swap chain image");
-    }
-
-    _isFrameStarted = true;
-
-    auto commandBuffer = getCurrentCommandBuffer();
     vk::CommandBufferBeginInfo beginInfo{};
     beginInfo.sType = vk::StructureType::eCommandBufferBeginInfo;
 
-    if (commandBuffer.begin(&beginInfo) != vk::Result::eSuccess)
+    if (const vk::Result result = commandBuffer.begin(&beginInfo); result != vk::Result::eSuccess)
     {
-        throw std::runtime_error("failed to begin recording command buffer!");
+        spdlog::critical("ErrorMsg: {}", vk::to_string(static_cast<vk::Result>(result)));
+        throw std::runtime_error("Renderer: failed to begin recording command buffer!");
     }
+
+    swapchain->BeginRenderPass(commandBuffer, _currentImageIndex);
 
     return commandBuffer;
 }
 
-void Renderer::endFrame()
+void Renderer::EndRender(const Device *device)
 {
-    assert(_isFrameStarted && "Can't call endFrame while frame is not in progress");
-
-    auto commandBuffer = getCurrentCommandBuffer();
-
-    if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS)
-    {
-        throw std::runtime_error("failed to record command buffer!");
-    }
-
-    auto result = _swapChain->submitCommandBuffers(&commandBuffer, &_currentImageIndex);
-    if (result == vk::Result::eErrorOutOfDateKHR || result == vk::Result::eSuboptimalKHR || _window.wasWindowResized())
-    {
-        _window.resetWindowResizedFlag();
-        recreateSwapChain();
-    }
-    else if (result != vk::Result::eSuccess)
-    {
-        throw std::runtime_error("failed to present swap chain image!");
-    }
-
-    _isFrameStarted = false;
-    _currentFrameIndex = (_currentFrameIndex + 1) % SwapChain::MAX_FRAMES_IN_FLIGHT;
-}
-
-void Renderer::beginSwapChainRenderPass(vk::CommandBuffer commandBuffer)
-{
-    assert(_isFrameStarted && "Can't call beginSwapChainRenderPass if frame is not in progress");
-    assert(commandBuffer == getCurrentCommandBuffer() &&
-           "Can't begin render pass on command buffer from a different frame");
-
-    static vk::RenderPassBeginInfo renderPassInfo{};
-    renderPassInfo.sType = vk::StructureType::eRenderPassBeginInfo;
-    renderPassInfo.renderPass = _swapChain->getRenderPass();
-    renderPassInfo.framebuffer = _swapChain->getFrameBuffer(_currentImageIndex);
-
-    renderPassInfo.renderArea.offset = vk::Offset2D{0, 0};
-    renderPassInfo.renderArea.extent = _swapChain->getSwapChainExtent();
-
-    static std::array<vk::ClearValue, 2> clearValues{};
-    clearValues[0].color = {0.1f, 0.1f, 0.1f, 1.0f};
-    clearValues[1].depthStencil = vk::ClearDepthStencilValue{1.0f, 0};
-    renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
-    renderPassInfo.pClearValues = clearValues.data();
-
-    commandBuffer.beginRenderPass(&renderPassInfo, vk::SubpassContents::eInline);
-
-    static vk::Viewport viewport{};
-    viewport.x = 0.0f;
-    viewport.y = 0.0f;
-    viewport.width = static_cast<float>(_swapChain->width());
-    viewport.height = static_cast<float>(_swapChain->height());
-    viewport.minDepth = 0.0f;
-    viewport.maxDepth = 1.0f;
-    static vk::Rect2D scissor{};
-    scissor.offset = vk::Offset2D{0, 0};
-    scissor.extent = _swapChain->getSwapChainExtent();
-    commandBuffer.setViewport(0, 1, &viewport);
-    commandBuffer.setScissor(0, 1, &scissor);
-}
-
-void Renderer::endSwapChainRenderPass(vk::CommandBuffer commandBuffer)
-{
-    assert(_isFrameStarted && "Renderer: Can't call endSwapChainRenderPass if frame is not in progress");
-    assert(commandBuffer == getCurrentCommandBuffer() &&
-           "Renderer: Can't end render pass on command buffer from a different frame");
+    Swapchain *swapchain = _window->GetSwapchain();
+    auto commandBuffer = _commandBuffers[_currentFrameIndex];
 
     commandBuffer.endRenderPass();
+    commandBuffer.end();
+
+    swapchain->SubmitCommandBuffer(device, commandBuffer, _currentImageIndex, _currentFrameIndex);
+
+    _currentFrameIndex = (_currentFrameIndex + 1) % Swapchain::MAX_FRAMES_IN_FLIGHT;
+
+    device->WaitIdle();
 }
 
-} // namespace cmx
-*/
+void Renderer::CreateCommandBuffers(const Device *device)
+{
+    _commandBuffers.resize(Swapchain::MAX_FRAMES_IN_FLIGHT);
+    device->AllocateCommandBuffers(&_commandBuffers);
+}
+
+} // namespace wsp

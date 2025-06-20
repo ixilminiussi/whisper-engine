@@ -1,4 +1,4 @@
 Diagnostics:
   ClangTidy:
-    Add: ['misc-const-correctness', 'readability-make-member-function-const', 'readability-convert-member-functions-to-static']
     FastCheckFilter: None
+    Add: ['misc-const-correctness', 'readability-make-member-function-const', 'readability-convert-member-functions-to-static']

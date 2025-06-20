@@ -1,4 +1,5 @@
 #include "wsp_swapchain.h"
+#include "imgui_impl_vulkan.h"
 #include "wsp_device.h"
 #include "wsp_devkit.h"
 #include "wsp_window.h"
@@ -11,35 +12,35 @@
 namespace wsp
 {
 
-Swapchain::Swapchain(const class Window *window, const class Device *device, const vk::Extent2D &extent2D,
-                     const vk::SwapchainKHR &oldSwapchain)
+Swapchain::Swapchain(const class Window *window, const class Device *device, vk::Extent2D extent2D,
+                     vk::SwapchainKHR oldSwapchain)
     : _freed{false}, _imageAvailableSemaphores{}, _renderFinishedSemaphores{}, _inFlightFences{}, _imagesInFlight{},
       _images{}
 {
     const vk::SurfaceKHR *surface = window->GetSurface();
-    vk::SurfaceFormatKHR surfaceFormat = ChooseSwapSurfaceFormat(device->GetSurfaceFormatsKHR(*surface));
-    vk::PresentModeKHR presentMode = ChooseSwapPresentMode(device->GetSurfacePresentModesKHR(*surface));
-    vk::SurfaceCapabilitiesKHR capabilities = device->GetSurfaceCapabilitiesKHR(*surface);
-    vk::Extent2D extent = ChooseSwapExtent(window->GetExtent(), capabilities);
+    const vk::SurfaceFormatKHR surfaceFormat = ChooseSwapSurfaceFormat(device->GetSurfaceFormatsKHR(*surface));
+    const vk::PresentModeKHR presentMode = ChooseSwapPresentMode(device->GetSurfacePresentModesKHR(*surface));
+    const vk::SurfaceCapabilitiesKHR capabilities = device->GetSurfaceCapabilitiesKHR(*surface);
+    const vk::Extent2D extent = ChooseSwapExtent(window->GetExtent(), capabilities);
 
-    uint32_t minImageCount = capabilities.minImageCount + 1;
-    if (capabilities.maxImageCount > 0 && minImageCount > capabilities.maxImageCount)
+    _minImageCount = capabilities.minImageCount + 1;
+    if (capabilities.maxImageCount > 0 && _minImageCount > capabilities.maxImageCount)
     {
-        minImageCount = capabilities.maxImageCount;
+        _minImageCount = capabilities.maxImageCount;
     }
 
     vk::SwapchainCreateInfoKHR createInfo = {};
     createInfo.sType = vk::StructureType::eSwapchainCreateInfoKHR;
     createInfo.surface = *surface;
 
-    createInfo.minImageCount = minImageCount;
+    createInfo.minImageCount = _minImageCount;
     createInfo.imageFormat = surfaceFormat.format;
     createInfo.imageColorSpace = surfaceFormat.colorSpace;
     createInfo.imageExtent = extent;
     createInfo.imageArrayLayers = 1;
     createInfo.imageUsage = vk::ImageUsageFlagBits::eColorAttachment;
 
-    QueueFamilyIndices indices = device->FindQueueFamilies(*surface);
+    const QueueFamilyIndices indices = device->FindQueueFamilies(*surface);
     int queueFamilyIndices[] = {indices.graphicsFamily, indices.presentFamily};
 
     if (indices.graphicsFamily != indices.presentFamily)
@@ -63,16 +64,17 @@ Swapchain::Swapchain(const class Window *window, const class Device *device, con
 
     createInfo.oldSwapchain = oldSwapchain;
 
-    device->CreateSwapchainKHR(&createInfo, &_swapchain);
+    device->CreateSwapchainKHR(createInfo, &_swapchain);
 
-    _images = device->GetSwapchainImagesKHR(_swapchain, &minImageCount);
+    _images = device->GetSwapchainImagesKHR(_swapchain, _minImageCount);
     _imageFormat = surfaceFormat.format;
+
     _extent = extent;
 
     CreateImageViews(device, _images.size());
     CreateRenderPass(device);
     CreateFramebuffers(device, _images.size());
-    CreateSyncObjects(device);
+    CreateSyncObjects(device, _images.size());
 }
 
 Swapchain::~Swapchain()
@@ -119,32 +121,45 @@ void Swapchain::Free(const Device *device)
     spdlog::info("Swapchain: freed swapchain");
 }
 
-void Swapchain::SubmitCommandBuffer(const Device *device, const vk::CommandBuffer *commandBuffers, uint32_t *imageIndex)
+#ifndef NDEBUG
+void Swapchain::PopulateImGuiInitInfo(ImGui_ImplVulkan_InitInfo *initInfo) const
 {
-    if (_imagesInFlight[*imageIndex] != nullptr)
+    initInfo->MinImageCount = _minImageCount;
+    initInfo->ImageCount = _images.size();
+    initInfo->MSAASamples = VK_SAMPLE_COUNT_1_BIT;
+    initInfo->RenderPass = _renderPass;
+}
+#endif
+
+void Swapchain::SubmitCommandBuffer(const Device *device, vk::CommandBuffer commandBuffers, uint32_t imageIndex,
+                                    uint32_t frameIndex)
+{
+    check(imageIndex < _imagesInFlight.size());
+
+    if (_imagesInFlight[imageIndex] != nullptr)
     {
-        device->WaitForFences({_imagesInFlight[*imageIndex]});
+        device->WaitForFences({_imagesInFlight[imageIndex]});
     }
-    _imagesInFlight[*imageIndex] = _inFlightFences[_currentFrame];
+    _imagesInFlight[imageIndex] = _inFlightFences[frameIndex];
 
     vk::SubmitInfo submitInfo = {};
     submitInfo.sType = vk::StructureType::eSubmitInfo;
 
-    vk::Semaphore waitSemaphores[] = {_imageAvailableSemaphores[_currentFrame]};
+    vk::Semaphore waitSemaphores[] = {_imageAvailableSemaphores[frameIndex]};
     vk::PipelineStageFlags waitStages[] = {vk::PipelineStageFlagBits::eColorAttachmentOutput};
     submitInfo.waitSemaphoreCount = 1;
     submitInfo.pWaitSemaphores = waitSemaphores;
     submitInfo.pWaitDstStageMask = waitStages;
 
     submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = commandBuffers;
+    submitInfo.pCommandBuffers = &commandBuffers;
 
-    vk::Semaphore signalSemaphores[] = {_renderFinishedSemaphores[_currentFrame]};
+    vk::Semaphore signalSemaphores[] = {_renderFinishedSemaphores[frameIndex]};
     submitInfo.signalSemaphoreCount = 1;
     submitInfo.pSignalSemaphores = signalSemaphores;
 
-    device->ResetFences({_inFlightFences[_currentFrame]});
-    device->SubmitToGraphicsQueue({&submitInfo}, _inFlightFences[_currentFrame]);
+    device->ResetFences({_inFlightFences[frameIndex]});
+    device->SubmitToGraphicsQueue({&submitInfo}, _inFlightFences[frameIndex]);
 
     vk::PresentInfoKHR presentInfo = {};
     presentInfo.sType = vk::StructureType::ePresentInfoKHR;
@@ -156,7 +171,7 @@ void Swapchain::SubmitCommandBuffer(const Device *device, const vk::CommandBuffe
     presentInfo.swapchainCount = 1;
     presentInfo.pSwapchains = swapChains;
 
-    presentInfo.pImageIndices = imageIndex;
+    presentInfo.pImageIndices = &imageIndex;
 
     try
     {
@@ -165,13 +180,52 @@ void Swapchain::SubmitCommandBuffer(const Device *device, const vk::CommandBuffe
     catch (...)
     {
     }
+}
 
-    _currentFrame = (_currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
+void Swapchain::AcquireNextImage(const Device *device, uint32_t frameIndex, uint32_t *imageIndex) const
+{
+    device->WaitForFences({_inFlightFences[frameIndex]});
+
+    device->AcquireNextImageKHR(_swapchain, _imageAvailableSemaphores[frameIndex], VK_NULL_HANDLE, imageIndex);
 }
 
 vk::SwapchainKHR Swapchain::GetHandle() const
 {
     return _swapchain;
+}
+
+void Swapchain::BeginRenderPass(vk::CommandBuffer commandBuffer, uint32_t frameIndex) const
+{
+    check(frameIndex < _framebuffers.size());
+
+    vk::RenderPassBeginInfo renderPassInfo{};
+    renderPassInfo.sType = vk::StructureType::eRenderPassBeginInfo;
+    renderPassInfo.renderPass = _renderPass;
+    renderPassInfo.framebuffer = _framebuffers[frameIndex];
+
+    renderPassInfo.renderArea.offset = vk::Offset2D{0, 0};
+    renderPassInfo.renderArea.extent = _extent;
+
+    std::array<vk::ClearValue, 2> clearValues{};
+    clearValues[0].color = {0.1f, 0.1f, 0.1f, 1.0f};
+    clearValues[1].depthStencil = vk::ClearDepthStencilValue{1.0f, 0};
+    renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
+    renderPassInfo.pClearValues = clearValues.data();
+
+    commandBuffer.beginRenderPass(&renderPassInfo, vk::SubpassContents::eInline);
+
+    vk::Viewport viewport{};
+    viewport.x = 0.0f;
+    viewport.y = 0.0f;
+    viewport.width = static_cast<float>(_extent.width);
+    viewport.height = static_cast<float>(_extent.height);
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
+    vk::Rect2D scissor{};
+    scissor.offset = vk::Offset2D{0, 0};
+    scissor.extent = _extent;
+    commandBuffer.setViewport(0, 1, &viewport);
+    commandBuffer.setScissor(0, 1, &scissor);
 }
 
 vk::SurfaceFormatKHR Swapchain::ChooseSwapSurfaceFormat(const std::vector<vk::SurfaceFormatKHR> &availableFormats)
@@ -210,8 +264,7 @@ vk::PresentModeKHR Swapchain::ChooseSwapPresentMode(const std::vector<vk::Presen
     return vk::PresentModeKHR::eFifo;
 }
 
-vk::Extent2D Swapchain::ChooseSwapExtent(const vk::Extent2D &windowExtent,
-                                         const vk::SurfaceCapabilitiesKHR &capabilities)
+vk::Extent2D Swapchain::ChooseSwapExtent(vk::Extent2D windowExtent, const vk::SurfaceCapabilitiesKHR &capabilities)
 {
     if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max())
     {
@@ -247,7 +300,7 @@ void Swapchain::CreateImageViews(const Device *device, size_t count)
         viewInfo.subresourceRange.baseArrayLayer = 0;
         viewInfo.subresourceRange.layerCount = 1;
 
-        device->CreateImageView(&viewInfo, &_imageViews[i]);
+        device->CreateImageView(viewInfo, &_imageViews[i]);
     }
 }
 
@@ -294,7 +347,7 @@ void Swapchain::CreateRenderPass(const Device *device)
     renderPassInfo.dependencyCount = 1;
     renderPassInfo.pDependencies = &dependency;
 
-    device->CreateRenderPass(&renderPassInfo, &_renderPass);
+    device->CreateRenderPass(renderPassInfo, &_renderPass);
 }
 
 void Swapchain::CreateFramebuffers(const Device *device, size_t count)
@@ -306,7 +359,7 @@ void Swapchain::CreateFramebuffers(const Device *device, size_t count)
     {
         std::array<vk::ImageView, 1> attachments = {_imageViews[i]};
 
-        vk::Extent2D swapChainExtent = _extent;
+        const vk::Extent2D swapChainExtent = _extent;
         vk::FramebufferCreateInfo framebufferInfo = {};
         framebufferInfo.sType = vk::StructureType::eFramebufferCreateInfo;
         framebufferInfo.renderPass = _renderPass;
@@ -316,16 +369,18 @@ void Swapchain::CreateFramebuffers(const Device *device, size_t count)
         framebufferInfo.height = swapChainExtent.height;
         framebufferInfo.layers = 1;
 
-        device->CreateFramebuffer(&framebufferInfo, &_framebuffers[i]);
+        device->CreateFramebuffer(framebufferInfo, &_framebuffers[i]);
     }
 }
 
-void Swapchain::CreateSyncObjects(const Device *device)
+void Swapchain::CreateSyncObjects(const Device *device, size_t count)
 {
+    check(_images.size() <= count);
+
     _imageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
     _renderFinishedSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
     _inFlightFences.resize(MAX_FRAMES_IN_FLIGHT);
-    _imagesInFlight.resize(_images.size(), VK_NULL_HANDLE);
+    _imagesInFlight.resize(count, VK_NULL_HANDLE);
 
     vk::SemaphoreCreateInfo semaphoreInfo = {};
     semaphoreInfo.sType = vk::StructureType::eSemaphoreCreateInfo;
@@ -336,30 +391,14 @@ void Swapchain::CreateSyncObjects(const Device *device)
 
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
     {
-        device->CreateSemaphore(&semaphoreInfo, &_imageAvailableSemaphores[i]);
-        device->CreateSemaphore(&semaphoreInfo, &_renderFinishedSemaphores[i]);
-        device->CreateFence(&fenceInfo, &_inFlightFences[i]);
+        device->CreateSemaphore(semaphoreInfo, &_imageAvailableSemaphores[i]);
+        device->CreateSemaphore(semaphoreInfo, &_renderFinishedSemaphores[i]);
+        device->CreateFence(fenceInfo, &_inFlightFences[i]);
     }
 }
 
 } // namespace wsp
 /**
-
-vk::Result Swapchain::acquireNextImage(uint32_t *imageIndex)
-{
-    if (_device.device().waitForFences(1, &_inFlightFences[_currentFrame], VK_TRUE,
-                                       std::numeric_limits<uint64_t>::max()) != vk::Result::eSuccess)
-    {
-        spdlog::warn("Swapchain: failed to wait for fences");
-    }
-
-    vk::Result result = _device.device().acquireNextImageKHR(
-        _swapChain, std::numeric_limits<uint64_t>::max(),
-        _imageAvailableSemaphores[_currentFrame], // must be a not signaled semaphore
-        VK_NULL_HANDLE, imageIndex);
-
-    return result;
-}
 
 vk::Format Swapchain::findDepthFormat()
 {

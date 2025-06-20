@@ -1,5 +1,5 @@
-#ifndef WSP_ENGINE_H
-#define WSP_ENGINE_H
+#ifndef WSP_ENGINE
+#define WSP_ENGINE
 
 namespace wsp
 {

@@ -93,7 +93,7 @@ build CMakeFiles/clean_all | ${cmake_ninja_workdir}CMakeFiles/clean_all: CUSTOM_
 build cmake_object_order_depends_target_imgui: phony || .
 
 build .external/CMakeFiles/imgui.dir/imgui/imgui.cpp.o: CXX_COMPILER__imgui_unscanned_Debug /home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui/imgui.cpp || cmake_object_order_depends_target_imgui
-  DEFINES = -DEDITOR_FILES=\"\" -DGAME_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/demo/\" -DSHADER_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/build/shaders/\" -DVULKAN_HPP_TYPESAFE_CONVERSION -D_SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING
+  DEFINES = -DEDITOR_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/editor/\" -DGAME_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/demo/\" -DSHADER_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/build/shaders/\" -DVULKAN_HPP_TYPESAFE_CONVERSION -D_SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING
   DEP_FILE = .external/CMakeFiles/imgui.dir/imgui/imgui.cpp.o.d
   FLAGS = -g -std=gnu++17
   INCLUDES = -I/home/ixilminiussi/Desktop/gamedev/whisper-engine -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui/backends -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui-filebrowser -isystem /home/ixilminiussi/Builds/vulkan/1.3.296.0/x86_64/include
@@ -101,7 +101,7 @@ build .external/CMakeFiles/imgui.dir/imgui/imgui.cpp.o: CXX_COMPILER__imgui_unsc
   OBJECT_FILE_DIR = .external/CMakeFiles/imgui.dir/imgui
 
 build .external/CMakeFiles/imgui.dir/imgui/imgui_draw.cpp.o: CXX_COMPILER__imgui_unscanned_Debug /home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui/imgui_draw.cpp || cmake_object_order_depends_target_imgui
-  DEFINES = -DEDITOR_FILES=\"\" -DGAME_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/demo/\" -DSHADER_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/build/shaders/\" -DVULKAN_HPP_TYPESAFE_CONVERSION -D_SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING
+  DEFINES = -DEDITOR_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/editor/\" -DGAME_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/demo/\" -DSHADER_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/build/shaders/\" -DVULKAN_HPP_TYPESAFE_CONVERSION -D_SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING
   DEP_FILE = .external/CMakeFiles/imgui.dir/imgui/imgui_draw.cpp.o.d
   FLAGS = -g -std=gnu++17
   INCLUDES = -I/home/ixilminiussi/Desktop/gamedev/whisper-engine -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui/backends -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui-filebrowser -isystem /home/ixilminiussi/Builds/vulkan/1.3.296.0/x86_64/include
@@ -109,7 +109,7 @@ build .external/CMakeFiles/imgui.dir/imgui/imgui_draw.cpp.o: CXX_COMPILER__imgui
   OBJECT_FILE_DIR = .external/CMakeFiles/imgui.dir/imgui
 
 build .external/CMakeFiles/imgui.dir/imgui/imgui_widgets.cpp.o: CXX_COMPILER__imgui_unscanned_Debug /home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui/imgui_widgets.cpp || cmake_object_order_depends_target_imgui
-  DEFINES = -DEDITOR_FILES=\"\" -DGAME_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/demo/\" -DSHADER_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/build/shaders/\" -DVULKAN_HPP_TYPESAFE_CONVERSION -D_SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING
+  DEFINES = -DEDITOR_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/editor/\" -DGAME_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/demo/\" -DSHADER_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/build/shaders/\" -DVULKAN_HPP_TYPESAFE_CONVERSION -D_SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING
   DEP_FILE = .external/CMakeFiles/imgui.dir/imgui/imgui_widgets.cpp.o.d
   FLAGS = -g -std=gnu++17
   INCLUDES = -I/home/ixilminiussi/Desktop/gamedev/whisper-engine -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui/backends -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui-filebrowser -isystem /home/ixilminiussi/Builds/vulkan/1.3.296.0/x86_64/include
@@ -117,7 +117,7 @@ build .external/CMakeFiles/imgui.dir/imgui/imgui_widgets.cpp.o: CXX_COMPILER__im
   OBJECT_FILE_DIR = .external/CMakeFiles/imgui.dir/imgui
 
 build .external/CMakeFiles/imgui.dir/imgui/imgui_tables.cpp.o: CXX_COMPILER__imgui_unscanned_Debug /home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui/imgui_tables.cpp || cmake_object_order_depends_target_imgui
-  DEFINES = -DEDITOR_FILES=\"\" -DGAME_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/demo/\" -DSHADER_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/build/shaders/\" -DVULKAN_HPP_TYPESAFE_CONVERSION -D_SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING
+  DEFINES = -DEDITOR_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/editor/\" -DGAME_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/demo/\" -DSHADER_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/build/shaders/\" -DVULKAN_HPP_TYPESAFE_CONVERSION -D_SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING
   DEP_FILE = .external/CMakeFiles/imgui.dir/imgui/imgui_tables.cpp.o.d
   FLAGS = -g -std=gnu++17
   INCLUDES = -I/home/ixilminiussi/Desktop/gamedev/whisper-engine -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui/backends -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui-filebrowser -isystem /home/ixilminiussi/Builds/vulkan/1.3.296.0/x86_64/include
@@ -125,7 +125,7 @@ build .external/CMakeFiles/imgui.dir/imgui/imgui_tables.cpp.o: CXX_COMPILER__img
   OBJECT_FILE_DIR = .external/CMakeFiles/imgui.dir/imgui
 
 build .external/CMakeFiles/imgui.dir/imgui/backends/imgui_impl_glfw.cpp.o: CXX_COMPILER__imgui_unscanned_Debug /home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui/backends/imgui_impl_glfw.cpp || cmake_object_order_depends_target_imgui
-  DEFINES = -DEDITOR_FILES=\"\" -DGAME_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/demo/\" -DSHADER_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/build/shaders/\" -DVULKAN_HPP_TYPESAFE_CONVERSION -D_SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING
+  DEFINES = -DEDITOR_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/editor/\" -DGAME_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/demo/\" -DSHADER_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/build/shaders/\" -DVULKAN_HPP_TYPESAFE_CONVERSION -D_SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING
   DEP_FILE = .external/CMakeFiles/imgui.dir/imgui/backends/imgui_impl_glfw.cpp.o.d
   FLAGS = -g -std=gnu++17
   INCLUDES = -I/home/ixilminiussi/Desktop/gamedev/whisper-engine -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui/backends -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui-filebrowser -isystem /home/ixilminiussi/Builds/vulkan/1.3.296.0/x86_64/include
@@ -133,7 +133,7 @@ build .external/CMakeFiles/imgui.dir/imgui/backends/imgui_impl_glfw.cpp.o: CXX_C
   OBJECT_FILE_DIR = .external/CMakeFiles/imgui.dir/imgui/backends
 
 build .external/CMakeFiles/imgui.dir/imgui/backends/imgui_impl_vulkan.cpp.o: CXX_COMPILER__imgui_unscanned_Debug /home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui/backends/imgui_impl_vulkan.cpp || cmake_object_order_depends_target_imgui
-  DEFINES = -DEDITOR_FILES=\"\" -DGAME_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/demo/\" -DSHADER_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/build/shaders/\" -DVULKAN_HPP_TYPESAFE_CONVERSION -D_SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING
+  DEFINES = -DEDITOR_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/editor/\" -DGAME_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/demo/\" -DSHADER_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/build/shaders/\" -DVULKAN_HPP_TYPESAFE_CONVERSION -D_SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING
   DEP_FILE = .external/CMakeFiles/imgui.dir/imgui/backends/imgui_impl_vulkan.cpp.o.d
   FLAGS = -g -std=gnu++17
   INCLUDES = -I/home/ixilminiussi/Desktop/gamedev/whisper-engine -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui/backends -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui-filebrowser -isystem /home/ixilminiussi/Builds/vulkan/1.3.296.0/x86_64/include
@@ -166,7 +166,7 @@ build .external/libimgui.a: CXX_STATIC_LIBRARY_LINKER__imgui_Debug .external/CMa
 build cmake_object_order_depends_target_imguizmo: phony || cmake_object_order_depends_target_imgui
 
 build .external/CMakeFiles/imguizmo.dir/imguizmo/GraphEditor.cpp.o: CXX_COMPILER__imguizmo_unscanned_Debug /home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imguizmo/GraphEditor.cpp || cmake_object_order_depends_target_imguizmo
-  DEFINES = -DEDITOR_FILES=\"\" -DGAME_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/demo/\" -DSHADER_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/build/shaders/\" -DVULKAN_HPP_TYPESAFE_CONVERSION -D_SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING
+  DEFINES = -DEDITOR_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/editor/\" -DGAME_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/demo/\" -DSHADER_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/build/shaders/\" -DVULKAN_HPP_TYPESAFE_CONVERSION -D_SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING
   DEP_FILE = .external/CMakeFiles/imguizmo.dir/imguizmo/GraphEditor.cpp.o.d
   FLAGS = -g -std=gnu++17
   INCLUDES = -I/home/ixilminiussi/Desktop/gamedev/whisper-engine -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imguizmo -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui/backends -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui-filebrowser -isystem /home/ixilminiussi/Builds/vulkan/1.3.296.0/x86_64/include
@@ -174,7 +174,7 @@ build .external/CMakeFiles/imguizmo.dir/imguizmo/GraphEditor.cpp.o: CXX_COMPILER
   OBJECT_FILE_DIR = .external/CMakeFiles/imguizmo.dir/imguizmo
 
 build .external/CMakeFiles/imguizmo.dir/imguizmo/ImCurveEdit.cpp.o: CXX_COMPILER__imguizmo_unscanned_Debug /home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imguizmo/ImCurveEdit.cpp || cmake_object_order_depends_target_imguizmo
-  DEFINES = -DEDITOR_FILES=\"\" -DGAME_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/demo/\" -DSHADER_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/build/shaders/\" -DVULKAN_HPP_TYPESAFE_CONVERSION -D_SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING
+  DEFINES = -DEDITOR_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/editor/\" -DGAME_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/demo/\" -DSHADER_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/build/shaders/\" -DVULKAN_HPP_TYPESAFE_CONVERSION -D_SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING
   DEP_FILE = .external/CMakeFiles/imguizmo.dir/imguizmo/ImCurveEdit.cpp.o.d
   FLAGS = -g -std=gnu++17
   INCLUDES = -I/home/ixilminiussi/Desktop/gamedev/whisper-engine -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imguizmo -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui/backends -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui-filebrowser -isystem /home/ixilminiussi/Builds/vulkan/1.3.296.0/x86_64/include
@@ -182,7 +182,7 @@ build .external/CMakeFiles/imguizmo.dir/imguizmo/ImCurveEdit.cpp.o: CXX_COMPILER
   OBJECT_FILE_DIR = .external/CMakeFiles/imguizmo.dir/imguizmo
 
 build .external/CMakeFiles/imguizmo.dir/imguizmo/ImGradient.cpp.o: CXX_COMPILER__imguizmo_unscanned_Debug /home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imguizmo/ImGradient.cpp || cmake_object_order_depends_target_imguizmo
-  DEFINES = -DEDITOR_FILES=\"\" -DGAME_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/demo/\" -DSHADER_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/build/shaders/\" -DVULKAN_HPP_TYPESAFE_CONVERSION -D_SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING
+  DEFINES = -DEDITOR_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/editor/\" -DGAME_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/demo/\" -DSHADER_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/build/shaders/\" -DVULKAN_HPP_TYPESAFE_CONVERSION -D_SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING
   DEP_FILE = .external/CMakeFiles/imguizmo.dir/imguizmo/ImGradient.cpp.o.d
   FLAGS = -g -std=gnu++17
   INCLUDES = -I/home/ixilminiussi/Desktop/gamedev/whisper-engine -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imguizmo -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui/backends -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui-filebrowser -isystem /home/ixilminiussi/Builds/vulkan/1.3.296.0/x86_64/include
@@ -190,7 +190,7 @@ build .external/CMakeFiles/imguizmo.dir/imguizmo/ImGradient.cpp.o: CXX_COMPILER_
   OBJECT_FILE_DIR = .external/CMakeFiles/imguizmo.dir/imguizmo
 
 build .external/CMakeFiles/imguizmo.dir/imguizmo/ImGuizmo.cpp.o: CXX_COMPILER__imguizmo_unscanned_Debug /home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imguizmo/ImGuizmo.cpp || cmake_object_order_depends_target_imguizmo
-  DEFINES = -DEDITOR_FILES=\"\" -DGAME_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/demo/\" -DSHADER_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/build/shaders/\" -DVULKAN_HPP_TYPESAFE_CONVERSION -D_SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING
+  DEFINES = -DEDITOR_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/editor/\" -DGAME_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/demo/\" -DSHADER_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/build/shaders/\" -DVULKAN_HPP_TYPESAFE_CONVERSION -D_SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING
   DEP_FILE = .external/CMakeFiles/imguizmo.dir/imguizmo/ImGuizmo.cpp.o.d
   FLAGS = -g -std=gnu++17
   INCLUDES = -I/home/ixilminiussi/Desktop/gamedev/whisper-engine -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imguizmo -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui/backends -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui-filebrowser -isystem /home/ixilminiussi/Builds/vulkan/1.3.296.0/x86_64/include
@@ -198,7 +198,7 @@ build .external/CMakeFiles/imguizmo.dir/imguizmo/ImGuizmo.cpp.o: CXX_COMPILER__i
   OBJECT_FILE_DIR = .external/CMakeFiles/imguizmo.dir/imguizmo
 
 build .external/CMakeFiles/imguizmo.dir/imguizmo/ImSequencer.cpp.o: CXX_COMPILER__imguizmo_unscanned_Debug /home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imguizmo/ImSequencer.cpp || cmake_object_order_depends_target_imguizmo
-  DEFINES = -DEDITOR_FILES=\"\" -DGAME_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/demo/\" -DSHADER_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/build/shaders/\" -DVULKAN_HPP_TYPESAFE_CONVERSION -D_SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING
+  DEFINES = -DEDITOR_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/editor/\" -DGAME_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/demo/\" -DSHADER_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/build/shaders/\" -DVULKAN_HPP_TYPESAFE_CONVERSION -D_SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING
   DEP_FILE = .external/CMakeFiles/imguizmo.dir/imguizmo/ImSequencer.cpp.o.d
   FLAGS = -g -std=gnu++17
   INCLUDES = -I/home/ixilminiussi/Desktop/gamedev/whisper-engine -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imguizmo -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui/backends -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui-filebrowser -isystem /home/ixilminiussi/Builds/vulkan/1.3.296.0/x86_64/include
@@ -259,8 +259,16 @@ build .external/rebuild_cache: phony .external/CMakeFiles/rebuild_cache.util
 
 build cmake_object_order_depends_target_wsp: phony || cmake_object_order_depends_target_imgui cmake_object_order_depends_target_imguizmo
 
+build wsp/CMakeFiles/wsp.dir/wsp_editor.cpp.o: CXX_COMPILER__wsp_unscanned_Debug /home/ixilminiussi/Desktop/gamedev/whisper-engine/wsp/wsp_editor.cpp || cmake_object_order_depends_target_wsp
+  DEFINES = -DEDITOR_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/editor/\" -DGAME_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/demo/\" -DSHADER_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/build/shaders/\" -DVULKAN_HPP_TYPESAFE_CONVERSION -D_SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING
+  DEP_FILE = wsp/CMakeFiles/wsp.dir/wsp_editor.cpp.o.d
+  FLAGS = -g -std=gnu++17 -Wno-cpp
+  INCLUDES = -I/home/ixilminiussi/Desktop/gamedev/whisper-engine -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/wsp -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/stb -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/wsp/rendering -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui/backends -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui-filebrowser -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imguizmo -isystem /home/ixilminiussi/Builds/vulkan/1.3.296.0/x86_64/include
+  OBJECT_DIR = wsp/CMakeFiles/wsp.dir
+  OBJECT_FILE_DIR = wsp/CMakeFiles/wsp.dir
+
 build wsp/CMakeFiles/wsp.dir/wsp_engine.cpp.o: CXX_COMPILER__wsp_unscanned_Debug /home/ixilminiussi/Desktop/gamedev/whisper-engine/wsp/wsp_engine.cpp || cmake_object_order_depends_target_wsp
-  DEFINES = -DEDITOR_FILES=\"\" -DGAME_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/demo/\" -DSHADER_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/build/shaders/\" -DVULKAN_HPP_TYPESAFE_CONVERSION -D_SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING
+  DEFINES = -DEDITOR_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/editor/\" -DGAME_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/demo/\" -DSHADER_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/build/shaders/\" -DVULKAN_HPP_TYPESAFE_CONVERSION -D_SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING
   DEP_FILE = wsp/CMakeFiles/wsp.dir/wsp_engine.cpp.o.d
   FLAGS = -g -std=gnu++17 -Wno-cpp
   INCLUDES = -I/home/ixilminiussi/Desktop/gamedev/whisper-engine -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/wsp -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/stb -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/wsp/rendering -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui/backends -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui-filebrowser -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imguizmo -isystem /home/ixilminiussi/Builds/vulkan/1.3.296.0/x86_64/include
@@ -268,7 +276,7 @@ build wsp/CMakeFiles/wsp.dir/wsp_engine.cpp.o: CXX_COMPILER__wsp_unscanned_Debug
   OBJECT_FILE_DIR = wsp/CMakeFiles/wsp.dir
 
 build wsp/CMakeFiles/wsp.dir/rendering/wsp_device.cpp.o: CXX_COMPILER__wsp_unscanned_Debug /home/ixilminiussi/Desktop/gamedev/whisper-engine/wsp/rendering/wsp_device.cpp || cmake_object_order_depends_target_wsp
-  DEFINES = -DEDITOR_FILES=\"\" -DGAME_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/demo/\" -DSHADER_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/build/shaders/\" -DVULKAN_HPP_TYPESAFE_CONVERSION -D_SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING
+  DEFINES = -DEDITOR_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/editor/\" -DGAME_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/demo/\" -DSHADER_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/build/shaders/\" -DVULKAN_HPP_TYPESAFE_CONVERSION -D_SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING
   DEP_FILE = wsp/CMakeFiles/wsp.dir/rendering/wsp_device.cpp.o.d
   FLAGS = -g -std=gnu++17 -Wno-cpp
   INCLUDES = -I/home/ixilminiussi/Desktop/gamedev/whisper-engine -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/wsp -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/stb -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/wsp/rendering -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui/backends -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui-filebrowser -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imguizmo -isystem /home/ixilminiussi/Builds/vulkan/1.3.296.0/x86_64/include
@@ -276,7 +284,7 @@ build wsp/CMakeFiles/wsp.dir/rendering/wsp_device.cpp.o: CXX_COMPILER__wsp_unsca
   OBJECT_FILE_DIR = wsp/CMakeFiles/wsp.dir/rendering
 
 build wsp/CMakeFiles/wsp.dir/rendering/wsp_render_graph.cpp.o: CXX_COMPILER__wsp_unscanned_Debug /home/ixilminiussi/Desktop/gamedev/whisper-engine/wsp/rendering/wsp_render_graph.cpp || cmake_object_order_depends_target_wsp
-  DEFINES = -DEDITOR_FILES=\"\" -DGAME_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/demo/\" -DSHADER_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/build/shaders/\" -DVULKAN_HPP_TYPESAFE_CONVERSION -D_SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING
+  DEFINES = -DEDITOR_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/editor/\" -DGAME_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/demo/\" -DSHADER_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/build/shaders/\" -DVULKAN_HPP_TYPESAFE_CONVERSION -D_SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING
   DEP_FILE = wsp/CMakeFiles/wsp.dir/rendering/wsp_render_graph.cpp.o.d
   FLAGS = -g -std=gnu++17 -Wno-cpp
   INCLUDES = -I/home/ixilminiussi/Desktop/gamedev/whisper-engine -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/wsp -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/stb -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/wsp/rendering -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui/backends -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui-filebrowser -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imguizmo -isystem /home/ixilminiussi/Builds/vulkan/1.3.296.0/x86_64/include
@@ -284,7 +292,7 @@ build wsp/CMakeFiles/wsp.dir/rendering/wsp_render_graph.cpp.o: CXX_COMPILER__wsp
   OBJECT_FILE_DIR = wsp/CMakeFiles/wsp.dir/rendering
 
 build wsp/CMakeFiles/wsp.dir/rendering/wsp_renderer.cpp.o: CXX_COMPILER__wsp_unscanned_Debug /home/ixilminiussi/Desktop/gamedev/whisper-engine/wsp/rendering/wsp_renderer.cpp || cmake_object_order_depends_target_wsp
-  DEFINES = -DEDITOR_FILES=\"\" -DGAME_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/demo/\" -DSHADER_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/build/shaders/\" -DVULKAN_HPP_TYPESAFE_CONVERSION -D_SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING
+  DEFINES = -DEDITOR_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/editor/\" -DGAME_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/demo/\" -DSHADER_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/build/shaders/\" -DVULKAN_HPP_TYPESAFE_CONVERSION -D_SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING
   DEP_FILE = wsp/CMakeFiles/wsp.dir/rendering/wsp_renderer.cpp.o.d
   FLAGS = -g -std=gnu++17 -Wno-cpp
   INCLUDES = -I/home/ixilminiussi/Desktop/gamedev/whisper-engine -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/wsp -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/stb -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/wsp/rendering -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui/backends -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui-filebrowser -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imguizmo -isystem /home/ixilminiussi/Builds/vulkan/1.3.296.0/x86_64/include
@@ -292,7 +300,7 @@ build wsp/CMakeFiles/wsp.dir/rendering/wsp_renderer.cpp.o: CXX_COMPILER__wsp_uns
   OBJECT_FILE_DIR = wsp/CMakeFiles/wsp.dir/rendering
 
 build wsp/CMakeFiles/wsp.dir/rendering/wsp_swapchain.cpp.o: CXX_COMPILER__wsp_unscanned_Debug /home/ixilminiussi/Desktop/gamedev/whisper-engine/wsp/rendering/wsp_swapchain.cpp || cmake_object_order_depends_target_wsp
-  DEFINES = -DEDITOR_FILES=\"\" -DGAME_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/demo/\" -DSHADER_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/build/shaders/\" -DVULKAN_HPP_TYPESAFE_CONVERSION -D_SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING
+  DEFINES = -DEDITOR_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/editor/\" -DGAME_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/demo/\" -DSHADER_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/build/shaders/\" -DVULKAN_HPP_TYPESAFE_CONVERSION -D_SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING
   DEP_FILE = wsp/CMakeFiles/wsp.dir/rendering/wsp_swapchain.cpp.o.d
   FLAGS = -g -std=gnu++17 -Wno-cpp
   INCLUDES = -I/home/ixilminiussi/Desktop/gamedev/whisper-engine -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/wsp -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/stb -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/wsp/rendering -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui/backends -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui-filebrowser -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imguizmo -isystem /home/ixilminiussi/Builds/vulkan/1.3.296.0/x86_64/include
@@ -300,7 +308,7 @@ build wsp/CMakeFiles/wsp.dir/rendering/wsp_swapchain.cpp.o: CXX_COMPILER__wsp_un
   OBJECT_FILE_DIR = wsp/CMakeFiles/wsp.dir/rendering
 
 build wsp/CMakeFiles/wsp.dir/rendering/wsp_window.cpp.o: CXX_COMPILER__wsp_unscanned_Debug /home/ixilminiussi/Desktop/gamedev/whisper-engine/wsp/rendering/wsp_window.cpp || cmake_object_order_depends_target_wsp
-  DEFINES = -DEDITOR_FILES=\"\" -DGAME_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/demo/\" -DSHADER_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/build/shaders/\" -DVULKAN_HPP_TYPESAFE_CONVERSION -D_SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING
+  DEFINES = -DEDITOR_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/editor/\" -DGAME_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/demo/\" -DSHADER_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/build/shaders/\" -DVULKAN_HPP_TYPESAFE_CONVERSION -D_SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING
   DEP_FILE = wsp/CMakeFiles/wsp.dir/rendering/wsp_window.cpp.o.d
   FLAGS = -g -std=gnu++17 -Wno-cpp
   INCLUDES = -I/home/ixilminiussi/Desktop/gamedev/whisper-engine -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/wsp -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/stb -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/wsp/rendering -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui/backends -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui-filebrowser -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imguizmo -isystem /home/ixilminiussi/Builds/vulkan/1.3.296.0/x86_64/include
@@ -315,7 +323,7 @@ build wsp/CMakeFiles/wsp.dir/rendering/wsp_window.cpp.o: CXX_COMPILER__wsp_unsca
 #############################################
 # Link the static library wsp/libwsp.a
 
-build wsp/libwsp.a: CXX_STATIC_LIBRARY_LINKER__wsp_Debug wsp/CMakeFiles/wsp.dir/wsp_engine.cpp.o wsp/CMakeFiles/wsp.dir/rendering/wsp_device.cpp.o wsp/CMakeFiles/wsp.dir/rendering/wsp_render_graph.cpp.o wsp/CMakeFiles/wsp.dir/rendering/wsp_renderer.cpp.o wsp/CMakeFiles/wsp.dir/rendering/wsp_swapchain.cpp.o wsp/CMakeFiles/wsp.dir/rendering/wsp_window.cpp.o || .external/libimgui.a .external/libimguizmo.a
+build wsp/libwsp.a: CXX_STATIC_LIBRARY_LINKER__wsp_Debug wsp/CMakeFiles/wsp.dir/wsp_editor.cpp.o wsp/CMakeFiles/wsp.dir/wsp_engine.cpp.o wsp/CMakeFiles/wsp.dir/rendering/wsp_device.cpp.o wsp/CMakeFiles/wsp.dir/rendering/wsp_render_graph.cpp.o wsp/CMakeFiles/wsp.dir/rendering/wsp_renderer.cpp.o wsp/CMakeFiles/wsp.dir/rendering/wsp_swapchain.cpp.o wsp/CMakeFiles/wsp.dir/rendering/wsp_window.cpp.o || .external/libimgui.a .external/libimguizmo.a
   LANGUAGE_COMPILE_FLAGS = -g
   OBJECT_DIR = wsp/CMakeFiles/wsp.dir
   POST_BUILD = :
@@ -391,7 +399,7 @@ build wsp/rendering/rebuild_cache: phony wsp/rendering/CMakeFiles/rebuild_cache.
 build cmake_object_order_depends_target_demo: phony || cmake_object_order_depends_target_imgui cmake_object_order_depends_target_imguizmo cmake_object_order_depends_target_wsp
 
 build demo/CMakeFiles/demo.dir/main.cpp.o: CXX_COMPILER__demo_unscanned_Debug /home/ixilminiussi/Desktop/gamedev/whisper-engine/demo/main.cpp || cmake_object_order_depends_target_demo
-  DEFINES = -DEDITOR_FILES=\"\" -DGAME_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/demo/\" -DSHADER_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/build/shaders/\" -D_SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING
+  DEFINES = -DEDITOR_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/editor/\" -DGAME_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/demo/\" -DSHADER_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/build/shaders/\" -D_SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING
   DEP_FILE = demo/CMakeFiles/demo.dir/main.cpp.o.d
   FLAGS = -g -std=gnu++17
   INCLUDES = -I/home/ixilminiussi/Desktop/gamedev/whisper-engine -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/wsp -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/stb -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/wsp/rendering -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui/backends -I/home/ixilminiussi/Desktop/gamedev/whisper-engine/.external/imgui-filebrowser -isystem /home/ixilminiussi/Builds/vulkan/1.3.296.0/x86_64/include
@@ -416,6 +424,42 @@ build demo/demo: CXX_EXECUTABLE_LINKER__demo_Debug demo/CMakeFiles/demo.dir/main
   PRE_LINK = :
   TARGET_FILE = demo/demo
   TARGET_PDB = demo.dbg
+
+# =============================================================================
+# Object build statements for EXECUTABLE target sizeof
+
+
+#############################################
+# Order-only phony target for sizeof
+
+build cmake_object_order_depends_target_sizeof: phony || .
+
+build demo/CMakeFiles/sizeof.dir/sizeof.cpp.o: CXX_COMPILER__sizeof_unscanned_Debug /home/ixilminiussi/Desktop/gamedev/whisper-engine/demo/sizeof.cpp || cmake_object_order_depends_target_sizeof
+  DEFINES = -DEDITOR_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/editor/\" -DGAME_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/demo/\" -DSHADER_FILES=\"/home/ixilminiussi/Desktop/gamedev/whisper-engine/build/shaders/\" -D_SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING
+  DEP_FILE = demo/CMakeFiles/sizeof.dir/sizeof.cpp.o.d
+  FLAGS = -g -std=gnu++17
+  INCLUDES = -I/home/ixilminiussi/Desktop/gamedev/whisper-engine
+  OBJECT_DIR = demo/CMakeFiles/sizeof.dir
+  OBJECT_FILE_DIR = demo/CMakeFiles/sizeof.dir
+
+
+# =============================================================================
+# Link build statements for EXECUTABLE target sizeof
+
+
+#############################################
+# Link the executable demo/sizeof
+
+build demo/sizeof: CXX_EXECUTABLE_LINKER__sizeof_Debug demo/CMakeFiles/sizeof.dir/sizeof.cpp.o
+  DEP_FILE = demo/CMakeFiles/sizeof.dir/link.d
+  FLAGS = -g
+  LINK_FLAGS = -Wl,--dependency-file=demo/CMakeFiles/sizeof.dir/link.d
+  LINK_LIBRARIES = -lspdlog
+  OBJECT_DIR = demo/CMakeFiles/sizeof.dir
+  POST_BUILD = :
+  PRE_LINK = :
+  TARGET_FILE = demo/sizeof
+  TARGET_PDB = sizeof.dbg
 
 
 #############################################
@@ -456,6 +500,8 @@ build libimguizmo.a: phony .external/libimguizmo.a
 
 build libwsp.a: phony wsp/libwsp.a
 
+build sizeof: phony demo/sizeof
+
 build wsp: phony wsp/libwsp.a
 
 # =============================================================================
@@ -480,7 +526,7 @@ build .external/all: phony .external/libimgui.a .external/libimguizmo.a
 #############################################
 # Folder: /home/ixilminiussi/Desktop/gamedev/whisper-engine/build/demo
 
-build demo/all: phony demo/demo
+build demo/all: phony demo/demo demo/sizeof
 
 # =============================================================================
 

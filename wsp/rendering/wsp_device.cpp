@@ -1,16 +1,18 @@
 #include "wsp_device.h"
 
 // wsp
-#include "wsp/wsp_devkit.h"
-#include "wsp_static_utils.h"
+#include "wsp_devkit.h"
 
 // std
 #include <cassert>
 #include <set>
+#include <spdlog/fmt/bundled/base.h>
+#include <spdlog/spdlog.h>
 #include <stdexcept>
 
 // lib
 #include <GLFW/glfw3.h>
+#include <imgui_impl_vulkan.h>
 #include <vulkan/vulkan_core.h>
 #include <vulkan/vulkan_enums.hpp>
 #include <vulkan/vulkan_handles.hpp>
@@ -31,8 +33,8 @@ Device::~Device()
     }
 }
 
-void Device::Initialize(const std::vector<const char *> requiredExtensions, const vk::Instance &instance,
-                        const vk::SurfaceKHR &surface)
+void Device::Initialize(const std::vector<const char *> requiredExtensions, vk::Instance instance,
+                        vk::SurfaceKHR surface)
 {
     _freed = false;
 
@@ -57,12 +59,24 @@ void Device::Free()
     spdlog::info("Device: freed device");
 }
 
-void Device::PickPhysicalDevice(const std::vector<const char *> &requiredExtensions, const vk::Instance &instance,
-                                const vk::SurfaceKHR &surface)
+#ifndef NDEBUG
+void Device::PopulateImGuiInitInfo(ImGui_ImplVulkan_InitInfo *initInfo) const
+{
+    check(_physicalDevice);
+    check(_device);
+
+    initInfo->PhysicalDevice = _physicalDevice;
+    initInfo->Device = _device;
+    initInfo->Queue = _graphicsQueue;
+}
+#endif
+
+void Device::PickPhysicalDevice(const std::vector<const char *> &requiredExtensions, vk::Instance instance,
+                                vk::SurfaceKHR surface)
 {
     check(instance);
 
-    std::vector<vk::PhysicalDevice> devices = instance.enumeratePhysicalDevices();
+    const std::vector<vk::PhysicalDevice> devices = instance.enumeratePhysicalDevices();
     spdlog::info("Device count: {0}", devices.size());
     if (devices.size() == 0)
     {
@@ -71,9 +85,9 @@ void Device::PickPhysicalDevice(const std::vector<const char *> &requiredExtensi
 
     for (const auto &device : devices)
     {
-        QueueFamilyIndices indices = FindQueueFamilies(device, surface);
+        const QueueFamilyIndices indices = FindQueueFamilies(device, surface);
 
-        std::vector<vk::ExtensionProperties> availableExtensions = device.enumerateDeviceExtensionProperties();
+        const std::vector<vk::ExtensionProperties> availableExtensions = device.enumerateDeviceExtensionProperties();
 
         std::set<std::string> requiredExtensionsSet(requiredExtensions.begin(), requiredExtensions.end());
 
@@ -82,7 +96,7 @@ void Device::PickPhysicalDevice(const std::vector<const char *> &requiredExtensi
             requiredExtensionsSet.erase(extension.extensionName);
         }
 
-        bool areExtensionsSupported = requiredExtensionsSet.empty();
+        const bool areExtensionsSupported = requiredExtensionsSet.empty();
 
         bool isSwapChainAdequate = false;
         if (areExtensionsSupported)
@@ -111,11 +125,11 @@ void Device::PickPhysicalDevice(const std::vector<const char *> &requiredExtensi
     spdlog::info("Device: physical device - {0}", (char *)properties.deviceName.data());
 }
 
-QueueFamilyIndices Device::FindQueueFamilies(const vk::SurfaceKHR &surface) const
+QueueFamilyIndices Device::FindQueueFamilies(vk::SurfaceKHR surface) const
 {
     QueueFamilyIndices indices;
 
-    std::vector<vk::QueueFamilyProperties> queueFamilies = _physicalDevice.getQueueFamilyProperties();
+    const std::vector<vk::QueueFamilyProperties> queueFamilies = _physicalDevice.getQueueFamilyProperties();
 
     int i = 0;
     for (const auto &queueFamily : queueFamilies)
@@ -124,7 +138,7 @@ QueueFamilyIndices Device::FindQueueFamilies(const vk::SurfaceKHR &surface) cons
         {
             indices.graphicsFamily = i;
         }
-        vk::Bool32 presentSupport = _physicalDevice.getSurfaceSupportKHR(i, surface);
+        const vk::Bool32 presentSupport = _physicalDevice.getSurfaceSupportKHR(i, surface);
         if (queueFamily.queueCount > 0 && presentSupport)
         {
             indices.presentFamily = i;
@@ -140,11 +154,11 @@ QueueFamilyIndices Device::FindQueueFamilies(const vk::SurfaceKHR &surface) cons
     return indices;
 }
 
-QueueFamilyIndices Device::FindQueueFamilies(vk::PhysicalDevice device, const vk::SurfaceKHR &surface) const
+QueueFamilyIndices Device::FindQueueFamilies(vk::PhysicalDevice device, vk::SurfaceKHR surface)
 {
     QueueFamilyIndices indices;
 
-    std::vector<vk::QueueFamilyProperties> queueFamilies = device.getQueueFamilyProperties();
+    const std::vector<vk::QueueFamilyProperties> queueFamilies = device.getQueueFamilyProperties();
 
     int i = 0;
     for (const auto &queueFamily : queueFamilies)
@@ -153,7 +167,7 @@ QueueFamilyIndices Device::FindQueueFamilies(vk::PhysicalDevice device, const vk
         {
             indices.graphicsFamily = i;
         }
-        vk::Bool32 presentSupport = device.getSurfaceSupportKHR(i, surface);
+        const vk::Bool32 presentSupport = device.getSurfaceSupportKHR(i, surface);
         if (queueFamily.queueCount > 0 && presentSupport)
         {
             indices.presentFamily = i;
@@ -169,34 +183,34 @@ QueueFamilyIndices Device::FindQueueFamilies(vk::PhysicalDevice device, const vk
     return indices;
 }
 
-vk::SurfaceCapabilitiesKHR Device::GetSurfaceCapabilitiesKHR(const vk::SurfaceKHR &surface) const
+vk::SurfaceCapabilitiesKHR Device::GetSurfaceCapabilitiesKHR(vk::SurfaceKHR surface) const
 {
     check(_physicalDevice);
     return _physicalDevice.getSurfaceCapabilitiesKHR(surface);
 }
 
-std::vector<vk::SurfaceFormatKHR> Device::GetSurfaceFormatsKHR(const vk::SurfaceKHR &surface) const
+std::vector<vk::SurfaceFormatKHR> Device::GetSurfaceFormatsKHR(vk::SurfaceKHR surface) const
 {
     check(_physicalDevice);
     return _physicalDevice.getSurfaceFormatsKHR(surface);
 }
 
-std::vector<vk::PresentModeKHR> Device::GetSurfacePresentModesKHR(const vk::SurfaceKHR &surface) const
+std::vector<vk::PresentModeKHR> Device::GetSurfacePresentModesKHR(vk::SurfaceKHR surface) const
 {
     check(_physicalDevice);
     return _physicalDevice.getSurfacePresentModesKHR(surface);
 }
 
-void Device::CreateLogicalDevice(const std::vector<const char *> &requiredExtensions,
-                                 const vk::PhysicalDevice &physicalDevice, const vk::SurfaceKHR &surface)
+void Device::CreateLogicalDevice(const std::vector<const char *> &requiredExtensions, vk::PhysicalDevice physicalDevice,
+                                 vk::SurfaceKHR surface)
 {
-    QueueFamilyIndices indices = FindQueueFamilies(physicalDevice, surface);
+    const QueueFamilyIndices indices = FindQueueFamilies(physicalDevice, surface);
 
     std::vector<vk::DeviceQueueCreateInfo> queueCreateInfos;
-    std::set<int> uniqueQueueFamilies = {indices.graphicsFamily, indices.presentFamily};
+    const std::set<int> uniqueQueueFamilies = {indices.graphicsFamily, indices.presentFamily};
 
-    float queuePriority = 1.0f;
-    for (uint32_t queueFamily : uniqueQueueFamilies)
+    const float queuePriority = 1.0f;
+    for (const uint32_t queueFamily : uniqueQueueFamilies)
     {
         vk::DeviceQueueCreateInfo queueCreateInfo = {};
         queueCreateInfo.sType = vk::StructureType::eDeviceQueueCreateInfo;
@@ -220,9 +234,10 @@ void Device::CreateLogicalDevice(const std::vector<const char *> &requiredExtens
     createInfo.enabledExtensionCount = static_cast<uint32_t>(requiredExtensions.size());
     createInfo.ppEnabledExtensionNames = requiredExtensions.data();
 
-    if (vk::Result result = physicalDevice.createDevice(&createInfo, nullptr, &_device); result != vk::Result::eSuccess)
+    if (const vk::Result result = physicalDevice.createDevice(&createInfo, nullptr, &_device);
+        result != vk::Result::eSuccess)
     {
-        spdlog::critical("Error: {}", vk::to_string(static_cast<vk::Result>(result)));
+        spdlog::critical("ErrorMsg: {}", vk::to_string(static_cast<vk::Result>(result)));
         throw std::runtime_error("failed to create logical device");
     }
 
@@ -230,19 +245,21 @@ void Device::CreateLogicalDevice(const std::vector<const char *> &requiredExtens
     _presentQueue = _device.getQueue(indices.presentFamily, 0);
 }
 
-void Device::CreateCommandPool(const vk::PhysicalDevice &physicalDevice, const vk::SurfaceKHR &surface)
+void Device::CreateCommandPool(vk::PhysicalDevice physicalDevice, vk::SurfaceKHR surface)
 {
-    QueueFamilyIndices queueFamilyIndices = FindQueueFamilies(physicalDevice, surface);
+    check(_device);
+
+    const QueueFamilyIndices queueFamilyIndices = FindQueueFamilies(physicalDevice, surface);
 
     vk::CommandPoolCreateInfo poolInfo = {};
     poolInfo.sType = vk::StructureType::eCommandPoolCreateInfo;
     poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily;
     poolInfo.flags = vk::CommandPoolCreateFlagBits::eTransient | vk::CommandPoolCreateFlagBits::eResetCommandBuffer;
 
-    if (vk::Result result = _device.createCommandPool(&poolInfo, nullptr, &_commandPool);
+    if (const vk::Result result = _device.createCommandPool(&poolInfo, nullptr, &_commandPool);
         result != vk::Result::eSuccess)
     {
-        spdlog::critical("Error: {}", vk::to_string(static_cast<vk::Result>(result)));
+        spdlog::critical("ErrorMsg: {}", vk::to_string(static_cast<vk::Result>(result)));
         throw std::runtime_error("failed to create command pool");
     }
 
@@ -251,184 +268,247 @@ void Device::CreateCommandPool(const vk::PhysicalDevice &physicalDevice, const v
 
 void Device::ResetFences(const std::vector<vk::Fence> &fences) const
 {
-    if (vk::Result result = _device.resetFences(fences.size(), fences.data()); result != vk::Result::eSuccess)
+    check(_device);
+
+    if (const vk::Result result = _device.resetFences(fences.size(), fences.data()); result != vk::Result::eSuccess)
     {
-        spdlog::critical("Error: {}", vk::to_string(static_cast<vk::Result>(result)));
+        spdlog::critical("ErrorMsg: {}", vk::to_string(static_cast<vk::Result>(result)));
         throw std::runtime_error("Device: failed to reset fence");
     }
 }
 
 void Device::WaitForFences(const std::vector<vk::Fence> &fences, bool waitAll, uint64_t timer) const
 {
-    if (vk::Result result = _device.waitForFences(fences.size(), fences.data(), (vk::Bool32)waitAll, timer);
+    check(_device);
+
+    if (const vk::Result result = _device.waitForFences(fences.size(), fences.data(), (vk::Bool32)waitAll, timer);
         result != vk::Result::eSuccess)
     {
-        spdlog::critical("Error: {}", vk::to_string(static_cast<vk::Result>(result)));
+        spdlog::critical("ErrorMsg: {}", vk::to_string(static_cast<vk::Result>(result)));
         throw std::runtime_error("Device: failed to wait for fence");
     }
 }
 
-void Device::SubmitToGraphicsQueue(const std::vector<vk::SubmitInfo *> &submits, const vk::Fence &fence) const
+void Device::SubmitToGraphicsQueue(const std::vector<vk::SubmitInfo *> &submits, vk::Fence fence) const
 {
-    if (vk::Result result = _graphicsQueue.submit(submits.size(), *submits.data(), fence);
+    check(_device);
+
+    if (const vk::Result result = _graphicsQueue.submit(submits.size(), *submits.data(), fence);
         result != vk::Result::eSuccess)
     {
-        spdlog::critical("Error: {}", vk::to_string(static_cast<vk::Result>(result)));
+        spdlog::critical("ErrorMsg: {}", vk::to_string(static_cast<vk::Result>(result)));
         throw std::runtime_error("Device: failed to wait for fence");
     }
 }
 
 void Device::PresentKHR(const vk::PresentInfoKHR *presentInfo) const
 {
-    if (vk::Result result = _presentQueue.presentKHR(presentInfo); result != vk::Result::eSuccess)
+    check(_device);
+
+    if (const vk::Result result = _presentQueue.presentKHR(presentInfo); result != vk::Result::eSuccess)
     {
-        spdlog::critical("Error: {}", vk::to_string(static_cast<vk::Result>(result)));
+        spdlog::critical("ErrorMsg: {}", vk::to_string(static_cast<vk::Result>(result)));
         throw std::runtime_error("Device: failed to present KHR");
     }
 }
 
-void Device::CreateSemaphore(const vk::SemaphoreCreateInfo *createInfo, vk::Semaphore *semaphore) const
+void Device::CreateSemaphore(const vk::SemaphoreCreateInfo &createInfo, vk::Semaphore *semaphore) const
 {
-    if (vk::Result result = _device.createSemaphore(createInfo, nullptr, semaphore); result != vk::Result::eSuccess)
+    check(_device);
+
+    if (const vk::Result result = _device.createSemaphore(&createInfo, nullptr, semaphore);
+        result != vk::Result::eSuccess)
     {
-        spdlog::critical("Error: {}", vk::to_string(static_cast<vk::Result>(result)));
+        spdlog::critical("ErrorMsg: {}", vk::to_string(static_cast<vk::Result>(result)));
         throw std::runtime_error("Device: failed to create semaphore");
     }
 
     // DebugUtil::nameObject(_renderPass, vk::ObjectType::eRenderPass, "Swapchain RenderPass");
 }
 
-void Device::CreateFence(const vk::FenceCreateInfo *createInfo, vk::Fence *fence) const
+void Device::CreateFence(const vk::FenceCreateInfo &createInfo, vk::Fence *fence) const
 {
-    if (vk::Result result = _device.createFence(createInfo, nullptr, fence); result != vk::Result::eSuccess)
+    check(_device);
+
+    if (const vk::Result result = _device.createFence(&createInfo, nullptr, fence); result != vk::Result::eSuccess)
     {
-        spdlog::critical("Error: {}", vk::to_string(static_cast<vk::Result>(result)));
+        spdlog::critical("ErrorMsg: {}", vk::to_string(static_cast<vk::Result>(result)));
         throw std::runtime_error("Device: failed to create fence");
     }
 
     // DebugUtil::nameObject(_renderPass, vk::ObjectType::eRenderPass, "Swapchain RenderPass");
 }
 
-void Device::CreateFramebuffer(const vk::FramebufferCreateInfo *createInfo, vk::Framebuffer *framebuffer) const
+void Device::CreateFramebuffer(const vk::FramebufferCreateInfo &createInfo, vk::Framebuffer *framebuffer) const
 {
-    if (vk::Result result = _device.createFramebuffer(createInfo, nullptr, framebuffer); result != vk::Result::eSuccess)
+    check(_device);
+
+    if (const vk::Result result = _device.createFramebuffer(&createInfo, nullptr, framebuffer);
+        result != vk::Result::eSuccess)
     {
-        spdlog::critical("Error: {}", vk::to_string(static_cast<vk::Result>(result)));
+        spdlog::critical("ErrorMsg: {}", vk::to_string(static_cast<vk::Result>(result)));
         throw std::runtime_error("Device: failed to create framebuffer");
     }
 
     // DebugUtil::nameObject(_renderPass, vk::ObjectType::eRenderPass, "Swapchain RenderPass");
 }
 
-void Device::CreateRenderPass(const vk::RenderPassCreateInfo *createInfo, vk::RenderPass *renderPass) const
+void Device::CreateRenderPass(const vk::RenderPassCreateInfo &createInfo, vk::RenderPass *renderPass) const
 {
-    if (vk::Result result = _device.createRenderPass(createInfo, nullptr, renderPass); result != vk::Result::eSuccess)
+    check(_device);
+
+    if (const vk::Result result = _device.createRenderPass(&createInfo, nullptr, renderPass);
+        result != vk::Result::eSuccess)
     {
-        spdlog::critical("Error: {}", vk::to_string(static_cast<vk::Result>(result)));
+        spdlog::critical("ErrorMsg: {}", vk::to_string(static_cast<vk::Result>(result)));
         throw std::runtime_error("Device: failed to create renderPass");
     }
 
     // DebugUtil::nameObject(_renderPass, vk::ObjectType::eRenderPass, "Swapchain RenderPass");
 }
 
-void Device::CreateImageView(const vk::ImageViewCreateInfo *createInfo, vk::ImageView *imageView) const
+void Device::CreateImageView(const vk::ImageViewCreateInfo &createInfo, vk::ImageView *imageView) const
 {
-    if (vk::Result result = _device.createImageView(createInfo, nullptr, imageView); result != vk::Result::eSuccess)
+    check(_device);
+
+    if (const vk::Result result = _device.createImageView(&createInfo, nullptr, imageView);
+        result != vk::Result::eSuccess)
     {
-        spdlog::critical("Error: {}", vk::to_string(static_cast<vk::Result>(result)));
+        spdlog::critical("ErrorMsg: {}", vk::to_string(static_cast<vk::Result>(result)));
         throw std::runtime_error("Device: failed to create imageView");
     }
 
     // DebugUtil::nameObject(_renderPass, vk::ObjectType::eRenderPass, "Swapchain RenderPass");
 }
 
-void Device::CreateSwapchainKHR(const vk::SwapchainCreateInfoKHR *createInfo, vk::SwapchainKHR *swapchain) const
+void Device::CreateSwapchainKHR(const vk::SwapchainCreateInfoKHR &createInfo, vk::SwapchainKHR *swapchain) const
 {
-    if (vk::Result result = _device.createSwapchainKHR(createInfo, nullptr, swapchain); result != vk::Result::eSuccess)
+    check(_device);
+
+    if (const vk::Result result = _device.createSwapchainKHR(&createInfo, nullptr, swapchain);
+        result != vk::Result::eSuccess)
     {
-        spdlog::critical("Error: {}", vk::to_string(static_cast<vk::Result>(result)));
+        spdlog::critical("ErrorMsg: {}", vk::to_string(static_cast<vk::Result>(result)));
         throw std::runtime_error("Device: failed to create swapchain");
     }
 
     // DebugUtil::nameObject(_renderPass, vk::ObjectType::eRenderPass, "Swapchain RenderPass");
 }
 
-void Device::DestroySemaphore(const vk::Semaphore &semaphore) const
+void Device::CreateDescriptorPool(const vk::DescriptorPoolCreateInfo &createInfo,
+                                  vk::DescriptorPool *descriptorPool) const
+{
+    check(_device);
+
+    if (const vk::Result result = _device.createDescriptorPool(&createInfo, nullptr, descriptorPool);
+        result != vk::Result::eSuccess)
+    {
+        spdlog::critical("ErrorMsg: {}", vk::to_string(static_cast<vk::Result>(result)));
+        throw std::runtime_error("Device: failed to create descriptor pool");
+    }
+}
+
+// DebugUtil::nameObject(_renderPass, vk::ObjectType::eRenderPass, "Swapchain RenderPass");
+
+void Device::DestroySemaphore(vk::Semaphore semaphore) const
 {
     check(_device);
     _device.destroySemaphore(semaphore, nullptr);
 }
-void Device::DestroyFence(const vk::Fence &fence) const
+void Device::DestroyFence(vk::Fence fence) const
 {
     check(_device);
     _device.destroyFence(fence, nullptr);
 }
-void Device::DestroyFramebuffer(const vk::Framebuffer &framebuffer) const
+void Device::DestroyFramebuffer(vk::Framebuffer framebuffer) const
 {
     check(_device);
     _device.destroyFramebuffer(framebuffer, nullptr);
 }
-void Device::DestroyRenderPass(const vk::RenderPass &renderPass) const
+void Device::DestroyRenderPass(vk::RenderPass renderPass) const
 {
     check(_device);
     _device.destroyRenderPass(renderPass, nullptr);
 }
-void Device::DestroyImageView(const vk::ImageView &imageView) const
+void Device::DestroyImageView(vk::ImageView imageView) const
 {
     check(_device);
     _device.destroyImageView(imageView, nullptr);
 }
-void Device::DestroySwapchainKHR(const vk::SwapchainKHR &swapchainKHR) const
+void Device::DestroySwapchainKHR(vk::SwapchainKHR swapchainKHR) const
 {
     check(_device);
     _device.destroySwapchainKHR(swapchainKHR, nullptr);
 }
-
-std::vector<vk::Image> Device::GetSwapchainImagesKHR(const vk::SwapchainKHR &swapchain, uint32_t *minImageCount) const
+void Device::DestroyDescriptorPool(vk::DescriptorPool descriptorPool) const
 {
-    if (vk::Result result = _device.getSwapchainImagesKHR(swapchain, minImageCount, nullptr);
+    check(_device);
+    _device.destroyDescriptorPool(descriptorPool, nullptr);
+}
+
+void Device::AllocateCommandBuffers(std::vector<vk::CommandBuffer> *commandBuffers) const
+{
+    vk::CommandBufferAllocateInfo allocInfo{};
+    allocInfo.sType = vk::StructureType::eCommandBufferAllocateInfo;
+    allocInfo.level = vk::CommandBufferLevel::ePrimary;
+    allocInfo.commandPool = _commandPool;
+    allocInfo.commandBufferCount = static_cast<uint32_t>(commandBuffers->size());
+
+    if (const vk::Result result = _device.allocateCommandBuffers(&allocInfo, commandBuffers->data());
         result != vk::Result::eSuccess)
     {
-        spdlog::critical("Error: {}", vk::to_string(static_cast<vk::Result>(result)));
-        spdlog::warn("swapchain: failed to get swapchainimageskhr");
+        spdlog::critical("ErrorMsg: {}", vk::to_string(static_cast<vk::Result>(result)));
+        throw std::runtime_error("Device: failed to allocate command buffers");
+    }
+}
+
+void Device::FreeCommandBuffers(std::vector<vk::CommandBuffer> *commandBuffers) const
+{
+    _device.freeCommandBuffers(_commandPool, static_cast<uint32_t>(commandBuffers->size()), commandBuffers->data());
+}
+
+void Device::AcquireNextImageKHR(vk::SwapchainKHR swapchain, vk::Semaphore semaphore, vk::Fence fence,
+                                 uint32_t *imageIndex, uint64_t timeout) const
+{
+
+    if (const vk::Result result = _device.acquireNextImageKHR(swapchain, timeout, semaphore, fence, imageIndex);
+        result != vk::Result::eSuccess)
+    {
+        spdlog::critical("ErrorMsg: {}", vk::to_string(static_cast<vk::Result>(result)));
+        throw std::runtime_error("Device: failed to acquire next imageKHR");
+    }
+}
+
+std::vector<vk::Image> Device::GetSwapchainImagesKHR(vk::SwapchainKHR swapchain, uint32_t minImageCount) const
+{
+    if (const vk::Result result = _device.getSwapchainImagesKHR(swapchain, &minImageCount, nullptr);
+        result != vk::Result::eSuccess)
+    {
+        spdlog::critical("ErrorMsg: {}", vk::to_string(static_cast<vk::Result>(result)));
+        spdlog::warn("Device: failed to get swapchain imagesKHR");
     }
 
     std::vector<vk::Image> images{};
-    images.reserve(*minImageCount);
-    if (vk::Result result = _device.getSwapchainImagesKHR(swapchain, minImageCount, images.data());
+    images.resize(minImageCount);
+    if (const vk::Result result = _device.getSwapchainImagesKHR(swapchain, &minImageCount, images.data());
         result != vk::Result::eSuccess)
     {
-        spdlog::critical("Error: {}", vk::to_string(static_cast<vk::Result>(result)));
+        spdlog::critical("ErrorMsg: {}", vk::to_string(static_cast<vk::Result>(result)));
         spdlog::warn("swapchain: failed to get swapchainimageskhr");
     }
 
     return images;
 }
 
+void Device::WaitIdle() const
+{
+    _device.waitIdle();
+}
+
 } // namespace wsp
 
 // class member functions
 /**
-Device::Device(Window &window) : _window{window}
-{
-    DebugUtil::initialize(_device, _instance);
-}
-
-Device::~Device()
-{
-    _device.destroyCommandPool(_commandPool);
-    _device.destroy();
-
-    if (_enableValidationLayers)
-    {
-        destroyDebugUtilsMessengerEXT(_instance, _debugMessenger, nullptr);
-    }
-
-    _instance.destroySurfaceKHR(_surface);
-    _instance.destroy();
-}
-
-
 bool Device::checkValidationLayerSupport()
 {
     std::vector<vk::LayerProperties> availableLayers = vk::enumerateInstanceLayerProperties();
