@@ -38,7 +38,8 @@ add_definitions(-DSHADER_FILES="${SHADER_FILES}")
 
 # Add subdirectories
 add_subdirectory(.external)
-add_subdirectory(wsp)
+add_subdirectory(whisper)
+add_subdirectory(flow)
 add_subdirectory(${GAME})
 # add_subdirectory(shaders)
 
@@ -47,7 +48,7 @@ add_subdirectory(${GAME})
 # file(COPY ${WSP_ASSETS} DESTINATION "${GAME_DIR}/.wsp_assets")
 # file(MAKE_DIRECTORY "${GAME_DIR}/.editor")
 
-message(STATUS "Copied wsp assets into game directory")
+message(STATUS "Copied whisper assets into game directory")
 
 # Clean target
 add_custom_target(clean_all
