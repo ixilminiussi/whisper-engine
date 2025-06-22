@@ -19,7 +19,7 @@ const size_t Graph::SAMPLER_COLOR_CLAMPED{1};
 const size_t Graph::SAMPLER_COLOR_REPEATED{2};
 
 Graph::Graph(const wsp::Device *device)
-    : _passInfos{}, _resourceInfos{}, _targets{}, _images{}, _deviceMemories{}, _imageViews{}
+    : _passInfos{}, _resourceInfos{}, _targets{}, _images{}, _deviceMemories{}, _imageViews{}, _freed{false}
 {
     CreateSamplers(device);
 }
@@ -52,6 +52,49 @@ void Graph::CreateSamplers(const wsp::Device *device)
 
 Graph::~Graph()
 {
+    if (!_freed)
+    {
+        spdlog::critical("Graph: forgot to Free before deletion");
+    }
+}
+
+void Graph::Free(const wsp::Device *device)
+{
+    for (auto &[id, sampler] : _samplers)
+    {
+        device->DestroySampler(sampler);
+    }
+    _samplers.clear();
+
+    for (auto &[resource, image] : _images)
+    {
+        device->DestroyImage(image);
+    };
+    _images.clear();
+
+    for (auto &[resource, deviceMemory] : _deviceMemories)
+    {
+        device->FreeDeviceMemory(deviceMemory);
+    };
+    _deviceMemories.clear();
+
+    for (auto &[resource, imageView] : _imageViews)
+    {
+        device->DestroyImageView(imageView);
+    };
+    _imageViews.clear();
+
+    for (auto &[pass, framebuffer] : _framebuffers)
+    {
+        device->DestroyFramebuffer(framebuffer);
+    };
+    _framebuffers.clear();
+
+    for (auto &[pass, renderPass] : _renderPasses)
+    {
+        device->DestroyRenderPass(renderPass);
+    }
+    _renderPasses.clear();
 }
 
 Resource Graph::NewResource(const ResourceCreateInfo &createInfo)
@@ -217,6 +260,9 @@ void Graph::Build(const wsp::Device *device, Resource resource)
     imageInfo.format = createInfo.format;
     imageInfo.tiling = vk::ImageTiling::eOptimal;
     imageInfo.initialLayout = vk::ImageLayout::eUndefined;
+    imageInfo.mipLevels = 1;
+    imageInfo.samples = vk::SampleCountFlagBits::e1;
+    imageInfo.arrayLayers = 1;
 
     if (createInfo.writers.size() > 0)
     {

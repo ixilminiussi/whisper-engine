@@ -64,6 +64,8 @@ class Graph
     std::map<size_t, vk::Sampler> _samplers;
 
     std::vector<std::function<void(vk::CommandBuffer)>> _orderedExecutes;
+
+    bool _freed;
 };
 
 } // namespace fl

@@ -24,7 +24,7 @@ Renderer::Renderer(const Device *device, const Window *window)
 
     fl::ResourceCreateInfo depthResourceInfo{};
     depthResourceInfo.role = fl::ResourceRole::eDepth;
-    depthResourceInfo.format = vk::Format::eR32Sfloat;
+    depthResourceInfo.format = vk::Format::eD32Sfloat;
     depthResourceInfo.extent = vk::Extent2D{1024, 1024};
     depthResourceInfo.isTarget = true;
 
@@ -54,6 +54,8 @@ void Renderer::Free(const Device *device)
 {
     device->FreeCommandBuffers(&_commandBuffers);
     _commandBuffers.clear();
+
+    _graph->Free(device);
 
     _freed = true;
     spdlog::info("Renderer: succesfully freed");

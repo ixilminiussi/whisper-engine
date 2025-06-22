@@ -470,10 +470,25 @@ void Device::DestroyRenderPass(vk::RenderPass renderPass) const
     check(_device);
     _device.destroyRenderPass(renderPass, nullptr);
 }
+void Device::DestroyImage(vk::Image image) const
+{
+    check(_device);
+    _device.destroyImage(image, nullptr);
+}
+void Device::FreeDeviceMemory(vk::DeviceMemory deviceMemory) const
+{
+    check(_device);
+    _device.freeMemory(deviceMemory, nullptr);
+}
 void Device::DestroyImageView(vk::ImageView imageView) const
 {
     check(_device);
     _device.destroyImageView(imageView, nullptr);
+}
+void Device::DestroySampler(vk::Sampler sampler) const
+{
+    check(_device);
+    _device.destroySampler(sampler, nullptr);
 }
 void Device::DestroySwapchainKHR(vk::SwapchainKHR swapchainKHR) const
 {

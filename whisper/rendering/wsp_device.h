@@ -64,7 +64,10 @@ class Device
     void DestroyFence(vk::Fence) const;
     void DestroyFramebuffer(vk::Framebuffer) const;
     void DestroyRenderPass(vk::RenderPass) const;
+    void DestroyImage(vk::Image) const;
+    void FreeDeviceMemory(vk::DeviceMemory) const;
     void DestroyImageView(vk::ImageView) const;
+    void DestroySampler(vk::Sampler) const;
     void DestroySwapchainKHR(vk::SwapchainKHR) const;
     void DestroyDescriptorPool(vk::DescriptorPool) const;
 
