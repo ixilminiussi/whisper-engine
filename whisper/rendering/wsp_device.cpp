@@ -367,6 +367,35 @@ void Device::CreateRenderPass(const vk::RenderPassCreateInfo &createInfo, vk::Re
     // DebugUtil::nameObject(_renderPass, vk::ObjectType::eRenderPass, "Swapchain RenderPass");
 }
 
+void Device::CreateImageAndBindMemory(const vk::ImageCreateInfo &createInfo, vk::Image *image,
+                                      vk::DeviceMemory *imageMemory) const
+{
+    check(_device);
+
+    if (const vk::Result result = _device.createImage(&createInfo, nullptr, image); result != vk::Result::eSuccess)
+    {
+        spdlog::critical("ErrorMsg: {}", vk::to_string(static_cast<vk::Result>(result)));
+        throw std::runtime_error("Device: failed to create imageView");
+    }
+
+    const vk::MemoryRequirements memRequirements = _device.getImageMemoryRequirements(*image);
+
+    vk::MemoryAllocateInfo allocInfo{};
+    allocInfo.sType = vk::StructureType::eMemoryAllocateInfo;
+    allocInfo.allocationSize = memRequirements.size;
+    allocInfo.memoryTypeIndex =
+        FindMemoryType(memRequirements.memoryTypeBits, {vk::MemoryPropertyFlagBits::eDeviceLocal});
+
+    if (_device.allocateMemory(&allocInfo, nullptr, imageMemory) != vk::Result::eSuccess)
+    {
+        throw std::runtime_error("Device: failed to allocate image memory!");
+    }
+
+    _device.bindImageMemory(*image, *imageMemory, 0);
+
+    // DebugUtil::nameObject(_renderPass, vk::ObjectType::eRenderPass, "Swapchain RenderPass");
+}
+
 void Device::CreateImageView(const vk::ImageViewCreateInfo &createInfo, vk::ImageView *imageView) const
 {
     check(_device);
@@ -379,6 +408,17 @@ void Device::CreateImageView(const vk::ImageViewCreateInfo &createInfo, vk::Imag
     }
 
     // DebugUtil::nameObject(_renderPass, vk::ObjectType::eRenderPass, "Swapchain RenderPass");
+}
+
+vk::Sampler Device::CreateSampler(const vk::SamplerCreateInfo &createInfo) const
+{
+    check(_device);
+
+    vk::Sampler sampler = _device.createSampler(createInfo);
+
+    // DebugUtil::nameObject(_renderPass, vk::ObjectType::eRenderPass, "Swapchain RenderPass");
+
+    return sampler;
 }
 
 void Device::CreateSwapchainKHR(const vk::SwapchainCreateInfoKHR &createInfo, vk::SwapchainKHR *swapchain) const
@@ -444,6 +484,21 @@ void Device::DestroyDescriptorPool(vk::DescriptorPool descriptorPool) const
 {
     check(_device);
     _device.destroyDescriptorPool(descriptorPool, nullptr);
+}
+
+uint32_t Device::FindMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties) const
+{
+    vk::PhysicalDeviceMemoryProperties memProperties = _physicalDevice.getMemoryProperties();
+
+    for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++)
+    {
+        if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties)
+        {
+            return i;
+        }
+    }
+
+    throw std::runtime_error("Device: failed to find suitable memory type");
 }
 
 void Device::AllocateCommandBuffers(std::vector<vk::CommandBuffer> *commandBuffers) const

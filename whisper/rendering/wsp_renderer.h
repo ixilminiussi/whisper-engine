@@ -7,6 +7,11 @@
 // lib
 #include <vulkan/vulkan.hpp>
 
+namespace fl
+{
+class Graph;
+}
+
 namespace wsp
 {
 
@@ -19,6 +24,7 @@ class Renderer
     void Free(const class Device *);
 
     [[nodiscard]] vk::CommandBuffer BeginRender(const class Device *);
+    void Render(vk::CommandBuffer);
     void EndRender(const class Device *);
 
   private:
@@ -26,6 +32,7 @@ class Renderer
     std::vector<vk::CommandBuffer> _commandBuffers;
 
     const class Window *_window;
+    class fl::Graph *_graph;
 
     uint32_t _currentImageIndex;
     uint32_t _currentFrameIndex;

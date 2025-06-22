@@ -16,7 +16,7 @@ target_compile_definitions(whisper PRIVATE VULKAN_HPP_TYPESAFE_CONVERSION)
 
 add_subdirectory(rendering)
 
-target_link_libraries(whisper PRIVATE flow tinyxml2 imgui imguizmo tinyobjloader spdlog glfw ${Vulkan_LIBRARIES})
+target_link_libraries(whisper PRIVATE tinyxml2 imgui imguizmo tinyobjloader spdlog glfw ${Vulkan_LIBRARIES})
 
 if(UNIX AND NOT APPLE)
   target_link_libraries(whisper PRIVATE dl pthread X11 Xxf86vm Xrandr Xi)

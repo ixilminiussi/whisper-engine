@@ -51,7 +51,9 @@ class Device
     void CreateFence(const vk::FenceCreateInfo &, vk::Fence *) const;
     void CreateFramebuffer(const vk::FramebufferCreateInfo &, vk::Framebuffer *) const;
     void CreateRenderPass(const vk::RenderPassCreateInfo &, vk::RenderPass *) const;
+    void CreateImageAndBindMemory(const vk::ImageCreateInfo &, vk::Image *, vk::DeviceMemory *) const;
     void CreateImageView(const vk::ImageViewCreateInfo &, vk::ImageView *) const;
+    vk::Sampler CreateSampler(const vk::SamplerCreateInfo &) const;
     void CreateSwapchainKHR(const vk::SwapchainCreateInfoKHR &, vk::SwapchainKHR *) const;
     void CreateDescriptorPool(const vk::DescriptorPoolCreateInfo &, vk::DescriptorPool *) const;
 
@@ -65,6 +67,8 @@ class Device
     void DestroyImageView(vk::ImageView) const;
     void DestroySwapchainKHR(vk::SwapchainKHR) const;
     void DestroyDescriptorPool(vk::DescriptorPool) const;
+
+    uint32_t FindMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags) const;
 
     void AcquireNextImageKHR(vk::SwapchainKHR, vk::Semaphore, vk::Fence, uint32_t *imageIndex,
                              uint64_t timeout = UINT64_MAX) const;

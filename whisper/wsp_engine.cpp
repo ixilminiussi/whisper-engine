@@ -1,5 +1,6 @@
 #include "wsp_engine.h"
 
+#include "fl_graph.h"
 #include "wsp_device.h"
 #include "wsp_editor.h"
 #include "wsp_renderer.h"
@@ -32,6 +33,8 @@ Window *window{nullptr};
 Device *device{nullptr};
 Renderer *renderer{nullptr};
 Editor *editor{nullptr};
+
+fl::Graph *graph{nullptr};
 
 const vk::Instance &GetVulkanInstance()
 {
@@ -210,6 +213,8 @@ bool Initialize()
 
         renderer = new Renderer(device, window);
         editor = new Editor(window, device, vkInstance);
+
+        graph = new fl::Graph(device);
 
         initialized = true;
         terminated = false;

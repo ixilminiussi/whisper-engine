@@ -39,7 +39,6 @@ add_definitions(-DSHADER_FILES="${SHADER_FILES}")
 # Add subdirectories
 add_subdirectory(.external)
 add_subdirectory(whisper)
-add_subdirectory(flow)
 add_subdirectory(${GAME})
 # add_subdirectory(shaders)
 

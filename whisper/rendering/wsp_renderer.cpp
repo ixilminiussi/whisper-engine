@@ -1,5 +1,7 @@
 #include "wsp_renderer.h"
 
+#include "fl_graph.h"
+#include "fl_handles.h"
 #include "wsp_device.h"
 #include "wsp_window.h"
 #include <spdlog/spdlog.h>
@@ -11,6 +13,31 @@ Renderer::Renderer(const Device *device, const Window *window)
     : _freed{false}, _currentImageIndex{0}, _currentFrameIndex{0}
 {
     _window = window;
+
+    _graph = new fl::Graph(device);
+
+    fl::ResourceCreateInfo colorResourceInfo{};
+    colorResourceInfo.role = fl::ResourceRole::eColor;
+    colorResourceInfo.format = vk::Format::eR8G8B8A8Unorm;
+    colorResourceInfo.extent = vk::Extent2D{1024, 1024};
+    colorResourceInfo.isTarget = true;
+
+    fl::ResourceCreateInfo depthResourceInfo{};
+    depthResourceInfo.role = fl::ResourceRole::eDepth;
+    depthResourceInfo.format = vk::Format::eR32Sfloat;
+    depthResourceInfo.extent = vk::Extent2D{1024, 1024};
+    depthResourceInfo.isTarget = true;
+
+    const fl::Resource color = _graph->NewResource(colorResourceInfo);
+    const fl::Resource depth = _graph->NewResource(depthResourceInfo);
+
+    fl::PassCreateInfo passCreateInfo{};
+    passCreateInfo.writes = {color, depth};
+    passCreateInfo.reads = {};
+
+    _graph->NewPass(passCreateInfo);
+
+    _graph->Compile(device);
 
     CreateCommandBuffers(device);
 }
@@ -51,6 +78,11 @@ vk::CommandBuffer Renderer::BeginRender(const Device *device)
     swapchain->BeginRenderPass(commandBuffer, _currentImageIndex);
 
     return commandBuffer;
+}
+
+void Renderer::Render(vk::CommandBuffer commandBuffer)
+{
+    _graph->Run(commandBuffer);
 }
 
 void Renderer::EndRender(const Device *device)
