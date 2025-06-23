@@ -34,8 +34,6 @@ Device *device{nullptr};
 Renderer *renderer{nullptr};
 Editor *editor{nullptr};
 
-fl::Graph *graph{nullptr};
-
 const vk::Instance &GetVulkanInstance()
 {
     return vkInstance;
@@ -213,8 +211,6 @@ bool Initialize()
 
         renderer = new Renderer(device, window);
         editor = new Editor(window, device, vkInstance);
-
-        graph = new fl::Graph(device);
 
         initialized = true;
         terminated = false;

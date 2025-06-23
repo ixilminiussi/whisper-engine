@@ -56,7 +56,7 @@ void Device::Free()
 
     _freed = true;
 
-    spdlog::info("Device: freed device");
+    spdlog::info("Device: succesfully freed");
 }
 
 #ifndef NDEBUG

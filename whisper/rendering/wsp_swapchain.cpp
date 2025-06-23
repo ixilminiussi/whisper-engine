@@ -118,7 +118,7 @@ void Swapchain::Free(const Device *device)
     }
 
     _freed = true;
-    spdlog::info("Swapchain: freed swapchain");
+    spdlog::info("Swapchain: succesfully freed");
 }
 
 #ifndef NDEBUG

@@ -56,6 +56,7 @@ void Renderer::Free(const Device *device)
     _commandBuffers.clear();
 
     _graph->Free(device);
+    delete _graph;
 
     _freed = true;
     spdlog::info("Renderer: succesfully freed");

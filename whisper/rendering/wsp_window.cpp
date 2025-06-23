@@ -49,7 +49,7 @@ void Window::Free(const vk::Instance &instance)
     glfwDestroyWindow(_glfwWindow);
 
     _freed = true;
-    spdlog::info("Window: freed window \"{0}\"", _name.c_str());
+    spdlog::info("Window: succesfully freed window \"{0}\"", _name.c_str());
 }
 
 void Window::FramebufferResizeCallback(GLFWwindow *glfwWindow, int width, int height)
@@ -61,7 +61,7 @@ void Window::FramebufferResizeCallback(GLFWwindow *glfwWindow, int width, int he
 
 void Window::CreateSurface(vk::Instance instance)
 {
-    VkResult const result = glfwCreateWindowSurface(static_cast<VkInstance>(instance), _glfwWindow, nullptr,
+    const VkResult result = glfwCreateWindowSurface(static_cast<VkInstance>(instance), _glfwWindow, nullptr,
                                                     reinterpret_cast<VkSurfaceKHR *>(&_surface));
 
     if (result != VK_SUCCESS)

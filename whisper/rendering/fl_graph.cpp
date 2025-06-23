@@ -34,18 +34,17 @@ void Graph::CreateSamplers(const wsp::Device *device)
     samplerCreateInfo.addressModeW = vk::SamplerAddressMode::eClampToEdge;
     samplerCreateInfo.borderColor = vk::BorderColor::eIntOpaqueBlack;
     samplerCreateInfo.unnormalizedCoordinates = false;
-    samplerCreateInfo.compareEnable = ResourceRole::eDepth;
+    samplerCreateInfo.compareEnable = true;
 
     _samplers[SAMPLER_DEPTH] = device->CreateSampler(samplerCreateInfo);
 
-    samplerCreateInfo.compareEnable = ResourceRole::eDepth;
+    samplerCreateInfo.compareEnable = false;
 
     _samplers[SAMPLER_COLOR_CLAMPED] = device->CreateSampler(samplerCreateInfo);
 
     samplerCreateInfo.addressModeU = vk::SamplerAddressMode::eRepeat;
     samplerCreateInfo.addressModeV = vk::SamplerAddressMode::eRepeat;
     samplerCreateInfo.addressModeW = vk::SamplerAddressMode::eRepeat;
-    samplerCreateInfo.compareEnable = ResourceRole::eColor;
 
     _samplers[SAMPLER_COLOR_REPEATED] = device->CreateSampler(samplerCreateInfo);
 }
@@ -95,6 +94,9 @@ void Graph::Free(const wsp::Device *device)
         device->DestroyRenderPass(renderPass);
     }
     _renderPasses.clear();
+
+    _freed = true;
+    spdlog::info("Graph: succesfully freed");
 }
 
 Resource Graph::NewResource(const ResourceCreateInfo &createInfo)
