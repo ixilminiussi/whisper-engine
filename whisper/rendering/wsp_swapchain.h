@@ -25,7 +25,7 @@ class Swapchain
     Swapchain(const Swapchain &) = delete;
     Swapchain &operator=(const Swapchain &) = delete;
 
-    void Free(const class Device *);
+    void Free(const class Device *, bool silent = false);
 
 #ifndef NDEBUG
     void PopulateImGuiInitInfo(ImGui_ImplVulkan_InitInfo *initInfo) const;

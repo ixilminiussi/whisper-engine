@@ -88,7 +88,7 @@ Swapchain::~Swapchain()
     }
 }
 
-void Swapchain::Free(const Device *device)
+void Swapchain::Free(const Device *device, bool silent)
 {
     check(device);
 
@@ -123,7 +123,11 @@ void Swapchain::Free(const Device *device)
     }
 
     _freed = true;
-    spdlog::info("Swapchain: succesfully freed");
+
+    if (!silent)
+    {
+        spdlog::info("Swapchain: succesfully freed");
+    }
 }
 
 #ifndef NDEBUG
@@ -306,7 +310,6 @@ vk::PresentModeKHR Swapchain::ChooseSwapPresentMode(const std::vector<vk::Presen
     {
         if (availablePresentMode == vk::PresentModeKHR::eMailbox)
         {
-            spdlog::info("Swapchain: Present mode: Mailbox");
             return availablePresentMode;
         }
     }

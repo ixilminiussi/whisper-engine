@@ -40,7 +40,8 @@ class Window
   private:
     void CreateSurface(vk::Instance);
 
-    static void FramebufferResizeCallback(GLFWwindow *glfwWindow, int width, int height);
+    static void FramebufferResizeCallback(GLFWwindow *, int width, int height);
+    void Resize(size_t width, size_t height);
 
     size_t _width;
     size_t _height;

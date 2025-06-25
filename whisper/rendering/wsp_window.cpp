@@ -1,8 +1,10 @@
 #include "wsp_window.h"
+#include "wsp_device.h"
 #include "wsp_devkit.h"
 #include "wsp_swapchain.h"
 
 // std
+#include <bits/types/wint_t.h>
 #include <spdlog/spdlog.h>
 #include <stdexcept>
 #include <vulkan/vulkan_handles.hpp>
@@ -17,8 +19,6 @@ Window::Window(vk::Instance instance, size_t width, size_t height, std::string n
     glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
 
     _glfwWindow = glfwCreateWindow(_width, _height, _name.c_str(), nullptr, nullptr);
-    glfwSetWindowUserPointer(_glfwWindow, this);
-    glfwSetFramebufferSizeCallback(_glfwWindow, FramebufferResizeCallback);
 
     CreateSurface(instance);
 }
@@ -55,8 +55,22 @@ void Window::Free(const vk::Instance &instance)
 void Window::FramebufferResizeCallback(GLFWwindow *glfwWindow, int width, int height)
 {
     Window *window = reinterpret_cast<Window *>(glfwGetWindowUserPointer(glfwWindow));
-    window->_width = width;
-    window->_height = height;
+    window->Resize(width, height);
+}
+
+void Window::Resize(size_t width, size_t height)
+{
+    if (width == 0 || height == 0)
+    {
+        return;
+    }
+
+    _width = width;
+    _height = height;
+
+    check(_device);
+
+    BuildSwapchain();
 }
 
 void Window::CreateSurface(vk::Instance instance)
@@ -85,13 +99,21 @@ void Window::BuildSwapchain()
         throw std::runtime_error("Window: forgot to set window's device before building swapchain");
     }
 
+    _device->WaitIdle();
+
     if (_swapchain != nullptr)
     {
         Swapchain *oldSwapchain = _swapchain;
         _swapchain = new Swapchain(this, _device, {(uint32_t)_width, (uint32_t)_height}, oldSwapchain->GetHandle());
-        oldSwapchain->Free(_device);
+        oldSwapchain->Free(_device, true);
+        delete oldSwapchain;
     }
-    _swapchain = new Swapchain(this, _device, {(uint32_t)_width, (uint32_t)_height});
+    else
+    {
+        _swapchain = new Swapchain(this, _device, {(uint32_t)_width, (uint32_t)_height});
+        glfwSetWindowUserPointer(_glfwWindow, this);
+        glfwSetFramebufferSizeCallback(_glfwWindow, FramebufferResizeCallback);
+    }
 }
 
 bool Window::ShouldClose() const
