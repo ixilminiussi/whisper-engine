@@ -217,8 +217,8 @@ void Graph::CreatePipeline(const wsp::Device *device, Pass pass)
     rasterizationInfo.rasterizerDiscardEnable = vk::False;
     rasterizationInfo.polygonMode = vk::PolygonMode::eFill;
     rasterizationInfo.lineWidth = 1.0f;
-    // rasterizationInfo.cullMode = vk::CullModeFlagBits::eFront;
-    rasterizationInfo.cullMode = vk::CullModeFlagBits::eNone;
+    rasterizationInfo.cullMode = vk::CullModeFlagBits::eFront;
+    // rasterizationInfo.cullMode = vk::CullModeFlagBits::eNone;
     rasterizationInfo.frontFace = vk::FrontFace::eClockwise;
     rasterizationInfo.depthBiasEnable = vk::False;
     rasterizationInfo.depthBiasConstantFactor = 0.0f;
@@ -265,9 +265,9 @@ void Graph::CreatePipeline(const wsp::Device *device, Pass pass)
         }
         if (GetResourceInfo(resource).role == ResourceRole::eDepth)
         {
-            // depthStencilInfo.depthTestEnable = vk::True;
-            // depthStencilInfo.depthWriteEnable = vk::True;
-            // depthStencilInfo.depthCompareOp = vk::CompareOp::eLess;
+            depthStencilInfo.depthTestEnable = vk::True;
+            depthStencilInfo.depthWriteEnable = vk::True;
+            depthStencilInfo.depthCompareOp = vk::CompareOp::eLess;
         }
     }
 
@@ -324,7 +324,6 @@ void Graph::Run(vk::CommandBuffer commandBuffer)
 {
     for (const Pass pass : _orderedPasses)
     {
-
         vk::RenderPassBeginInfo renderPassInfo{};
         renderPassInfo.sType = vk::StructureType::eRenderPassBeginInfo;
         renderPassInfo.renderPass = _renderPasses.at(pass);
@@ -333,8 +332,15 @@ void Graph::Run(vk::CommandBuffer commandBuffer)
         renderPassInfo.renderArea.offset = vk::Offset2D{0, 0};
         renderPassInfo.renderArea.extent = vk::Extent2D{uint32_t(_width), (uint32_t)_height};
 
-        std::array<vk::ClearValue, 2> clearValues{};
-        clearValues[0].color = {0.1f, 0.1f, 0.1f, 1.0f};
+        const PassCreateInfo &passInfo = GetPassInfo(pass);
+
+        std::vector<vk::ClearValue> clearValues;
+        clearValues.reserve(passInfo.writes.size());
+
+        for (const Resource resource : passInfo.writes)
+        {
+            clearValues.push_back(GetResourceInfo(resource).clear);
+        }
         renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
         renderPassInfo.pClearValues = clearValues.data();
 
@@ -356,8 +362,7 @@ void Graph::Run(vk::CommandBuffer commandBuffer)
         commandBuffer.setScissor(0, 1, &scissor);
 
         commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, _pipelines.at(pass).pipeline);
-        // passInfo.execute(commandBuffer);
-        commandBuffer.draw(3, 1, 0, 0);
+        passInfo.execute(commandBuffer);
         commandBuffer.endRenderPass();
     }
 }
