@@ -71,9 +71,6 @@ void Editor::Render(vk::CommandBuffer commandBuffer)
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
 
-    ImGui::Begin("test");
-    ImGui::End();
-
     ImGui::EndFrame();
     ImGui::Render();
     ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), commandBuffer);

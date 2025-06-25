@@ -71,6 +71,11 @@ void Window::Resize(size_t width, size_t height)
     check(_device);
 
     BuildSwapchain();
+
+    for (auto [pointer, function] : _resizeCallbacks)
+    {
+        function(pointer, _device, width, height);
+    }
 }
 
 void Window::CreateSurface(vk::Instance instance)
@@ -119,6 +124,11 @@ void Window::BuildSwapchain()
 bool Window::ShouldClose() const
 {
     return glfwWindowShouldClose(_glfwWindow);
+}
+
+void Window::BindResizeCallback(void *pointer, void (*function)(void *, const wsp::Device *, size_t, size_t))
+{
+    _resizeCallbacks.emplace_back(pointer, function);
 }
 
 vk::Extent2D Window::GetExtent() const

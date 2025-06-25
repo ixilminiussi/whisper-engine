@@ -10,25 +10,23 @@
 namespace wsp
 {
 
-Renderer::Renderer(const Device *device, const Window *window)
-    : _freed{false}, _currentImageIndex{0}, _currentFrameIndex{0}
+Renderer::Renderer(const Device *device, Window *window) : _freed{false}, _currentImageIndex{0}, _currentFrameIndex{0}
 {
     check(device);
     check(window);
 
     _window = window;
 
-    _graph = new fl::Graph(device);
+    _graph = new fl::Graph(device, _window->GetExtent().width, _window->GetExtent().height);
+    window->BindResizeCallback(_graph, fl::Graph::WindowResizeCallback);
 
     fl::ResourceCreateInfo colorResourceInfo{};
     colorResourceInfo.role = fl::ResourceRole::eColor;
     colorResourceInfo.format = vk::Format::eR8G8B8A8Unorm;
-    colorResourceInfo.extent = vk::Extent2D{1024, 1024};
 
     fl::ResourceCreateInfo depthResourceInfo{};
     depthResourceInfo.role = fl::ResourceRole::eDepth;
     depthResourceInfo.format = vk::Format::eD32Sfloat;
-    depthResourceInfo.extent = vk::Extent2D{1024, 1024};
 
     const fl::Resource color = _graph->NewResource(colorResourceInfo);
     const fl::Resource depth = _graph->NewResource(depthResourceInfo);
@@ -97,7 +95,7 @@ void Renderer::SwapchainOpen(const Device *device, vk::CommandBuffer commandBuff
     check(device);
 
     Swapchain *swapchain = _window->GetSwapchain();
-    swapchain->BlitImage(commandBuffer, _graph->GetTargetImage(), {1024, 1024}, _currentImageIndex);
+    swapchain->BlitImage(commandBuffer, _graph->GetTargetImage(), _window->GetExtent(), _currentImageIndex);
     swapchain->BeginRenderPass(commandBuffer, _currentImageIndex);
 }
 

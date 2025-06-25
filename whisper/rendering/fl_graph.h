@@ -14,8 +14,9 @@
 
 namespace wsp
 {
+class Window;
 class Device;
-}
+} // namespace wsp
 
 namespace fl
 {
@@ -27,7 +28,7 @@ class Graph
     static const size_t SAMPLER_COLOR_CLAMPED;
     static const size_t SAMPLER_COLOR_REPEATED;
 
-    Graph(const wsp::Device *);
+    Graph(const wsp::Device *, size_t width, size_t height);
     ~Graph();
 
     Graph(const Graph &) = delete;
@@ -38,6 +39,8 @@ class Graph
 
     void Compile(const wsp::Device *, Resource target);
     void Run(vk::CommandBuffer);
+
+    static void WindowResizeCallback(void *graph, const wsp::Device *, size_t width, size_t height);
 
     void Free(const wsp::Device *);
 
@@ -52,10 +55,15 @@ class Graph
         vk::Pipeline pipeline;
     };
 
+    void OnResize(const wsp::Device *, size_t width, size_t height);
+
     void KhanFindOrder(const std::set<Resource> &, const std::set<Pass> &);
 
     void Build(const wsp::Device *, Resource);
     void Build(const wsp::Device *, Pass);
+
+    void Free(const wsp::Device *, Resource);
+    void Free(const wsp::Device *, Pass);
 
     void CreatePipeline(const wsp::Device *, Pass);
 
@@ -86,6 +94,10 @@ class Graph
     std::map<size_t, vk::Sampler> _samplers;
 
     std::vector<Pass> _orderedPasses;
+    std::set<Resource> _validResources;
+    std::set<Pass> _validPasses;
+
+    size_t _width, _height;
 
     bool _freed;
 };

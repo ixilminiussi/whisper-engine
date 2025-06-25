@@ -2,7 +2,6 @@
 #include "fl_handles.h"
 #include "wsp_device.h"
 #include "wsp_devkit.h"
-#include "wsp_model.h"
 #include "wsp_static_utils.h"
 
 // lib
@@ -24,8 +23,9 @@ const size_t Graph::SAMPLER_DEPTH{0};
 const size_t Graph::SAMPLER_COLOR_CLAMPED{1};
 const size_t Graph::SAMPLER_COLOR_REPEATED{2};
 
-Graph::Graph(const wsp::Device *device)
-    : _passInfos{}, _resourceInfos{}, _images{}, _deviceMemories{}, _imageViews{}, _freed{false}, _target{0}
+Graph::Graph(const wsp::Device *device, size_t width, size_t height)
+    : _passInfos{}, _resourceInfos{}, _images{}, _deviceMemories{}, _imageViews{}, _freed{false}, _target{0},
+      _width{width}, _height{height}
 {
     check(device);
 
@@ -70,6 +70,12 @@ Graph::~Graph()
 void Graph::Free(const wsp::Device *device)
 {
     check(device);
+
+    for (auto &[id, sampler] : _samplers)
+    {
+        device->DestroySampler(sampler);
+    }
+    _samplers.clear();
 
     Reset(device);
 
@@ -121,6 +127,17 @@ void Graph::Compile(const wsp::Device *device, Resource target)
 
     for (size_t pass = 0; pass < _passInfos.size(); pass++)
     {
+        const PassCreateInfo &passInfo = GetPassInfo(Pass{pass});
+        if (!(passInfo.writes.empty() ||
+              std::all_of(passInfo.writes.begin() + 1, passInfo.writes.end(), [&](Resource resource) {
+                  return GetResourceInfo(resource).extent == GetResourceInfo(passInfo.writes[0]).extent;
+              })))
+        {
+            std::ostringstream oss;
+            oss << "Graph: resolution mismatch on pass " << pass;
+            throw std::runtime_error(oss.str());
+        }
+
         for (const Resource resource : GetPassInfo(Pass{pass}).reads)
         {
             check(_resourceInfos.size() > resource.index);
@@ -130,25 +147,26 @@ void Graph::Compile(const wsp::Device *device, Resource target)
         {
             check(_resourceInfos.size() > resource.index);
             _resourceInfos.at(resource.index).writers.push_back(Pass{pass});
+            _passInfos.at(pass).rebuildOnChange = true;
         }
     }
 
-    std::set<Resource> validResources;
-    std::set<Pass> validPasses;
+    _validPasses.clear();
+    _validResources.clear();
 
-    FindDependencies(&validResources, &validPasses, target);
+    FindDependencies(&_validResources, &_validPasses, target);
 
-    for (const Resource resource : validResources)
+    for (const Resource resource : _validResources)
     {
         Build(device, resource);
     }
-    for (const Pass pass : validPasses)
+    for (const Pass pass : _validPasses)
     {
         Build(device, pass);
         CreatePipeline(device, pass);
     }
 
-    KhanFindOrder(validResources, validPasses);
+    KhanFindOrder(_validResources, _validPasses);
 
     return;
 }
@@ -313,7 +331,7 @@ void Graph::Run(vk::CommandBuffer commandBuffer)
         renderPassInfo.framebuffer = _framebuffers.at(pass);
 
         renderPassInfo.renderArea.offset = vk::Offset2D{0, 0};
-        renderPassInfo.renderArea.extent = vk::Extent2D{1024, 1024};
+        renderPassInfo.renderArea.extent = vk::Extent2D{uint32_t(_width), (uint32_t)_height};
 
         std::array<vk::ClearValue, 2> clearValues{};
         clearValues[0].color = {0.1f, 0.1f, 0.1f, 1.0f};
@@ -325,14 +343,14 @@ void Graph::Run(vk::CommandBuffer commandBuffer)
         static vk::Viewport viewport{};
         viewport.x = 0.0f;
         viewport.y = 0.0f;
-        viewport.width = static_cast<float>(1024);
-        viewport.height = static_cast<float>(1024);
+        viewport.width = static_cast<float>(_width);
+        viewport.height = static_cast<float>(_height);
         viewport.minDepth = 0.0f;
         viewport.maxDepth = 1.0f;
 
         static vk::Rect2D scissor{};
         scissor.offset = vk::Offset2D{0, 0};
-        scissor.extent = vk::Extent2D{1024, 1024};
+        scissor.extent = vk::Extent2D{(uint32_t)_width, (uint32_t)_height};
 
         commandBuffer.setViewport(0, 1, &viewport);
         commandBuffer.setScissor(0, 1, &scissor);
@@ -358,50 +376,52 @@ void Graph::Reset(const wsp::Device *device)
         resource.index++;
     }
 
-    for (auto &[pass, pipelineHolder] : _pipelines)
+    for (const Resource resource : _validResources)
     {
-        device->DestroyShaderModule(pipelineHolder.vertShaderModule);
-        device->DestroyShaderModule(pipelineHolder.fragShaderModule);
-        device->DestroyPipelineLayout(pipelineHolder.pipelineLayout);
-        device->DestroyGraphicsPipeline(pipelineHolder.pipeline);
+        Free(device, resource);
     }
+    for (const Pass pass : _validPasses)
+    {
+        Free(device, pass);
+    }
+
     _pipelines.clear();
-
-    for (auto &[id, sampler] : _samplers)
-    {
-        device->DestroySampler(sampler);
-    }
-    _samplers.clear();
-
-    for (auto &[resource, image] : _images)
-    {
-        device->DestroyImage(image);
-    };
     _images.clear();
-
-    for (auto &[resource, deviceMemory] : _deviceMemories)
-    {
-        device->FreeDeviceMemory(deviceMemory);
-    };
     _deviceMemories.clear();
-
-    for (auto &[resource, imageView] : _imageViews)
-    {
-        device->DestroyImageView(imageView);
-    };
     _imageViews.clear();
-
-    for (auto &[pass, framebuffer] : _framebuffers)
-    {
-        device->DestroyFramebuffer(framebuffer);
-    };
     _framebuffers.clear();
-
-    for (auto &[pass, renderPass] : _renderPasses)
-    {
-        device->DestroyRenderPass(renderPass);
-    }
     _renderPasses.clear();
+}
+
+void Graph::Free(const wsp::Device *device, Resource resource)
+{
+    check(_validResources.find(resource) != _validResources.end());
+
+    const vk::Image image = _images.at(resource);
+    device->DestroyImage(image);
+
+    const vk::DeviceMemory deviceMemory = _deviceMemories.at(resource);
+    device->FreeDeviceMemory(deviceMemory);
+
+    const vk::ImageView imageView = _imageViews.at(resource);
+    device->DestroyImageView(imageView);
+}
+
+void Graph::Free(const wsp::Device *device, Pass pass)
+{
+    check(_validPasses.find(pass) != _validPasses.end());
+
+    const PipelineHolder &pipelineHolder = _pipelines.at(pass);
+    device->DestroyShaderModule(pipelineHolder.vertShaderModule);
+    device->DestroyShaderModule(pipelineHolder.fragShaderModule);
+    device->DestroyPipelineLayout(pipelineHolder.pipelineLayout);
+    device->DestroyGraphicsPipeline(pipelineHolder.pipeline);
+
+    const vk::Framebuffer framebuffer = _framebuffers.at(pass);
+    device->DestroyFramebuffer(framebuffer);
+
+    const vk::RenderPass renderPass = _renderPasses.at(pass);
+    device->DestroyRenderPass(renderPass);
 }
 
 void Graph::KhanFindOrder(const std::set<Resource> &resources, const std::set<Pass> &passes)
@@ -467,7 +487,6 @@ void Graph::Build(const wsp::Device *device, Resource resource)
     vk::ImageCreateInfo imageInfo{};
 
     imageInfo.imageType = vk::ImageType::e2D;
-    imageInfo.extent = vk::Extent3D{createInfo.extent.width, createInfo.extent.height, 1u};
     imageInfo.mipLevels = 1;
     imageInfo.arrayLayers = 1;
     imageInfo.samples = vk::SampleCountFlagBits::e1;
@@ -477,6 +496,15 @@ void Graph::Build(const wsp::Device *device, Resource resource)
     imageInfo.mipLevels = 1;
     imageInfo.samples = vk::SampleCountFlagBits::e1;
     imageInfo.arrayLayers = 1;
+
+    if (createInfo.extent == vk::Extent2D{0, 0})
+    {
+        imageInfo.extent = vk::Extent3D{(uint32_t)_width, (uint32_t)_height, 1u};
+    }
+    else
+    {
+        imageInfo.extent = vk::Extent3D{createInfo.extent.width, createInfo.extent.height, 1u};
+    }
 
     if (createInfo.writers.size() > 0)
     {
@@ -542,7 +570,8 @@ void Graph::Build(const wsp::Device *device, Pass pass)
 
     const PassCreateInfo &createInfo = GetPassInfo(pass);
 
-    const vk::Extent2D &outResolution = GetResourceInfo(createInfo.writes[0]).extent;
+    vk::Extent2D outResolution{(uint32_t)_width, (uint32_t)_height};
+
     std::vector<vk::ImageView> imageViews{};
 
     std::vector<vk::AttachmentReference> colorAttachmentReferences{};
@@ -557,14 +586,9 @@ void Graph::Build(const wsp::Device *device, Pass pass)
     {
         const ResourceCreateInfo &resourceInfo = GetResourceInfo(resource);
 
-        // check for image output mismatches
-        if (outResolution != resourceInfo.extent)
+        if (resourceInfo.extent != vk::Extent2D{0, 0})
         {
-            std::ostringstream oss;
-            oss << "Graph: resolution mismatch on pass " << pass.index << ", one w:" << outResolution.width
-                << " h:" << outResolution.height << ", other w:" << resourceInfo.extent.width
-                << " h:" << resourceInfo.extent.height;
-            throw std::runtime_error(oss.str());
+            outResolution = resourceInfo.extent;
         }
 
         imageViews.push_back(_imageViews.at(resource));
@@ -634,6 +658,54 @@ void Graph::Build(const wsp::Device *device, Pass pass)
     vk::Framebuffer framebuffer;
     device->CreateFramebuffer(framebufferInfo, &framebuffer);
     _framebuffers[pass] = framebuffer;
+}
+
+void Graph::WindowResizeCallback(void *graph, const wsp::Device *device, size_t width, size_t height)
+{
+    reinterpret_cast<Graph *>(graph)->OnResize(device, width, height);
+}
+
+void Graph::OnResize(const wsp::Device *device, size_t width, size_t height)
+{
+    _width = width;
+    _height = height;
+
+    std::vector<Resource> resourcesToRebuild;
+    resourcesToRebuild.reserve(_validResources.size());
+    std::vector<Pass> passesToRebuild;
+    passesToRebuild.reserve(_validPasses.size());
+
+    for (const Resource resource : _validResources)
+    {
+        const ResourceCreateInfo &resourceInfo = GetResourceInfo(resource);
+
+        if (resourceInfo.extent == vk::Extent2D{0, 0})
+        {
+            Free(device, resource);
+            resourcesToRebuild.push_back(resource);
+        }
+    }
+    for (const Pass pass : _validPasses)
+    {
+        const PassCreateInfo &passInfo = GetPassInfo(pass);
+
+        if (passInfo.rebuildOnChange)
+        {
+            Free(device, pass);
+            passesToRebuild.push_back(pass);
+        }
+    }
+
+    for (const Resource resource : resourcesToRebuild)
+    {
+        Build(device, resource);
+    }
+
+    for (const Pass pass : passesToRebuild)
+    {
+        Build(device, pass);
+        CreatePipeline(device, pass);
+    }
 }
 
 const PassCreateInfo &Graph::GetPassInfo(Pass pass) const

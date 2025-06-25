@@ -16,6 +16,8 @@ namespace wsp
 class Window
 {
   public:
+    Window(Window &&) = delete;
+    Window &operator=(Window &&) = delete;
     Window(vk::Instance, size_t width, size_t height, std::string name);
     ~Window();
 
@@ -37,6 +39,8 @@ class Window
     void SetDevice(const class Device *);
     void BuildSwapchain();
 
+    void BindResizeCallback(void *, void (*)(void *, const wsp::Device *, size_t, size_t));
+
   private:
     void CreateSurface(vk::Instance);
 
@@ -52,6 +56,8 @@ class Window
     const class Device *_device;
 
     vk::SurfaceKHR _surface;
+
+    std::vector<std::pair<void *, void (*)(void *, const wsp::Device *, size_t, size_t)>> _resizeCallbacks;
 
     bool _freed;
 };

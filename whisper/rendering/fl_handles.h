@@ -51,6 +51,11 @@ struct PassCreateInfo
 
     std::function<void(vk::CommandBuffer)> execute;
     vk::PipelineVertexInputStateCreateInfo vertexInputInfo{{}, 0, nullptr, 0, nullptr};
+
+    friend class Graph;
+
+  protected:
+    bool rebuildOnChange{false};
 };
 
 enum ResourceRole
@@ -61,9 +66,9 @@ enum ResourceRole
 
 struct ResourceCreateInfo
 {
-    vk::Format format{};
-    vk::Extent2D extent{};
-    ResourceRole role{};
+    vk::Format format;
+    vk::Extent2D extent{0, 0}; // {0, 0} to follow screen extent
+    ResourceRole role;
 
     friend class Graph;
 

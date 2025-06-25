@@ -18,7 +18,7 @@ namespace wsp
 class Renderer
 {
   public:
-    Renderer(const class Device *, const class Window *);
+    Renderer(const class Device *, class Window *);
     ~Renderer();
 
     Renderer(const Renderer &) = delete;
