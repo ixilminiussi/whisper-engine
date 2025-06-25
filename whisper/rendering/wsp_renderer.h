@@ -21,11 +21,14 @@ class Renderer
     Renderer(const class Device *, const class Window *);
     ~Renderer();
 
+    Renderer(const Renderer &) = delete;
+    Renderer &operator=(const Renderer &) = delete;
+
     void Free(const class Device *);
 
-    [[nodiscard]] vk::CommandBuffer BeginRender(const class Device *);
-    void Render(vk::CommandBuffer);
-    void EndRender(const class Device *);
+    [[nodiscard]] vk::CommandBuffer RenderGraph(const class Device *);
+    void SwapchainOpen(const class Device *, vk::CommandBuffer);
+    void SwapchainFlush(const class Device *, vk::CommandBuffer);
 
   private:
     void CreateCommandBuffers(const class Device *);

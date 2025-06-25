@@ -28,6 +28,9 @@ class Device
     Device();
     ~Device();
 
+    Device(const Device &) = delete;
+    Device &operator=(const Device &) = delete;
+
     void Initialize(const std::vector<const char *> requiredExtensions, vk::Instance, vk::SurfaceKHR);
     void Free();
 
@@ -56,6 +59,9 @@ class Device
     vk::Sampler CreateSampler(const vk::SamplerCreateInfo &) const;
     void CreateSwapchainKHR(const vk::SwapchainCreateInfoKHR &, vk::SwapchainKHR *) const;
     void CreateDescriptorPool(const vk::DescriptorPoolCreateInfo &, vk::DescriptorPool *) const;
+    void CreateShaderModule(const std::vector<char> &code, vk::ShaderModule *) const;
+    void CreatePipelineLayout(const vk::PipelineLayoutCreateInfo &, vk::PipelineLayout *) const;
+    void CreateGraphicsPipeline(const vk::GraphicsPipelineCreateInfo &, vk::Pipeline *) const;
 
     void AllocateCommandBuffers(std::vector<vk::CommandBuffer> *) const;
     void FreeCommandBuffers(std::vector<vk::CommandBuffer> *) const;
@@ -70,6 +76,9 @@ class Device
     void DestroySampler(vk::Sampler) const;
     void DestroySwapchainKHR(vk::SwapchainKHR) const;
     void DestroyDescriptorPool(vk::DescriptorPool) const;
+    void DestroyShaderModule(vk::ShaderModule) const;
+    void DestroyPipelineLayout(vk::PipelineLayout) const;
+    void DestroyGraphicsPipeline(vk::Pipeline) const;
 
     uint32_t FindMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags) const;
 

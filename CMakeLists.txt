@@ -40,7 +40,7 @@ add_definitions(-DSHADER_FILES="${SHADER_FILES}")
 add_subdirectory(.external)
 add_subdirectory(whisper)
 add_subdirectory(${GAME})
-# add_subdirectory(shaders)
+add_subdirectory(shaders)
 
 # Copy assets
 # file(GLOB WSP_ASSETS "${WSP_FILES}/*")

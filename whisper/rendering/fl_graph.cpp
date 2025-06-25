@@ -1,15 +1,21 @@
 #include "fl_graph.h"
 #include "fl_handles.h"
 #include "wsp_device.h"
+#include "wsp_devkit.h"
+#include "wsp_model.h"
+#include "wsp_static_utils.h"
 
 // lib
 #include <spdlog/spdlog.h>
-#include <variant>
+#include <unistd.h>
 #include <vulkan/vulkan_enums.hpp>
 
 // std
 #include <optional>
 #include <stdexcept>
+#include <variant>
+#include <vulkan/vulkan_handles.hpp>
+#include <vulkan/vulkan_structs.hpp>
 
 namespace fl
 {
@@ -19,13 +25,17 @@ const size_t Graph::SAMPLER_COLOR_CLAMPED{1};
 const size_t Graph::SAMPLER_COLOR_REPEATED{2};
 
 Graph::Graph(const wsp::Device *device)
-    : _passInfos{}, _resourceInfos{}, _targets{}, _images{}, _deviceMemories{}, _imageViews{}, _freed{false}
+    : _passInfos{}, _resourceInfos{}, _images{}, _deviceMemories{}, _imageViews{}, _freed{false}, _target{0}
 {
+    check(device);
+
     CreateSamplers(device);
 }
 
 void Graph::CreateSamplers(const wsp::Device *device)
 {
+    check(device);
+
     vk::SamplerCreateInfo samplerCreateInfo{};
     samplerCreateInfo.magFilter = vk::Filter::eLinear;
     samplerCreateInfo.minFilter = vk::Filter::eLinear;
@@ -59,6 +69,304 @@ Graph::~Graph()
 
 void Graph::Free(const wsp::Device *device)
 {
+    check(device);
+
+    Reset(device);
+
+    _freed = true;
+    spdlog::info("Graph: succesfully freed");
+}
+
+Resource Graph::NewResource(const ResourceCreateInfo &createInfo)
+{
+    _resourceInfos.push_back(createInfo);
+    return Resource{_resourceInfos.size() - 1};
+}
+
+Pass Graph::NewPass(const PassCreateInfo &createInfo)
+{
+    _passInfos.push_back(createInfo);
+    return Pass{_passInfos.size() - 1};
+}
+
+void Graph::FindDependencies(std::set<Resource> *validResources, std::set<Pass> *validPasses, Resource resource)
+{
+    validResources->emplace(resource);
+    for (const Pass writer : GetResourceInfo(resource).writers)
+    {
+        FindDependencies(validResources, validPasses, writer);
+    }
+}
+
+void Graph::FindDependencies(std::set<Resource> *validResources, std::set<Pass> *validPasses, Pass pass)
+{
+    validPasses->emplace(pass);
+    for (const Resource write : GetPassInfo(pass).writes)
+    {
+        validResources->emplace(write);
+    }
+    for (const Resource read : GetPassInfo(pass).reads)
+    {
+        FindDependencies(validResources, validPasses, read);
+    }
+}
+
+void Graph::Compile(const wsp::Device *device, Resource target)
+{
+    check(device);
+
+    Reset(device);
+
+    _target = target;
+
+    for (size_t pass = 0; pass < _passInfos.size(); pass++)
+    {
+        for (const Resource resource : GetPassInfo(Pass{pass}).reads)
+        {
+            check(_resourceInfos.size() > resource.index);
+            _resourceInfos.at(resource.index).readers.push_back(Pass{pass});
+        }
+        for (const Resource resource : GetPassInfo(Pass{pass}).writes)
+        {
+            check(_resourceInfos.size() > resource.index);
+            _resourceInfos.at(resource.index).writers.push_back(Pass{pass});
+        }
+    }
+
+    std::set<Resource> validResources;
+    std::set<Pass> validPasses;
+
+    FindDependencies(&validResources, &validPasses, target);
+
+    for (const Resource resource : validResources)
+    {
+        Build(device, resource);
+    }
+    for (const Pass pass : validPasses)
+    {
+        Build(device, pass);
+        CreatePipeline(device, pass);
+    }
+
+    KhanFindOrder(validResources, validPasses);
+
+    return;
+}
+
+vk::Image Graph::GetTargetImage()
+{
+    return _images[_target];
+}
+
+void Graph::CreatePipeline(const wsp::Device *device, Pass pass)
+{
+    check(device);
+    const PassCreateInfo &passInfo = GetPassInfo(pass);
+
+    const std::vector<char> vertCode = wsp::ReadShaderFile(passInfo.vertFile);
+    const std::vector<char> fragCode = wsp::ReadShaderFile(passInfo.fragFile);
+
+    PipelineHolder &pipelineHolder = _pipelines[pass];
+    device->CreateShaderModule(vertCode, &pipelineHolder.vertShaderModule);
+    device->CreateShaderModule(fragCode, &pipelineHolder.fragShaderModule);
+
+    vk::PipelineShaderStageCreateInfo shaderStages[2];
+    shaderStages[0].stage = vk::ShaderStageFlagBits::eVertex;
+    shaderStages[0].module = pipelineHolder.vertShaderModule;
+    shaderStages[0].pName = "main";
+    shaderStages[0].flags = vk::PipelineShaderStageCreateFlagBits{};
+    shaderStages[0].pNext = nullptr;
+    shaderStages[0].pSpecializationInfo = nullptr;
+    shaderStages[1].stage = vk::ShaderStageFlagBits::eFragment;
+    shaderStages[1].module = pipelineHolder.fragShaderModule;
+    shaderStages[1].pName = "main";
+    shaderStages[1].flags = vk::PipelineShaderStageCreateFlagBits{};
+    shaderStages[1].pNext = nullptr;
+    shaderStages[1].pSpecializationInfo = nullptr;
+
+    vk::PipelineInputAssemblyStateCreateInfo inputAssemblyInfo{};
+    inputAssemblyInfo.topology = vk::PrimitiveTopology::eTriangleList;
+    inputAssemblyInfo.primitiveRestartEnable = vk::False;
+
+    vk::PipelineViewportStateCreateInfo viewportInfo{};
+    viewportInfo.viewportCount = 1;
+    viewportInfo.pViewports = nullptr;
+    viewportInfo.scissorCount = 1;
+    viewportInfo.pScissors = nullptr;
+
+    vk::PipelineRasterizationStateCreateInfo rasterizationInfo{};
+    rasterizationInfo.depthClampEnable = vk::False;
+    rasterizationInfo.rasterizerDiscardEnable = vk::False;
+    rasterizationInfo.polygonMode = vk::PolygonMode::eFill;
+    rasterizationInfo.lineWidth = 1.0f;
+    // rasterizationInfo.cullMode = vk::CullModeFlagBits::eFront;
+    rasterizationInfo.cullMode = vk::CullModeFlagBits::eNone;
+    rasterizationInfo.frontFace = vk::FrontFace::eClockwise;
+    rasterizationInfo.depthBiasEnable = vk::False;
+    rasterizationInfo.depthBiasConstantFactor = 0.0f;
+    rasterizationInfo.depthBiasClamp = 0.0f;
+    rasterizationInfo.depthBiasSlopeFactor = 0.0f;
+
+    vk::PipelineMultisampleStateCreateInfo multisampleInfo{};
+    multisampleInfo.sampleShadingEnable = vk::False;
+    multisampleInfo.rasterizationSamples = vk::SampleCountFlagBits::e1;
+    multisampleInfo.minSampleShading = 1.0f;
+    multisampleInfo.pSampleMask = nullptr;
+    multisampleInfo.alphaToCoverageEnable = vk::False;
+    multisampleInfo.alphaToOneEnable = vk::False;
+
+    vk::PipelineDepthStencilStateCreateInfo depthStencilInfo{};
+    depthStencilInfo.depthTestEnable = vk::False;
+    depthStencilInfo.depthWriteEnable = vk::False;
+    depthStencilInfo.depthCompareOp = vk::CompareOp::eAlways;
+    depthStencilInfo.depthBoundsTestEnable = vk::False;
+    depthStencilInfo.minDepthBounds = 0.0f;
+    depthStencilInfo.maxDepthBounds = 1.0f;
+    depthStencilInfo.stencilTestEnable = vk::False;
+    depthStencilInfo.front = vk::StencilOpState{};
+    depthStencilInfo.back = vk::StencilOpState{};
+
+    std::vector<vk::PipelineColorBlendAttachmentState> colorBlendAttachments{};
+
+    for (const Resource resource : passInfo.writes)
+    {
+        if (GetResourceInfo(resource).role == ResourceRole::eColor)
+        {
+            vk::PipelineColorBlendAttachmentState colorBlendAttachment{};
+            colorBlendAttachment.colorWriteMask = vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG |
+                                                  vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA;
+            colorBlendAttachment.blendEnable = vk::False;
+            colorBlendAttachment.srcColorBlendFactor = vk::BlendFactor::eOne;
+            colorBlendAttachment.dstColorBlendFactor = vk::BlendFactor::eZero;
+            colorBlendAttachment.colorBlendOp = vk::BlendOp::eAdd;
+            colorBlendAttachment.srcAlphaBlendFactor = vk::BlendFactor::eOne;
+            colorBlendAttachment.dstAlphaBlendFactor = vk::BlendFactor::eZero;
+            colorBlendAttachment.alphaBlendOp = vk::BlendOp::eAdd;
+
+            colorBlendAttachments.push_back(colorBlendAttachment);
+        }
+        if (GetResourceInfo(resource).role == ResourceRole::eDepth)
+        {
+            // depthStencilInfo.depthTestEnable = vk::True;
+            // depthStencilInfo.depthWriteEnable = vk::True;
+            // depthStencilInfo.depthCompareOp = vk::CompareOp::eLess;
+        }
+    }
+
+    vk::PipelineColorBlendStateCreateInfo colorBlendInfo{};
+    colorBlendInfo.logicOpEnable = vk::False;
+    colorBlendInfo.logicOp = vk::LogicOp::eCopy;
+    colorBlendInfo.attachmentCount = static_cast<uint32_t>(colorBlendAttachments.size());
+    colorBlendInfo.pAttachments = colorBlendAttachments.data();
+    colorBlendInfo.blendConstants[0] = 0.0f;
+    colorBlendInfo.blendConstants[1] = 0.0f;
+    colorBlendInfo.blendConstants[2] = 0.0f;
+    colorBlendInfo.blendConstants[3] = 0.0f;
+
+    vk::PipelineDynamicStateCreateInfo dynamicStateInfo{};
+    std::vector<vk::DynamicState> dynamicStateEnables = {vk::DynamicState::eViewport, vk::DynamicState::eScissor};
+    dynamicStateInfo.sType = vk::StructureType::ePipelineDynamicStateCreateInfo;
+    dynamicStateInfo.pDynamicStates = dynamicStateEnables.data();
+    dynamicStateInfo.dynamicStateCount = static_cast<uint32_t>(dynamicStateEnables.size());
+    dynamicStateInfo.flags = vk::PipelineDynamicStateCreateFlagBits{};
+
+    vk::PipelineLayoutCreateInfo pipelineLayoutInfo{};
+    pipelineLayoutInfo.sType = vk::StructureType::ePipelineLayoutCreateInfo;
+    pipelineLayoutInfo.setLayoutCount = 0;
+    pipelineLayoutInfo.pSetLayouts = nullptr; // change with descriptorSetLayouts for read
+    pipelineLayoutInfo.pushConstantRangeCount = 0;
+    pipelineLayoutInfo.pPushConstantRanges = nullptr; // change with pushConstantRanges
+
+    device->CreatePipelineLayout(pipelineLayoutInfo, &pipelineHolder.pipelineLayout);
+
+    vk::GraphicsPipelineCreateInfo pipelineInfo{};
+    pipelineInfo.sType = vk::StructureType::eGraphicsPipelineCreateInfo;
+    pipelineInfo.stageCount = 2;
+    pipelineInfo.pStages = shaderStages;
+    pipelineInfo.pVertexInputState = &passInfo.vertexInputInfo;
+    pipelineInfo.pInputAssemblyState = &inputAssemblyInfo;
+    pipelineInfo.pViewportState = &viewportInfo;
+    pipelineInfo.pRasterizationState = &rasterizationInfo;
+    pipelineInfo.pMultisampleState = &multisampleInfo;
+    pipelineInfo.pColorBlendState = &colorBlendInfo;
+    pipelineInfo.pDepthStencilState = &depthStencilInfo;
+    pipelineInfo.pDynamicState = &dynamicStateInfo;
+
+    pipelineInfo.layout = pipelineHolder.pipelineLayout;
+    pipelineInfo.renderPass = _renderPasses.at(pass);
+    pipelineInfo.subpass = 0;
+
+    pipelineInfo.basePipelineIndex = -1;
+    pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
+
+    device->CreateGraphicsPipeline(pipelineInfo, &pipelineHolder.pipeline);
+}
+
+void Graph::Run(vk::CommandBuffer commandBuffer)
+{
+    for (const Pass pass : _orderedPasses)
+    {
+
+        vk::RenderPassBeginInfo renderPassInfo{};
+        renderPassInfo.sType = vk::StructureType::eRenderPassBeginInfo;
+        renderPassInfo.renderPass = _renderPasses.at(pass);
+        renderPassInfo.framebuffer = _framebuffers.at(pass);
+
+        renderPassInfo.renderArea.offset = vk::Offset2D{0, 0};
+        renderPassInfo.renderArea.extent = vk::Extent2D{1024, 1024};
+
+        std::array<vk::ClearValue, 2> clearValues{};
+        clearValues[0].color = {0.1f, 0.1f, 0.1f, 1.0f};
+        renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
+        renderPassInfo.pClearValues = clearValues.data();
+
+        commandBuffer.beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);
+
+        static vk::Viewport viewport{};
+        viewport.x = 0.0f;
+        viewport.y = 0.0f;
+        viewport.width = static_cast<float>(1024);
+        viewport.height = static_cast<float>(1024);
+        viewport.minDepth = 0.0f;
+        viewport.maxDepth = 1.0f;
+
+        static vk::Rect2D scissor{};
+        scissor.offset = vk::Offset2D{0, 0};
+        scissor.extent = vk::Extent2D{1024, 1024};
+
+        commandBuffer.setViewport(0, 1, &viewport);
+        commandBuffer.setScissor(0, 1, &scissor);
+
+        commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, _pipelines.at(pass).pipeline);
+        // passInfo.execute(commandBuffer);
+        commandBuffer.draw(3, 1, 0, 0);
+        commandBuffer.endRenderPass();
+    }
+}
+
+void Graph::Reset(const wsp::Device *device)
+{
+    check(device);
+
+    Resource resource{0};
+
+    for (ResourceCreateInfo &resourceInfo : _resourceInfos)
+    {
+        resourceInfo.writers.clear();
+        resourceInfo.readers.clear();
+
+        resource.index++;
+    }
+
+    for (auto &[pass, pipelineHolder] : _pipelines)
+    {
+        device->DestroyShaderModule(pipelineHolder.vertShaderModule);
+        device->DestroyShaderModule(pipelineHolder.fragShaderModule);
+        device->DestroyPipelineLayout(pipelineHolder.pipelineLayout);
+        device->DestroyGraphicsPipeline(pipelineHolder.pipeline);
+    }
+    _pipelines.clear();
+
     for (auto &[id, sampler] : _samplers)
     {
         device->DestroySampler(sampler);
@@ -94,164 +402,68 @@ void Graph::Free(const wsp::Device *device)
         device->DestroyRenderPass(renderPass);
     }
     _renderPasses.clear();
-
-    _freed = true;
-    spdlog::info("Graph: succesfully freed");
-}
-
-Resource Graph::NewResource(const ResourceCreateInfo &createInfo)
-{
-    _resourceInfos.push_back(createInfo);
-    return Resource{_resourceInfos.size() - 1};
-}
-
-Pass Graph::NewPass(const PassCreateInfo &createInfo)
-{
-    _passInfos.push_back(createInfo);
-    return Pass{_passInfos.size() - 1};
-}
-
-void Graph::FindDependencies(std::set<Resource> *validResources, std::set<Pass> *validPasses, Resource resource)
-{
-    validResources->emplace(resource);
-    for (const Pass writer : _resourceInfos[resource.index].writers)
-    {
-        FindDependencies(validResources, validPasses, writer);
-    }
-}
-
-void Graph::FindDependencies(std::set<Resource> *validResources, std::set<Pass> *validPasses, Pass pass)
-{
-    validPasses->emplace(pass);
-    for (const Resource read : _passInfos[pass.index].reads)
-    {
-        FindDependencies(validResources, validPasses, read);
-    }
-}
-
-void Graph::Compile(const wsp::Device *device)
-{
-    Reset(device);
-
-    if (_targets.size() == 0)
-    {
-        spdlog::warn("Graph: no target resource selected");
-        return;
-    }
-
-    for (size_t pass = 0; pass < _passInfos.size(); pass++)
-    {
-        for (const Resource resource : _passInfos[pass].reads)
-        {
-            _resourceInfos[resource.index].readers.push_back(Pass{pass});
-        }
-        for (const Resource resource : _passInfos[pass].writes)
-        {
-            _resourceInfos[resource.index].writers.push_back(Pass{pass});
-        }
-    }
-
-    std::set<Resource> validResources;
-    std::set<Pass> validPasses;
-
-    for (const Resource target : _targets)
-    {
-        FindDependencies(&validResources, &validPasses, target);
-    }
-
-    for (const Resource resource : validResources)
-    {
-        Build(device, resource);
-    }
-    for (const Pass pass : validPasses)
-    {
-        Build(device, pass);
-    }
-
-    return;
-}
-
-void Graph::Run(vk::CommandBuffer commandBuffer)
-{
-    for (const std::function<void(vk::CommandBuffer)> &func : _orderedExecutes)
-    {
-        func(commandBuffer);
-    }
-}
-
-void Graph::Reset(const wsp::Device *device)
-{
-    _targets.clear();
-
-    Resource resource{0};
-
-    for (ResourceCreateInfo &resourceInfo : _resourceInfos)
-    {
-        resourceInfo.writers.clear();
-        resourceInfo.readers.clear();
-
-        if (resourceInfo.isTarget)
-        {
-            _targets.push_back(resource);
-        }
-
-        resource.index++;
-    }
 }
 
 void Graph::KhanFindOrder(const std::set<Resource> &resources, const std::set<Pass> &passes)
 {
-    _orderedExecutes.clear();
+    _orderedPasses.clear();
 
     std::map<std::variant<Resource, Pass>, int> degrees;
 
     for (const Resource resource : resources)
     {
-        const ResourceCreateInfo &resourceInfo = _resourceInfos[resource.index];
+        const ResourceCreateInfo &resourceInfo = GetResourceInfo(resource);
         degrees[resource] = resourceInfo.writers.size();
     }
 
     for (const Pass pass : passes)
     {
-        const PassCreateInfo &passInfo = _passInfos[pass.index];
+        const PassCreateInfo &passInfo = GetPassInfo(pass);
         degrees[pass] = passInfo.reads.size();
     }
 
-    for (auto [value, degree] : degrees)
+    while (degrees.size() > 0)
     {
-        if (degree == 0)
+    restart:
+        for (auto &[value, degree] : degrees)
         {
-            if (std::holds_alternative<Resource>(value))
+            if (degree == 0)
             {
-                const ResourceCreateInfo &resourceInfo = _resourceInfos[std::get<Resource>(value).index];
-                for (Pass reader : resourceInfo.readers)
+                if (std::holds_alternative<Resource>(value))
                 {
-                    degrees[reader]--;
+                    const ResourceCreateInfo &resourceInfo = GetResourceInfo(std::get<Resource>(value));
+                    for (Pass reader : resourceInfo.readers)
+                    {
+                        degrees[reader]--;
+                    }
+                    degrees.erase(value);
+                    goto restart;
                 }
-                degrees.erase(value);
-            }
-            if (std::holds_alternative<Pass>(value))
-            {
-                const PassCreateInfo &passInfo = _passInfos[std::get<Pass>(value).index];
-                for (Resource writey : passInfo.writes)
+                if (std::holds_alternative<Pass>(value))
                 {
-                    degrees[writey]--;
+                    const PassCreateInfo &passInfo = GetPassInfo(std::get<Pass>(value));
+                    for (Resource writey : passInfo.writes)
+                    {
+                        degrees[writey]--;
+                    }
+                    degrees.erase(value);
+                    _orderedPasses.push_back(std::get<Pass>(value));
+                    goto restart;
                 }
-                degrees.erase(value);
-                _orderedExecutes.push_back(passInfo.execute);
             }
         }
-    }
-
-    if (degrees.size() > 0)
-    {
-        throw std::runtime_error("Graph: circular dependency found! cannot compile");
+        if (degrees.size() > 0)
+        {
+            throw std::runtime_error("Graph: circular dependency found! cannot compile");
+        }
     }
 }
 
 void Graph::Build(const wsp::Device *device, Resource resource)
 {
-    const ResourceCreateInfo &createInfo = _resourceInfos[resource.index];
+    check(device);
+
+    const ResourceCreateInfo &createInfo = GetResourceInfo(resource);
     vk::ImageCreateInfo imageInfo{};
 
     imageInfo.imageType = vk::ImageType::e2D;
@@ -282,11 +494,19 @@ void Graph::Build(const wsp::Device *device, Resource resource)
     {
         imageInfo.usage |= vk::ImageUsageFlagBits::eSampled;
     }
+    if (resource == _target)
+    {
+        imageInfo.usage |= vk::ImageUsageFlagBits::eTransferSrc;
+    }
 
-    device->CreateImageAndBindMemory(imageInfo, &_images[resource], &_deviceMemories[resource]);
+    vk::Image image;
+    vk::DeviceMemory deviceMemory;
+    device->CreateImageAndBindMemory(imageInfo, &image, &deviceMemory);
+    _images[resource] = image;
+    _deviceMemories[resource] = deviceMemory;
 
     vk::ImageViewCreateInfo viewInfo{};
-    viewInfo.image = _images[resource];
+    viewInfo.image = _images.at(resource);
     viewInfo.viewType = vk::ImageViewType::e2D;
     viewInfo.format = createInfo.format;
     viewInfo.subresourceRange.aspectMask =
@@ -296,7 +516,9 @@ void Graph::Build(const wsp::Device *device, Resource resource)
     viewInfo.subresourceRange.baseArrayLayer = 0;
     viewInfo.subresourceRange.layerCount = 1;
 
-    device->CreateImageView(viewInfo, &_imageViews[resource]);
+    vk::ImageView imageView;
+    device->CreateImageView(viewInfo, &imageView);
+    _imageViews[resource] = imageView;
 
     // renderTarget.descriptorSetID =
     //    RenderSystem::getInstance()->createSamplerDescriptor(renderTarget.imageView, renderTarget.sampler);
@@ -316,9 +538,11 @@ void Graph::Build(const wsp::Device *device, Resource resource)
 
 void Graph::Build(const wsp::Device *device, Pass pass)
 {
-    const PassCreateInfo &createInfo = _passInfos[pass.index];
+    check(device);
 
-    const vk::Extent2D outResolution{_resourceInfos[createInfo.writes[0].index].extent};
+    const PassCreateInfo &createInfo = GetPassInfo(pass);
+
+    const vk::Extent2D &outResolution = GetResourceInfo(createInfo.writes[0]).extent;
     std::vector<vk::ImageView> imageViews{};
 
     std::vector<vk::AttachmentReference> colorAttachmentReferences{};
@@ -328,9 +552,10 @@ void Graph::Build(const wsp::Device *device, Pass pass)
     std::vector<vk::AttachmentDescription> attachmentDescriptions{};
     attachmentDescriptions.reserve(createInfo.writes.size());
 
-    for (size_t i = 0; i < createInfo.writes.size(); i++)
+    int i = 0;
+    for (const Resource resource : createInfo.writes)
     {
-        const ResourceCreateInfo &resourceInfo = _resourceInfos[i];
+        const ResourceCreateInfo &resourceInfo = GetResourceInfo(resource);
 
         // check for image output mismatches
         if (outResolution != resourceInfo.extent)
@@ -342,7 +567,7 @@ void Graph::Build(const wsp::Device *device, Pass pass)
             throw std::runtime_error(oss.str());
         }
 
-        imageViews.push_back(_imageViews[Resource{i}]);
+        imageViews.push_back(_imageViews.at(resource));
 
         vk::AttachmentDescription attachment = {};
         attachment.format = resourceInfo.format;
@@ -373,7 +598,13 @@ void Graph::Build(const wsp::Device *device, Pass pass)
             break;
         }
 
+        if (resource == _target)
+        {
+            attachment.finalLayout = vk::ImageLayout::eTransferSrcOptimal;
+        }
+
         attachmentDescriptions.push_back(attachment);
+        i++;
     }
 
     vk::SubpassDescription subpass = {};
@@ -388,17 +619,33 @@ void Graph::Build(const wsp::Device *device, Pass pass)
     renderPassInfo.subpassCount = 1;
     renderPassInfo.pSubpasses = &subpass;
 
-    device->CreateRenderPass(renderPassInfo, &_renderPasses[pass]);
+    vk::RenderPass renderPass;
+    device->CreateRenderPass(renderPassInfo, &renderPass);
+    _renderPasses[pass] = renderPass;
 
     vk::FramebufferCreateInfo framebufferInfo{};
-    framebufferInfo.renderPass = _renderPasses[pass];
+    framebufferInfo.renderPass = _renderPasses.at(pass);
     framebufferInfo.attachmentCount = imageViews.size();
     framebufferInfo.pAttachments = imageViews.data();
     framebufferInfo.width = outResolution.width;
     framebufferInfo.height = outResolution.height;
     framebufferInfo.layers = 1;
 
-    device->CreateFramebuffer(framebufferInfo, &_framebuffers[pass]);
+    vk::Framebuffer framebuffer;
+    device->CreateFramebuffer(framebufferInfo, &framebuffer);
+    _framebuffers[pass] = framebuffer;
+}
+
+const PassCreateInfo &Graph::GetPassInfo(Pass pass) const
+{
+    check(_passInfos.size() > pass.index);
+    return _passInfos.at(pass.index);
+}
+
+const ResourceCreateInfo &Graph::GetResourceInfo(Resource resource) const
+{
+    check(_resourceInfos.size() > resource.index);
+    return _resourceInfos.at(resource.index);
 }
 
 } // namespace fl

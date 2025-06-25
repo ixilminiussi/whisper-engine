@@ -19,6 +19,9 @@ class Editor
     Editor(const class Window *, const class Device *, vk::Instance);
     ~Editor();
 
+    Editor(const Editor &) = delete;
+    Editor &operator=(const Editor &) = delete;
+
     void Free(const class Device *);
     static void Render(vk::CommandBuffer commandBuffer);
 

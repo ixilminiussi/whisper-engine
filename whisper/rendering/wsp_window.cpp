@@ -73,6 +73,8 @@ void Window::CreateSurface(vk::Instance instance)
 
 void Window::SetDevice(const Device *device)
 {
+    check(device);
+
     _device = device;
 }
 

@@ -6,6 +6,7 @@
 
 // lib
 #include <spdlog/spdlog.h>
+#include <vulkan/vulkan_core.h>
 #include <vulkan/vulkan_handles.hpp>
 #include <vulkan/vulkan_structs.hpp>
 
@@ -17,6 +18,8 @@ Swapchain::Swapchain(const class Window *window, const class Device *device, vk:
     : _freed{false}, _imageAvailableSemaphores{}, _renderFinishedSemaphores{}, _inFlightFences{}, _imagesInFlight{},
       _images{}
 {
+    check(device);
+
     const vk::SurfaceKHR *surface = window->GetSurface();
     const vk::SurfaceFormatKHR surfaceFormat = ChooseSwapSurfaceFormat(device->GetSurfaceFormatsKHR(*surface));
     const vk::PresentModeKHR presentMode = ChooseSwapPresentMode(device->GetSurfacePresentModesKHR(*surface));
@@ -38,7 +41,7 @@ Swapchain::Swapchain(const class Window *window, const class Device *device, vk:
     createInfo.imageColorSpace = surfaceFormat.colorSpace;
     createInfo.imageExtent = extent;
     createInfo.imageArrayLayers = 1;
-    createInfo.imageUsage = vk::ImageUsageFlagBits::eColorAttachment;
+    createInfo.imageUsage = vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransferDst;
 
     const QueueFamilyIndices indices = device->FindQueueFamilies(*surface);
     int queueFamilyIndices[] = {indices.graphicsFamily, indices.presentFamily};
@@ -87,6 +90,8 @@ Swapchain::~Swapchain()
 
 void Swapchain::Free(const Device *device)
 {
+    check(device);
+
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
     {
         device->DestroySemaphore(_renderFinishedSemaphores[i]);
@@ -134,6 +139,7 @@ void Swapchain::PopulateImGuiInitInfo(ImGui_ImplVulkan_InitInfo *initInfo) const
 void Swapchain::SubmitCommandBuffer(const Device *device, vk::CommandBuffer commandBuffers, uint32_t imageIndex,
                                     uint32_t frameIndex)
 {
+    check(device);
     check(imageIndex < _imagesInFlight.size());
 
     if (_imagesInFlight[imageIndex] != nullptr)
@@ -184,6 +190,8 @@ void Swapchain::SubmitCommandBuffer(const Device *device, vk::CommandBuffer comm
 
 void Swapchain::AcquireNextImage(const Device *device, uint32_t frameIndex, uint32_t *imageIndex) const
 {
+    check(device);
+
     device->WaitForFences({_inFlightFences[frameIndex]});
 
     device->AcquireNextImageKHR(_swapchain, _imageAvailableSemaphores[frameIndex], VK_NULL_HANDLE, imageIndex);
@@ -206,11 +214,12 @@ void Swapchain::BeginRenderPass(vk::CommandBuffer commandBuffer, uint32_t frameI
     renderPassInfo.renderArea.offset = vk::Offset2D{0, 0};
     renderPassInfo.renderArea.extent = _extent;
 
-    std::array<vk::ClearValue, 2> clearValues{};
-    clearValues[0].color = {0.1f, 0.1f, 0.1f, 1.0f};
-    clearValues[1].depthStencil = vk::ClearDepthStencilValue{1.0f, 0};
-    renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
-    renderPassInfo.pClearValues = clearValues.data();
+    // std::array<vk::ClearValue, 2> clearValues{};
+    // clearValues[0].color = {0.1f, 0.1f, 0.1f, 1.0f};
+    // renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
+    // renderPassInfo.pClearValues = clearValues.data();
+    renderPassInfo.clearValueCount = 0;
+    renderPassInfo.pClearValues = nullptr;
 
     commandBuffer.beginRenderPass(&renderPassInfo, vk::SubpassContents::eInline);
 
@@ -226,6 +235,55 @@ void Swapchain::BeginRenderPass(vk::CommandBuffer commandBuffer, uint32_t frameI
     scissor.extent = _extent;
     commandBuffer.setViewport(0, 1, &viewport);
     commandBuffer.setScissor(0, 1, &scissor);
+}
+
+void Swapchain::BlitImage(vk::CommandBuffer commandBuffer, vk::Image image, vk::Extent2D resolution,
+                          size_t imageIndex) const
+{
+    check(imageIndex < _images.size());
+    const vk::Image swapchainImage = _images.at(imageIndex);
+
+    commandBuffer.pipelineBarrier(vk::PipelineStageFlagBits::eColorAttachmentOutput,
+                                  vk::PipelineStageFlagBits::eTransfer, {}, {}, {},
+                                  vk::ImageMemoryBarrier{vk::AccessFlagBits::eNone,
+                                                         vk::AccessFlagBits::eTransferWrite,
+                                                         vk::ImageLayout::eUndefined,
+                                                         vk::ImageLayout::eTransferDstOptimal,
+                                                         VK_QUEUE_FAMILY_IGNORED,
+                                                         VK_QUEUE_FAMILY_IGNORED,
+                                                         swapchainImage,
+                                                         {vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1}});
+
+    commandBuffer.pipelineBarrier(vk::PipelineStageFlagBits::eColorAttachmentOutput,
+                                  vk::PipelineStageFlagBits::eTransfer, {}, {}, {},
+                                  vk::ImageMemoryBarrier{vk::AccessFlagBits::eColorAttachmentWrite,
+                                                         vk::AccessFlagBits::eTransferWrite,
+                                                         vk::ImageLayout::eUndefined,
+                                                         vk::ImageLayout::eTransferSrcOptimal,
+                                                         VK_QUEUE_FAMILY_IGNORED,
+                                                         VK_QUEUE_FAMILY_IGNORED,
+                                                         image,
+                                                         {vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1}});
+
+    vk::ImageBlit blitRegion{};
+    blitRegion.srcSubresource = {vk::ImageAspectFlagBits::eColor, 0, 0, 1};
+    blitRegion.srcOffsets[1] = vk::Offset3D{(int)resolution.width, (int)resolution.height, 1};
+    blitRegion.dstSubresource = {vk::ImageAspectFlagBits::eColor, 0, 0, 1};
+    blitRegion.dstOffsets[1] = vk::Offset3D{(int)_extent.width, (int)_extent.height, 1};
+
+    commandBuffer.blitImage(image, vk::ImageLayout::eTransferSrcOptimal, swapchainImage,
+                            vk::ImageLayout::eTransferDstOptimal, 1, &blitRegion, vk::Filter::eLinear);
+
+    // commandBuffer.pipelineBarrier(vk::PipelineStageFlagBits::eTransfer,
+    //                               vk::PipelineStageFlagBits::eColorAttachmentOutput, {}, {}, {},
+    //                               vk::ImageMemoryBarrier{vk::AccessFlagBits::eTransferWrite,
+    //                                                      vk::AccessFlagBits::eColorAttachmentWrite,
+    //                                                      vk::ImageLayout::eTransferDstOptimal,
+    //                                                      vk::ImageLayout::ePresentSrcKHR,
+    //                                                      VK_QUEUE_FAMILY_IGNORED,
+    //                                                      VK_QUEUE_FAMILY_IGNORED,
+    //                                                      swapchainImage,
+    //                                                      {vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1}});
 }
 
 vk::SurfaceFormatKHR Swapchain::ChooseSwapSurfaceFormat(const std::vector<vk::SurfaceFormatKHR> &availableFormats)
@@ -284,6 +342,7 @@ vk::Extent2D Swapchain::ChooseSwapExtent(vk::Extent2D windowExtent, const vk::Su
 
 void Swapchain::CreateImageViews(const Device *device, size_t count)
 {
+    check(device);
     check(_images.size() <= count);
 
     _imageViews.resize(count);
@@ -306,14 +365,18 @@ void Swapchain::CreateImageViews(const Device *device, size_t count)
 
 void Swapchain::CreateRenderPass(const Device *device)
 {
+    check(device);
+
     vk::AttachmentDescription colorAttachment = {};
     colorAttachment.format = _imageFormat;
     colorAttachment.samples = vk::SampleCountFlagBits::e1;
-    colorAttachment.loadOp = vk::AttachmentLoadOp::eClear;
+    // colorAttachment.loadOp = vk::AttachmentLoadOp::eClear;
+    colorAttachment.loadOp = vk::AttachmentLoadOp::eLoad;
     colorAttachment.storeOp = vk::AttachmentStoreOp::eStore;
     colorAttachment.stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
     colorAttachment.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
-    colorAttachment.initialLayout = vk::ImageLayout::eUndefined;
+    // colorAttachment.initialLayout = vk::ImageLayout::eUndefined;
+    colorAttachment.initialLayout = vk::ImageLayout::eTransferDstOptimal;
     colorAttachment.finalLayout = vk::ImageLayout::ePresentSrcKHR;
 
     vk::AttachmentReference colorAttachmentRef = {};
@@ -352,6 +415,7 @@ void Swapchain::CreateRenderPass(const Device *device)
 
 void Swapchain::CreateFramebuffers(const Device *device, size_t count)
 {
+    check(device);
     check(_imageViews.size() <= count);
 
     _framebuffers.resize(count);
@@ -375,6 +439,7 @@ void Swapchain::CreateFramebuffers(const Device *device, size_t count)
 
 void Swapchain::CreateSyncObjects(const Device *device, size_t count)
 {
+    check(device);
     check(_images.size() <= count);
 
     _imageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
@@ -398,14 +463,3 @@ void Swapchain::CreateSyncObjects(const Device *device, size_t count)
 }
 
 } // namespace wsp
-/**
-
-vk::Format Swapchain::findDepthFormat()
-{
-    return _device.findSupportedFormat(
-        {vk::Format::eD32Sfloat, vk::Format::eD32SfloatS8Uint, vk::Format::eD24UnormS8Uint}, vk::ImageTiling::eOptimal,
-        vk::FormatFeatureFlagBits::eDepthStencilAttachment);
-}
-
-} // namespace cmx
-**/

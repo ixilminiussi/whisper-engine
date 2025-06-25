@@ -3,6 +3,7 @@
 #include "fl_graph.h"
 #include "fl_handles.h"
 #include "wsp_device.h"
+#include "wsp_devkit.h"
 #include "wsp_window.h"
 #include <spdlog/spdlog.h>
 
@@ -12,6 +13,9 @@ namespace wsp
 Renderer::Renderer(const Device *device, const Window *window)
     : _freed{false}, _currentImageIndex{0}, _currentFrameIndex{0}
 {
+    check(device);
+    check(window);
+
     _window = window;
 
     _graph = new fl::Graph(device);
@@ -20,13 +24,11 @@ Renderer::Renderer(const Device *device, const Window *window)
     colorResourceInfo.role = fl::ResourceRole::eColor;
     colorResourceInfo.format = vk::Format::eR8G8B8A8Unorm;
     colorResourceInfo.extent = vk::Extent2D{1024, 1024};
-    colorResourceInfo.isTarget = true;
 
     fl::ResourceCreateInfo depthResourceInfo{};
     depthResourceInfo.role = fl::ResourceRole::eDepth;
     depthResourceInfo.format = vk::Format::eD32Sfloat;
     depthResourceInfo.extent = vk::Extent2D{1024, 1024};
-    depthResourceInfo.isTarget = true;
 
     const fl::Resource color = _graph->NewResource(colorResourceInfo);
     const fl::Resource depth = _graph->NewResource(depthResourceInfo);
@@ -34,10 +36,13 @@ Renderer::Renderer(const Device *device, const Window *window)
     fl::PassCreateInfo passCreateInfo{};
     passCreateInfo.writes = {color, depth};
     passCreateInfo.reads = {};
+    passCreateInfo.vertFile = "triangle.vert.spv";
+    passCreateInfo.fragFile = "triangle.frag.spv";
+    passCreateInfo.execute = [](vk::CommandBuffer commandBuffer) { commandBuffer.draw(3, 1, 0, 0); };
 
     _graph->NewPass(passCreateInfo);
 
-    _graph->Compile(device);
+    _graph->Compile(device, color);
 
     CreateCommandBuffers(device);
 }
@@ -52,6 +57,8 @@ Renderer::~Renderer()
 
 void Renderer::Free(const Device *device)
 {
+    check(device);
+
     device->FreeCommandBuffers(&_commandBuffers);
     _commandBuffers.clear();
 
@@ -62,8 +69,10 @@ void Renderer::Free(const Device *device)
     spdlog::info("Renderer: succesfully freed");
 }
 
-vk::CommandBuffer Renderer::BeginRender(const Device *device)
+vk::CommandBuffer Renderer::RenderGraph(const Device *device)
 {
+    check(device);
+
     const Swapchain *swapchain = _window->GetSwapchain();
     swapchain->AcquireNextImage(device, _currentFrameIndex, &_currentImageIndex);
 
@@ -78,24 +87,26 @@ vk::CommandBuffer Renderer::BeginRender(const Device *device)
         throw std::runtime_error("Renderer: failed to begin recording command buffer!");
     }
 
-    swapchain->BeginRenderPass(commandBuffer, _currentImageIndex);
+    _graph->Run(commandBuffer);
 
     return commandBuffer;
 }
 
-void Renderer::Render(vk::CommandBuffer commandBuffer)
+void Renderer::SwapchainOpen(const Device *device, vk::CommandBuffer commandBuffer)
 {
-    _graph->Run(commandBuffer);
+    check(device);
+
+    Swapchain *swapchain = _window->GetSwapchain();
+    swapchain->BlitImage(commandBuffer, _graph->GetTargetImage(), {1024, 1024}, _currentImageIndex);
+    swapchain->BeginRenderPass(commandBuffer, _currentImageIndex);
 }
 
-void Renderer::EndRender(const Device *device)
+void Renderer::SwapchainFlush(const Device *device, vk::CommandBuffer commandBuffer)
 {
-    Swapchain *swapchain = _window->GetSwapchain();
-    auto commandBuffer = _commandBuffers[_currentFrameIndex];
-
     commandBuffer.endRenderPass();
     commandBuffer.end();
 
+    Swapchain *swapchain = _window->GetSwapchain();
     swapchain->SubmitCommandBuffer(device, commandBuffer, _currentImageIndex, _currentFrameIndex);
 
     _currentFrameIndex = (_currentFrameIndex + 1) % Swapchain::MAX_FRAMES_IN_FLIGHT;
@@ -105,6 +116,8 @@ void Renderer::EndRender(const Device *device)
 
 void Renderer::CreateCommandBuffers(const Device *device)
 {
+    check(device);
+
     _commandBuffers.resize(Swapchain::MAX_FRAMES_IN_FLIGHT);
     device->AllocateCommandBuffers(&_commandBuffers);
 }

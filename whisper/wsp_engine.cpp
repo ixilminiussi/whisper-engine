@@ -32,7 +32,10 @@ vk::Instance vkInstance;
 Window *window{nullptr};
 Device *device{nullptr};
 Renderer *renderer{nullptr};
+
+#ifndef NDEBUG
 Editor *editor{nullptr};
+#endif
 
 const vk::Instance &GetVulkanInstance()
 {
@@ -210,7 +213,9 @@ bool Initialize()
         window->BuildSwapchain();
 
         renderer = new Renderer(device, window);
+#ifndef NDEBUG
         editor = new Editor(window, device, vkInstance);
+#endif
 
         initialized = true;
         terminated = false;
@@ -232,11 +237,13 @@ void Run()
     {
         glfwPollEvents();
 
-        const vk::CommandBuffer commandBuffer = renderer->BeginRender(device);
+        const vk::CommandBuffer commandBuffer = renderer->RenderGraph(device);
 
+        renderer->SwapchainOpen(device, commandBuffer);
+#ifndef NDEBUG
         editor->Render(commandBuffer);
-
-        renderer->EndRender(device);
+#endif
+        renderer->SwapchainFlush(device, commandBuffer);
     }
 }
 

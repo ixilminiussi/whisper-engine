@@ -22,14 +22,14 @@ class Swapchain
     Swapchain(const class Window *, const class Device *, vk::Extent2D, vk::SwapchainKHR oldSwapchain = VK_NULL_HANDLE);
     ~Swapchain();
 
+    Swapchain(const Swapchain &) = delete;
+    Swapchain &operator=(const Swapchain &) = delete;
+
     void Free(const class Device *);
 
 #ifndef NDEBUG
     void PopulateImGuiInitInfo(ImGui_ImplVulkan_InitInfo *initInfo) const;
 #endif
-
-    Swapchain(const Swapchain &) = delete;
-    Swapchain &operator=(const Swapchain &) = delete;
 
     void SubmitCommandBuffer(const class Device *, vk::CommandBuffer commandBuffer, uint32_t imageIndex,
                              uint32_t frameIndex);
@@ -39,6 +39,7 @@ class Swapchain
     size_t GetCurrentFrameIndex() const;
 
     void BeginRenderPass(vk::CommandBuffer, uint32_t frameIndex) const;
+    void BlitImage(vk::CommandBuffer, vk::Image, vk::Extent2D resolution, size_t imageIndex) const;
 
   protected:
     static vk::SurfaceFormatKHR ChooseSwapSurfaceFormat(const std::vector<vk::SurfaceFormatKHR> &);

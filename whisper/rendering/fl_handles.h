@@ -20,6 +20,10 @@ struct Pass
     {
         return index < other.index;
     }
+    bool operator==(const Pass &other) const
+    {
+        return index == other.index;
+    }
 };
 
 struct Resource
@@ -31,13 +35,22 @@ struct Resource
     {
         return index < other.index;
     }
+    bool operator==(const Resource &other) const
+    {
+        return index == other.index;
+    }
 };
 
 struct PassCreateInfo
 {
     std::vector<Resource> reads;
     std::vector<Resource> writes;
+
+    std::string vertFile;
+    std::string fragFile;
+
     std::function<void(vk::CommandBuffer)> execute;
+    vk::PipelineVertexInputStateCreateInfo vertexInputInfo{{}, 0, nullptr, 0, nullptr};
 };
 
 enum ResourceRole
@@ -51,7 +64,6 @@ struct ResourceCreateInfo
     vk::Format format{};
     vk::Extent2D extent{};
     ResourceRole role{};
-    bool isTarget{false};
 
     friend class Graph;
 

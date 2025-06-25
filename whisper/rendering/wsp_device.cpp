@@ -446,9 +446,53 @@ void Device::CreateDescriptorPool(const vk::DescriptorPoolCreateInfo &createInfo
         spdlog::critical("ErrorMsg: {}", vk::to_string(static_cast<vk::Result>(result)));
         throw std::runtime_error("Device: failed to create descriptor pool");
     }
+
+    // DebugUtil::nameObject(_renderPass, vk::ObjectType::eRenderPass, "Swapchain RenderPass");
 }
 
-// DebugUtil::nameObject(_renderPass, vk::ObjectType::eRenderPass, "Swapchain RenderPass");
+void Device::CreateShaderModule(const std::vector<char> &code, vk::ShaderModule *shaderModule) const
+{
+    vk::ShaderModuleCreateInfo createInfo{};
+    createInfo.sType = vk::StructureType::eShaderModuleCreateInfo;
+    createInfo.codeSize = code.size();
+    createInfo.pCode = reinterpret_cast<const uint32_t *>(code.data());
+
+    if (const vk::Result result = _device.createShaderModule(&createInfo, nullptr, shaderModule);
+        result != vk::Result::eSuccess)
+    {
+        spdlog::critical("ErrorMsg: {}", vk::to_string(static_cast<vk::Result>(result)));
+        throw std::runtime_error("Device: failed to create shader module");
+    }
+}
+
+void Device::CreatePipelineLayout(const vk::PipelineLayoutCreateInfo &createInfo,
+                                  vk::PipelineLayout *pipelineLayout) const
+{
+    check(_device);
+
+    if (const vk::Result result = _device.createPipelineLayout(&createInfo, nullptr, pipelineLayout);
+        result != vk::Result::eSuccess)
+    {
+        spdlog::critical("ErrorMsg: {}", vk::to_string(static_cast<vk::Result>(result)));
+        throw std::runtime_error("Device: failed to create pipeline layout");
+    }
+
+    // DebugUtil::nameObject(_renderPass, vk::ObjectType::eRenderPass, "Swapchain RenderPass");
+}
+
+void Device::CreateGraphicsPipeline(const vk::GraphicsPipelineCreateInfo &createInfo, vk::Pipeline *pipeline) const
+{
+    check(_device);
+
+    if (const vk::Result result = _device.createGraphicsPipelines(VK_NULL_HANDLE, 1, &createInfo, nullptr, pipeline);
+        result != vk::Result::eSuccess)
+    {
+        spdlog::critical("ErrorMsg: {}", vk::to_string(static_cast<vk::Result>(result)));
+        throw std::runtime_error("Device: failed to create pipeline layout");
+    }
+
+    // DebugUtil::nameObject(_renderPass, vk::ObjectType::eRenderPass, "Swapchain RenderPass");
+}
 
 void Device::DestroySemaphore(vk::Semaphore semaphore) const
 {
@@ -499,6 +543,21 @@ void Device::DestroyDescriptorPool(vk::DescriptorPool descriptorPool) const
 {
     check(_device);
     _device.destroyDescriptorPool(descriptorPool, nullptr);
+}
+void Device::DestroyShaderModule(vk::ShaderModule shaderModule) const
+{
+    check(_device);
+    _device.destroyShaderModule(shaderModule, nullptr);
+}
+void Device::DestroyPipelineLayout(vk::PipelineLayout pipelineLayout) const
+{
+    check(_device);
+    _device.destroyPipelineLayout(pipelineLayout, nullptr);
+}
+void Device::DestroyGraphicsPipeline(vk::Pipeline pipeline) const
+{
+    check(_device);
+    _device.destroyPipeline(pipeline, nullptr);
 }
 
 uint32_t Device::FindMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties) const

@@ -1,3 +1,4 @@
+#include "wsp_devkit.h"
 #include "wsp_static_utils.h"
 #include <vulkan/vulkan_handles.hpp>
 #ifndef NDEBUG
@@ -26,6 +27,9 @@ bool Editor::IsActive()
 
 Editor::Editor(const Window *window, const Device *device, vk::Instance instance) : _freed{false}
 {
+    check(device);
+    check(window);
+
     InitImGui(window, device, instance);
 }
 
@@ -39,6 +43,8 @@ Editor::~Editor()
 
 void Editor::Free(const Device *device)
 {
+    check(device);
+
     if (_freed)
     {
         spdlog::error("Editor: already freed window");
@@ -75,6 +81,9 @@ void Editor::Render(vk::CommandBuffer commandBuffer)
 
 void Editor::InitImGui(const Window *window, const Device *device, vk::Instance instance)
 {
+    check(device);
+    check(window);
+
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     const ImGuiIO &io = ImGui::GetIO();
