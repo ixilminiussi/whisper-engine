@@ -1,5 +1,5 @@
 # bugfixes
-- [ ] imgui also getting stretched when window is resized
+- [x] imgui also getting stretched when window is resized
 
 # features
 - [ ] resize all framebuffers on window resize, OR make it an option to set a render size
