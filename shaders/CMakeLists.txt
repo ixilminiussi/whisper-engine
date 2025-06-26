@@ -4,6 +4,7 @@ set(SHADER_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}")
 
 set(SHADER_FILES
     triangle.vert triangle.frag
+    postprocess.vert postprocess.frag
 )
 
 set(COMPILED_SHADERS)

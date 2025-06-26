@@ -22,6 +22,7 @@ namespace fl
 const size_t Graph::SAMPLER_DEPTH{0};
 const size_t Graph::SAMPLER_COLOR_CLAMPED{1};
 const size_t Graph::SAMPLER_COLOR_REPEATED{2};
+const size_t Graph::MAX_SAMPLER_SETS{500};
 
 Graph::Graph(const wsp::Device *device, size_t width, size_t height)
     : _passInfos{}, _resourceInfos{}, _images{}, _deviceMemories{}, _imageViews{}, _freed{false}, _target{0},
@@ -57,6 +58,26 @@ void Graph::CreateSamplers(const wsp::Device *device)
     samplerCreateInfo.addressModeW = vk::SamplerAddressMode::eRepeat;
 
     _samplers[SAMPLER_COLOR_REPEATED] = device->CreateSampler(samplerCreateInfo);
+
+    std::vector<vk::DescriptorPoolSize> poolSizes = {{vk::DescriptorType::eCombinedImageSampler, 100}};
+
+    vk::DescriptorPoolCreateInfo poolInfo{};
+    poolInfo.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet;
+    poolInfo.maxSets = MAX_SAMPLER_SETS;
+    poolInfo.poolSizeCount = (uint32_t)poolSizes.size();
+    poolInfo.pPoolSizes = poolSizes.data();
+
+    device->CreateDescriptorPool(poolInfo, &_samplerDescriptorPool);
+
+    std::vector<vk::DescriptorSetLayoutBinding> setLayoutBindings{
+        {0, vk::DescriptorType::eCombinedImageSampler, 1, {vk::ShaderStageFlagBits::eFragment}}};
+
+    vk::DescriptorSetLayoutCreateInfo descriptorSetLayoutInfo{};
+    descriptorSetLayoutInfo.sType = vk::StructureType::eDescriptorSetLayoutCreateInfo;
+    descriptorSetLayoutInfo.bindingCount = static_cast<uint32_t>(setLayoutBindings.size());
+    descriptorSetLayoutInfo.pBindings = setLayoutBindings.data();
+
+    device->CreateDescriptorSetLayout(descriptorSetLayoutInfo, &_samplerDescriptorSetLayout);
 }
 
 Graph::~Graph()
@@ -76,6 +97,8 @@ void Graph::Free(const wsp::Device *device)
         device->DestroySampler(sampler);
     }
     _samplers.clear();
+    device->DestroyDescriptorSetLayout(_samplerDescriptorSetLayout);
+    device->DestroyDescriptorPool(_samplerDescriptorPool);
 
     Reset(device);
 
@@ -168,6 +191,8 @@ void Graph::Compile(const wsp::Device *device, Resource target)
 
     KhanFindOrder(_validResources, _validPasses);
 
+    spdlog::info("Graph: finished compilation");
+
     return;
 }
 
@@ -218,7 +243,6 @@ void Graph::CreatePipeline(const wsp::Device *device, Pass pass)
     rasterizationInfo.polygonMode = vk::PolygonMode::eFill;
     rasterizationInfo.lineWidth = 1.0f;
     rasterizationInfo.cullMode = vk::CullModeFlagBits::eFront;
-    // rasterizationInfo.cullMode = vk::CullModeFlagBits::eNone;
     rasterizationInfo.frontFace = vk::FrontFace::eClockwise;
     rasterizationInfo.depthBiasEnable = vk::False;
     rasterizationInfo.depthBiasConstantFactor = 0.0f;
@@ -288,10 +312,12 @@ void Graph::CreatePipeline(const wsp::Device *device, Pass pass)
     dynamicStateInfo.dynamicStateCount = static_cast<uint32_t>(dynamicStateEnables.size());
     dynamicStateInfo.flags = vk::PipelineDynamicStateCreateFlagBits{};
 
+    const std::vector<vk::DescriptorSetLayout> descriptorSetLayouts(passInfo.reads.size(), _samplerDescriptorSetLayout);
+
     vk::PipelineLayoutCreateInfo pipelineLayoutInfo{};
     pipelineLayoutInfo.sType = vk::StructureType::ePipelineLayoutCreateInfo;
-    pipelineLayoutInfo.setLayoutCount = 0;
-    pipelineLayoutInfo.pSetLayouts = nullptr; // change with descriptorSetLayouts for read
+    pipelineLayoutInfo.setLayoutCount = static_cast<uint32_t>(descriptorSetLayouts.size());
+    pipelineLayoutInfo.pSetLayouts = descriptorSetLayouts.data();
     pipelineLayoutInfo.pushConstantRangeCount = 0;
     pipelineLayoutInfo.pPushConstantRanges = nullptr; // change with pushConstantRanges
 
@@ -360,6 +386,20 @@ void Graph::Run(vk::CommandBuffer commandBuffer)
 
         commandBuffer.setViewport(0, 1, &viewport);
         commandBuffer.setScissor(0, 1, &scissor);
+
+        if (passInfo.reads.size() > 0)
+        {
+            std::vector<vk::DescriptorSet> samplerDescriptorSets;
+            samplerDescriptorSets.reserve(passInfo.reads.size());
+
+            for (const Resource resource : passInfo.reads)
+            {
+                samplerDescriptorSets.push_back(_samplerDescriptorSets.at(resource));
+            }
+
+            commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, _pipelines.at(pass).pipelineLayout, 0,
+                                             samplerDescriptorSets.size(), samplerDescriptorSets.data(), 0, nullptr);
+        }
 
         commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, _pipelines.at(pass).pipeline);
         passInfo.execute(commandBuffer);
@@ -553,26 +593,17 @@ void Graph::Build(const wsp::Device *device, Resource resource)
     device->CreateImageView(viewInfo, &imageView);
     _imageViews[resource] = imageView;
 
-    // renderTarget.descriptorSetID =
-    //    RenderSystem::getInstance()->createSamplerDescriptor(renderTarget.imageView, renderTarget.sampler);
-
-    // vk::AttachmentDescription attachmentDescription{};
-    // attachmentDescription.format = attachmentInfo.format;
-    // attachmentDescription.samples = vk::SampleCountFlagBits::e1;
-    // attachmentDescription.loadOp = attachmentInfo.loadOp;
-    // attachmentDescription.storeOp = attachmentInfo.storeOp;
-    // attachmentDescription.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
-    // attachmentDescription.stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
-    // attachmentDescription.initialLayout = attachmentInfo.initial;
-    // attachmentDescription.finalLayout = attachmentInfo.final;
-
-    // attachmentDescriptions.push_back(attachmentDescription);
+    if (createInfo.readers.size() > 0)
+    {
+        CreateSamplerDescriptor(device, resource);
+    }
 }
 
 void Graph::Build(const wsp::Device *device, Pass pass)
 {
     check(device);
 
+    int j = 0;
     const PassCreateInfo &createInfo = GetPassInfo(pass);
 
     vk::Extent2D outResolution{(uint32_t)_width, (uint32_t)_height};
@@ -640,7 +671,8 @@ void Graph::Build(const wsp::Device *device, Pass pass)
     subpass.pipelineBindPoint = vk::PipelineBindPoint::eGraphics;
     subpass.colorAttachmentCount = 1;
     subpass.pColorAttachments = colorAttachmentReferences.data();
-    subpass.pDepthStencilAttachment = &depthAttachmentReference.value();
+    subpass.pDepthStencilAttachment =
+        depthAttachmentReference.has_value() ? &depthAttachmentReference.value() : nullptr;
 
     vk::RenderPassCreateInfo renderPassInfo{};
     renderPassInfo.attachmentCount = attachmentDescriptions.size();
@@ -663,6 +695,41 @@ void Graph::Build(const wsp::Device *device, Pass pass)
     vk::Framebuffer framebuffer;
     device->CreateFramebuffer(framebufferInfo, &framebuffer);
     _framebuffers[pass] = framebuffer;
+}
+
+void Graph::CreateSamplerDescriptor(const wsp::Device *device, Resource resource)
+{
+    const ResourceCreateInfo &resourceInfo = GetResourceInfo(resource);
+
+    check(resourceInfo.readers.size() > 0);
+    check(_validResources.find(resource) != _validResources.end());
+    check(_samplers.find(resourceInfo.sampler) != _samplers.end());
+
+    vk::DescriptorSet descriptorSet;
+
+    vk::DescriptorSetAllocateInfo setAllocInfo{};
+    setAllocInfo.descriptorPool = _samplerDescriptorPool;
+    setAllocInfo.descriptorSetCount = 1;
+    setAllocInfo.pSetLayouts = &(_samplerDescriptorSetLayout);
+
+    device->AllocateDescriptorSet(setAllocInfo, &descriptorSet);
+
+    vk::DescriptorImageInfo imageInfo{};
+    imageInfo.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+    imageInfo.imageView = _imageViews.at(resource);
+    imageInfo.sampler = _samplers.at(resourceInfo.sampler);
+
+    vk::WriteDescriptorSet descriptorWrite{};
+    descriptorWrite.dstSet = descriptorSet;
+    descriptorWrite.dstBinding = 0;
+    descriptorWrite.dstArrayElement = 0;
+    descriptorWrite.descriptorType = vk::DescriptorType::eCombinedImageSampler;
+    descriptorWrite.descriptorCount = 1;
+    descriptorWrite.pImageInfo = &imageInfo;
+
+    device->UpdateDescriptorSet(descriptorWrite);
+
+    _samplerDescriptorSets[resource] = descriptorSet;
 }
 
 void Graph::WindowResizeCallback(void *graph, const wsp::Device *device, size_t width, size_t height)

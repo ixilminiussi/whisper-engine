@@ -27,6 +27,7 @@ class Graph
     static const size_t SAMPLER_DEPTH;
     static const size_t SAMPLER_COLOR_CLAMPED;
     static const size_t SAMPLER_COLOR_REPEATED;
+    static const size_t MAX_SAMPLER_SETS;
 
     Graph(const wsp::Device *, size_t width, size_t height);
     ~Graph();
@@ -66,8 +67,8 @@ class Graph
     void Free(const wsp::Device *, Pass);
 
     void CreatePipeline(const wsp::Device *, Pass);
-
     void CreateSamplers(const wsp::Device *);
+    void CreateSamplerDescriptor(const wsp::Device *, Resource resource);
 
     void FindDependencies(std::set<Resource> *validResources, std::set<Pass> *validPasses, Resource resource);
     void FindDependencies(std::set<Resource> *validResources, std::set<Pass> *validPasses, Pass resource);
@@ -92,6 +93,9 @@ class Graph
                                                // GIGA SHADER Unity approach?
 
     std::map<size_t, vk::Sampler> _samplers;
+    vk::DescriptorPool _samplerDescriptorPool;
+    vk::DescriptorSetLayout _samplerDescriptorSetLayout;
+    std::map<Resource, vk::DescriptorSet> _samplerDescriptorSets;
 
     std::vector<Pass> _orderedPasses;
     std::set<Resource> _validResources;

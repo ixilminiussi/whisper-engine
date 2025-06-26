@@ -57,8 +57,11 @@ class Device
     void CreateImageAndBindMemory(const vk::ImageCreateInfo &, vk::Image *, vk::DeviceMemory *) const;
     void CreateImageView(const vk::ImageViewCreateInfo &, vk::ImageView *) const;
     vk::Sampler CreateSampler(const vk::SamplerCreateInfo &) const;
+    void AllocateDescriptorSet(const vk::DescriptorSetAllocateInfo &, vk::DescriptorSet *) const;
+    void UpdateDescriptorSet(const vk::WriteDescriptorSet &) const;
     void CreateSwapchainKHR(const vk::SwapchainCreateInfoKHR &, vk::SwapchainKHR *) const;
     void CreateDescriptorPool(const vk::DescriptorPoolCreateInfo &, vk::DescriptorPool *) const;
+    void CreateDescriptorSetLayout(const vk::DescriptorSetLayoutCreateInfo &, vk::DescriptorSetLayout *) const;
     void CreateShaderModule(const std::vector<char> &code, vk::ShaderModule *) const;
     void CreatePipelineLayout(const vk::PipelineLayoutCreateInfo &, vk::PipelineLayout *) const;
     void CreateGraphicsPipeline(const vk::GraphicsPipelineCreateInfo &, vk::Pipeline *) const;
@@ -76,6 +79,7 @@ class Device
     void DestroySampler(vk::Sampler) const;
     void DestroySwapchainKHR(vk::SwapchainKHR) const;
     void DestroyDescriptorPool(vk::DescriptorPool) const;
+    void DestroyDescriptorSetLayout(vk::DescriptorSetLayout) const;
     void DestroyShaderModule(vk::ShaderModule) const;
     void DestroyPipelineLayout(vk::PipelineLayout) const;
     void DestroyGraphicsPipeline(vk::Pipeline) const;

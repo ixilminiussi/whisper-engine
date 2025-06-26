@@ -25,16 +25,10 @@ Renderer::Renderer(const Device *device, Window *window) : _freed{false}, _curre
     colorResourceInfo.format = vk::Format::eR8G8B8A8Unorm;
     colorResourceInfo.clear.color = vk::ClearColorValue{0.1f, 0.1f, 0.1f, 1.0f};
 
-    fl::ResourceCreateInfo depthResourceInfo{};
-    depthResourceInfo.role = fl::ResourceRole::eDepth;
-    depthResourceInfo.format = vk::Format::eD32Sfloat;
-    depthResourceInfo.clear.depthStencil = vk::ClearDepthStencilValue{1.0f, 0};
-
     const fl::Resource color = _graph->NewResource(colorResourceInfo);
-    const fl::Resource depth = _graph->NewResource(depthResourceInfo);
 
     fl::PassCreateInfo passCreateInfo{};
-    passCreateInfo.writes = {color, depth};
+    passCreateInfo.writes = {color};
     passCreateInfo.reads = {};
     passCreateInfo.vertFile = "triangle.vert.spv";
     passCreateInfo.fragFile = "triangle.frag.spv";
@@ -42,7 +36,18 @@ Renderer::Renderer(const Device *device, Window *window) : _freed{false}, _curre
 
     _graph->NewPass(passCreateInfo);
 
-    _graph->Compile(device, color);
+    const fl::Resource reverseColor = _graph->NewResource(colorResourceInfo);
+
+    fl::PassCreateInfo postPassCreateInfo{};
+    postPassCreateInfo.writes = {reverseColor};
+    postPassCreateInfo.reads = {color};
+    postPassCreateInfo.vertFile = "postprocess.vert.spv";
+    postPassCreateInfo.fragFile = "postprocess.frag.spv";
+    postPassCreateInfo.execute = [](vk::CommandBuffer commandBuffer) { commandBuffer.draw(6, 1, 0, 0); };
+
+    _graph->NewPass(postPassCreateInfo);
+
+    _graph->Compile(device, reverseColor);
 
     CreateCommandBuffers(device);
 }

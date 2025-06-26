@@ -421,6 +421,27 @@ vk::Sampler Device::CreateSampler(const vk::SamplerCreateInfo &createInfo) const
     return sampler;
 }
 
+void Device::AllocateDescriptorSet(const vk::DescriptorSetAllocateInfo &allocInfo,
+                                   vk::DescriptorSet *descriptorSet) const
+{
+    check(_device);
+
+    if (const vk::Result result = _device.allocateDescriptorSets(&allocInfo, descriptorSet);
+        result != vk::Result::eSuccess)
+    {
+        throw std::runtime_error("Device: failed to allocate descriptor set.");
+    }
+
+    // DebugUtil::nameObject(_renderPass, vk::ObjectType::eRenderPass, "Swapchain RenderPass");
+}
+
+void Device::UpdateDescriptorSet(const vk::WriteDescriptorSet &writeDescriptor) const
+{
+    check(_device);
+
+    _device.updateDescriptorSets(1, &writeDescriptor, 0, nullptr);
+}
+
 void Device::CreateSwapchainKHR(const vk::SwapchainCreateInfoKHR &createInfo, vk::SwapchainKHR *swapchain) const
 {
     check(_device);
@@ -445,6 +466,21 @@ void Device::CreateDescriptorPool(const vk::DescriptorPoolCreateInfo &createInfo
     {
         spdlog::critical("ErrorMsg: {}", vk::to_string(static_cast<vk::Result>(result)));
         throw std::runtime_error("Device: failed to create descriptor pool");
+    }
+
+    // DebugUtil::nameObject(_renderPass, vk::ObjectType::eRenderPass, "Swapchain RenderPass");
+}
+
+void Device::CreateDescriptorSetLayout(const vk::DescriptorSetLayoutCreateInfo &createInfo,
+                                       vk::DescriptorSetLayout *descriptorSetLayout) const
+{
+    check(_device);
+
+    if (const vk::Result result = _device.createDescriptorSetLayout(&createInfo, nullptr, descriptorSetLayout);
+        result != vk::Result::eSuccess)
+    {
+        spdlog::critical("ErrorMsg: {}", vk::to_string(static_cast<vk::Result>(result)));
+        throw std::runtime_error("Device: failed to create descriptor set layout");
     }
 
     // DebugUtil::nameObject(_renderPass, vk::ObjectType::eRenderPass, "Swapchain RenderPass");
@@ -543,6 +579,11 @@ void Device::DestroyDescriptorPool(vk::DescriptorPool descriptorPool) const
 {
     check(_device);
     _device.destroyDescriptorPool(descriptorPool, nullptr);
+}
+void Device::DestroyDescriptorSetLayout(vk::DescriptorSetLayout descriptorSet) const
+{
+    check(_device);
+    _device.destroyDescriptorSetLayout(descriptorSet, nullptr);
 }
 void Device::DestroyShaderModule(vk::ShaderModule shaderModule) const
 {

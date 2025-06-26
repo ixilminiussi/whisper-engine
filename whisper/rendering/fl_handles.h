@@ -70,6 +70,7 @@ struct ResourceCreateInfo
     vk::Extent2D extent{0, 0}; // {0, 0} to follow screen extent
     vk::ClearValue clear;
     ResourceRole role;
+    size_t sampler{0};
 
     friend class Graph;
 
