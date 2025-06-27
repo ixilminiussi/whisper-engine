@@ -10,6 +10,7 @@
 // lib
 #include <GLFW/glfw3.h>
 #include <spdlog/spdlog.h>
+#include <tracy/Tracy.hpp>
 
 // std
 #include <stdexcept>
@@ -37,14 +38,11 @@ Renderer *renderer{nullptr};
 Editor *editor{nullptr};
 #endif
 
-const vk::Instance &GetVulkanInstance()
-{
-    return vkInstance;
-}
+TracyVkCtx tracyCtx;
 
-Device *GetDevice()
+TracyVkCtx TracyCtx()
 {
-    return device;
+    return tracyCtx;
 }
 
 #ifndef NDEBUG
@@ -116,6 +114,7 @@ void ExtensionsCompatibilityTest()
 
 void CreateInstance()
 {
+    ZoneScopedN("CreateInstance");
 #ifndef NDEBUG
     if (!CheckValidationLayerSupport())
     {
@@ -208,6 +207,7 @@ bool Initialize()
 
         device = new Device();
         device->Initialize(deviceExtensions, vkInstance, *window->GetSurface());
+        device->CreateTracyContext(&tracyCtx);
 
         window->SetDevice(device);
         window->BuildSwapchain();
@@ -235,6 +235,7 @@ void Run()
 {
     while (window && !window->ShouldClose())
     {
+        FrameMarkStart("frame");
         glfwPollEvents();
 
         const vk::CommandBuffer commandBuffer = renderer->RenderGraph(device);
@@ -244,6 +245,7 @@ void Run()
         editor->Render(commandBuffer);
 #endif
         renderer->SwapchainFlush(device, commandBuffer);
+        FrameMarkEnd("frame");
     }
 }
 
@@ -284,6 +286,7 @@ void Terminate()
         }
 #endif
 
+        TracyVkDestroy(tracyCtx);
         device->Free();
         delete device;
 

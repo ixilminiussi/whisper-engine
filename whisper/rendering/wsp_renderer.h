@@ -1,11 +1,16 @@
 #ifndef WSP_RENDERER
 #define WSP_RENDERER
 
+// wps
+#include "wsp_device.h"
+
 // std
 #include <vector>
 
 // lib
 #include <vulkan/vulkan.hpp>
+//
+#include <tracy/TracyVulkan.hpp>
 
 namespace fl
 {

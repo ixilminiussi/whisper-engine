@@ -51,6 +51,7 @@ void Device::Free()
         return;
     }
 
+    check(_device);
     _device.destroyCommandPool(_commandPool);
     _device.destroy();
 
@@ -201,6 +202,56 @@ std::vector<vk::PresentModeKHR> Device::GetSurfacePresentModesKHR(vk::SurfaceKHR
     return _physicalDevice.getSurfacePresentModesKHR(surface);
 }
 
+vk::CommandBuffer Device::BeginSingleTimeCommand() const
+{
+    check(_device);
+
+    vk::CommandBufferAllocateInfo allocInfo{};
+    allocInfo.sType = vk::StructureType::eCommandBufferAllocateInfo;
+    allocInfo.level = vk::CommandBufferLevel::ePrimary;
+    allocInfo.commandPool = _commandPool;
+    allocInfo.commandBufferCount = 1;
+
+    vk::CommandBuffer commandBuffer;
+    if (const vk::Result result = _device.allocateCommandBuffers(&allocInfo, &commandBuffer);
+        result != vk::Result::eSuccess)
+    {
+        spdlog::critical("ErrorMsg: {}", vk::to_string(static_cast<vk::Result>(result)));
+        throw std::runtime_error("Device: failed to allocate command buffer");
+    }
+
+    vk::CommandBufferBeginInfo beginInfo{};
+    beginInfo.sType = vk::StructureType::eCommandBufferBeginInfo;
+    beginInfo.flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit;
+
+    if (const vk::Result result = commandBuffer.begin(&beginInfo); result != vk::Result::eSuccess)
+    {
+        spdlog::critical("ErrorMsg: {}", vk::to_string(static_cast<vk::Result>(result)));
+        throw std::runtime_error("Device: failed to begin command buffer");
+    }
+
+    return commandBuffer;
+}
+
+void Device::EndSingleTimeCommand(vk::CommandBuffer commandBuffer) const
+{
+    commandBuffer.end();
+
+    vk::SubmitInfo submitInfo{};
+    submitInfo.sType = vk::StructureType::eSubmitInfo;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &commandBuffer;
+
+    if (const vk::Result result = _graphicsQueue.submit(1, &submitInfo, VK_NULL_HANDLE); result != vk::Result::eSuccess)
+    {
+        spdlog::critical("ErrorMsg: {}", vk::to_string(static_cast<vk::Result>(result)));
+        throw std::runtime_error("Device: failed to submit graphics queue");
+    }
+    _graphicsQueue.waitIdle();
+
+    _device.freeCommandBuffers(_commandPool, 1, &commandBuffer);
+}
+
 void Device::CreateLogicalDevice(const std::vector<const char *> &requiredExtensions, vk::PhysicalDevice physicalDevice,
                                  vk::SurfaceKHR surface)
 {
@@ -260,10 +311,35 @@ void Device::CreateCommandPool(vk::PhysicalDevice physicalDevice, vk::SurfaceKHR
         result != vk::Result::eSuccess)
     {
         spdlog::critical("ErrorMsg: {}", vk::to_string(static_cast<vk::Result>(result)));
-        throw std::runtime_error("failed to create command pool");
+        throw std::runtime_error("Device: failed to create command pool");
     }
 
     // DebugUtil::nameObject(_renderPass, vk::ObjectType::eRenderPass, "Swapchain RenderPass");
+}
+
+void Device::CreateTracyContext(TracyVkCtx *tracyCtx)
+{
+    check(_device);
+    check(_physicalDevice);
+    check(_graphicsQueue);
+
+    vk::CommandBufferAllocateInfo allocInfo{};
+    allocInfo.sType = vk::StructureType::eCommandBufferAllocateInfo;
+    allocInfo.level = vk::CommandBufferLevel::ePrimary;
+    allocInfo.commandPool = _commandPool;
+    allocInfo.commandBufferCount = 1;
+
+    vk::CommandBuffer commandBuffer;
+    if (const vk::Result result = _device.allocateCommandBuffers(&allocInfo, &commandBuffer);
+        result != vk::Result::eSuccess)
+    {
+        spdlog::critical("ErrorMsg: {}", vk::to_string(static_cast<vk::Result>(result)));
+        throw std::runtime_error("Device: failed to allocate command buffer");
+    }
+
+    *tracyCtx = TracyVkContext(_physicalDevice, _device, _graphicsQueue, commandBuffer);
+
+    _device.freeCommandBuffers(_commandPool, 1, &commandBuffer);
 }
 
 void Device::ResetFences(const std::vector<vk::Fence> &fences) const

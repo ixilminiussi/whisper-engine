@@ -6,6 +6,8 @@
 #include <vulkan/vulkan_enums.hpp>
 #include <vulkan/vulkan_handles.hpp>
 #include <vulkan/vulkan_structs.hpp>
+//
+#include <tracy/TracyVulkan.hpp>
 
 class ImGui_ImplVulkan_InitInfo;
 
@@ -38,9 +40,14 @@ class Device
     void PopulateImGuiInitInfo(ImGui_ImplVulkan_InitInfo *initInfo) const;
 #endif
 
+    void CreateTracyContext(TracyVkCtx *);
+
     vk::SurfaceCapabilitiesKHR GetSurfaceCapabilitiesKHR(vk::SurfaceKHR) const;
     std::vector<vk::SurfaceFormatKHR> GetSurfaceFormatsKHR(vk::SurfaceKHR) const;
     std::vector<vk::PresentModeKHR> GetSurfacePresentModesKHR(vk::SurfaceKHR) const;
+
+    vk::CommandBuffer BeginSingleTimeCommand() const;
+    void EndSingleTimeCommand(vk::CommandBuffer commandBuffer) const;
 
     QueueFamilyIndices FindQueueFamilies(vk::SurfaceKHR) const;
 

@@ -2,10 +2,13 @@
 #include "fl_handles.h"
 #include "wsp_device.h"
 #include "wsp_devkit.h"
+#include "wsp_engine.h"
 #include "wsp_static_utils.h"
 
 // lib
+#include <client/TracyScoped.hpp>
 #include <spdlog/spdlog.h>
+#include <tracy/TracyC.h>
 #include <unistd.h>
 #include <vulkan/vulkan_enums.hpp>
 
@@ -120,6 +123,9 @@ Pass Graph::NewPass(const PassCreateInfo &createInfo)
 
 void Graph::FindDependencies(std::set<Resource> *validResources, std::set<Pass> *validPasses, Resource resource)
 {
+    check(validResources);
+    check(validPasses);
+
     validResources->emplace(resource);
     for (const Pass writer : GetResourceInfo(resource).writers)
     {
@@ -129,6 +135,9 @@ void Graph::FindDependencies(std::set<Resource> *validResources, std::set<Pass> 
 
 void Graph::FindDependencies(std::set<Resource> *validResources, std::set<Pass> *validPasses, Pass pass)
 {
+    check(validResources);
+    check(validPasses);
+
     validPasses->emplace(pass);
     for (const Resource write : GetPassInfo(pass).writes)
     {
@@ -204,6 +213,7 @@ vk::Image Graph::GetTargetImage()
 void Graph::CreatePipeline(const wsp::Device *device, Pass pass)
 {
     check(device);
+
     const PassCreateInfo &passInfo = GetPassInfo(pass);
 
     const std::vector<char> vertCode = wsp::ReadShaderFile(passInfo.vertFile);
@@ -348,6 +358,8 @@ void Graph::CreatePipeline(const wsp::Device *device, Pass pass)
 
 void Graph::Run(vk::CommandBuffer commandBuffer)
 {
+    TracyVkZone(wsp::engine::TracyCtx(), commandBuffer, "graph");
+
     for (const Pass pass : _orderedPasses)
     {
         vk::RenderPassBeginInfo renderPassInfo{};
@@ -371,6 +383,8 @@ void Graph::Run(vk::CommandBuffer commandBuffer)
         renderPassInfo.pClearValues = clearValues.data();
 
         commandBuffer.beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);
+
+        TracyVkZoneTransient(wsp::engine::TracyCtx(), __tracy, commandBuffer, passInfo.debugName.c_str(), true);
 
         static vk::Viewport viewport{};
         viewport.x = 0.0f;
@@ -440,6 +454,7 @@ void Graph::Reset(const wsp::Device *device)
 
 void Graph::Free(const wsp::Device *device, Resource resource)
 {
+    check(device);
     check(_validResources.find(resource) != _validResources.end());
 
     const vk::Image image = _images.at(resource);
@@ -454,6 +469,7 @@ void Graph::Free(const wsp::Device *device, Resource resource)
 
 void Graph::Free(const wsp::Device *device, Pass pass)
 {
+    check(device);
     check(_validPasses.find(pass) != _validPasses.end());
 
     const PipelineHolder &pipelineHolder = _pipelines.at(pass);
@@ -603,7 +619,6 @@ void Graph::Build(const wsp::Device *device, Pass pass)
 {
     check(device);
 
-    int j = 0;
     const PassCreateInfo &createInfo = GetPassInfo(pass);
 
     vk::Extent2D outResolution{(uint32_t)_width, (uint32_t)_height};
@@ -699,6 +714,8 @@ void Graph::Build(const wsp::Device *device, Pass pass)
 
 void Graph::CreateSamplerDescriptor(const wsp::Device *device, Resource resource)
 {
+    check(device);
+
     const ResourceCreateInfo &resourceInfo = GetResourceInfo(resource);
 
     check(resourceInfo.readers.size() > 0);
@@ -734,11 +751,16 @@ void Graph::CreateSamplerDescriptor(const wsp::Device *device, Resource resource
 
 void Graph::WindowResizeCallback(void *graph, const wsp::Device *device, size_t width, size_t height)
 {
+    check(graph);
+    check(device);
+
     reinterpret_cast<Graph *>(graph)->OnResize(device, width, height);
 }
 
 void Graph::OnResize(const wsp::Device *device, size_t width, size_t height)
 {
+    check(device);
+
     _width = width;
     _height = height;
 

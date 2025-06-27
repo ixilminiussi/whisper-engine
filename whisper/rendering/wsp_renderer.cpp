@@ -4,8 +4,10 @@
 #include "fl_handles.h"
 #include "wsp_device.h"
 #include "wsp_devkit.h"
+#include "wsp_engine.h"
 #include "wsp_window.h"
 #include <spdlog/spdlog.h>
+#include <tracy/Tracy.hpp>
 
 namespace wsp
 {
@@ -32,6 +34,7 @@ Renderer::Renderer(const Device *device, Window *window) : _freed{false}, _curre
     passCreateInfo.reads = {};
     passCreateInfo.vertFile = "triangle.vert.spv";
     passCreateInfo.fragFile = "triangle.frag.spv";
+    passCreateInfo.debugName = "white triangle";
     passCreateInfo.execute = [](vk::CommandBuffer commandBuffer) { commandBuffer.draw(3, 1, 0, 0); };
 
     _graph->NewPass(passCreateInfo);
@@ -43,6 +46,7 @@ Renderer::Renderer(const Device *device, Window *window) : _freed{false}, _curre
     postPassCreateInfo.reads = {color};
     postPassCreateInfo.vertFile = "postprocess.vert.spv";
     postPassCreateInfo.fragFile = "postprocess.frag.spv";
+    postPassCreateInfo.debugName = "post processing";
     postPassCreateInfo.execute = [](vk::CommandBuffer commandBuffer) { commandBuffer.draw(6, 1, 0, 0); };
 
     _graph->NewPass(postPassCreateInfo);
@@ -92,6 +96,8 @@ vk::CommandBuffer Renderer::RenderGraph(const Device *device)
         throw std::runtime_error("Renderer: failed to begin recording command buffer!");
     }
 
+    TracyVkCollect(engine::TracyCtx(), commandBuffer);
+
     _graph->Run(commandBuffer);
 
     return commandBuffer;
@@ -99,6 +105,8 @@ vk::CommandBuffer Renderer::RenderGraph(const Device *device)
 
 void Renderer::SwapchainOpen(const Device *device, vk::CommandBuffer commandBuffer)
 {
+    TracyVkZone(wsp::engine::TracyCtx(), commandBuffer, "swapchain");
+
     check(device);
 
     Swapchain *swapchain = _window->GetSwapchain();
@@ -108,6 +116,9 @@ void Renderer::SwapchainOpen(const Device *device, vk::CommandBuffer commandBuff
 
 void Renderer::SwapchainFlush(const Device *device, vk::CommandBuffer commandBuffer)
 {
+    check(device);
+
+    ZoneScopedN("submit and wait idle");
     commandBuffer.endRenderPass();
     commandBuffer.end();
 

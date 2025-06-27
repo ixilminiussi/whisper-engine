@@ -5,7 +5,19 @@ include(FetchContent)
 
 add_compile_definitions(VULKAN_HPP_TYPESAFE_CONVERSION)
 
-# -- tinyxml2: Try to use system Vulkan first
+# -- tracy: Try to use system Tracy first
+set(TRACY_ENABLE ON)
+set(TRACY_NO_CONTEXT_SWITCH ON)
+set(TRACY_NO_SAMPLING ON)
+FetchContent_Declare(
+    Tracy
+    GIT_REPOSITORY https://github.com/wolfpld/Tracy.git
+    SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/Tracy
+     GIT_TAG master
+)
+FetchContent_MakeAvailable(Tracy)
+
+# -- tinyxml2: Try to use system tinyxml2 first
 find_package(tinyxml2 REQUIRED)
 if(NOT tinyxml2_FOUND) 
   message(STATUS "System tinyxml2 not found, fetching from GitHub")
@@ -19,7 +31,7 @@ else()
   message(STATUS "Found system tinyxml2")
 endif()
 
-# -- tinyobjloader: Try to use system Vulkan first
+# -- tinyobjloader: Try to use system tinyobjloader first
 find_package(tinyobjloader CONFIG REQUIRED)
 if(NOT tinyobjloader_FOUND) 
   message(STATUS "System tinyobjloader not found, fetching from GitHub")

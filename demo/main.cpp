@@ -1,3 +1,8 @@
+#define TRACY_GPU_CONTEXT
+#define TRACY_GPU_VULKAN
+
+#include <vulkan/vulkan.h>
+
 #include <fl_graph.h>
 #include <wsp_engine.h>
 #include <wsp_renderer.h>

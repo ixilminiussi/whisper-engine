@@ -49,6 +49,8 @@ struct PassCreateInfo
     std::string vertFile;
     std::string fragFile;
 
+    std::string debugName{""};
+
     std::function<void(vk::CommandBuffer)> execute;
     vk::PipelineVertexInputStateCreateInfo vertexInputInfo{{}, 0, nullptr, 0, nullptr};
 
@@ -69,8 +71,11 @@ struct ResourceCreateInfo
     vk::Format format;
     vk::Extent2D extent{0, 0}; // {0, 0} to follow screen extent
     vk::ClearValue clear;
+
     ResourceRole role;
     size_t sampler{0};
+
+    std::string debugName{""};
 
     friend class Graph;
 
