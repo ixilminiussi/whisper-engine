@@ -10,12 +10,6 @@ namespace wsp
 class Editor
 {
   public:
-    static bool IsActive();
-
-  private:
-    static bool _active;
-
-  public:
     Editor(const class Window *, const class Device *, vk::Instance);
     ~Editor();
 
@@ -23,7 +17,10 @@ class Editor
     Editor &operator=(const Editor &) = delete;
 
     void Free(const class Device *);
-    static void Render(vk::CommandBuffer commandBuffer);
+    void Render(vk::CommandBuffer, const class Renderer *);
+    void Update(float dt);
+
+    void BindToggle(void *who, void (*)(void *, bool));
 
   protected:
     void InitImGui(const class Window *, const class Device *, vk::Instance);
@@ -31,6 +28,9 @@ class Editor
 
     static void ApplyImGuiTheme();
 
+    std::vector<std::pair<void *, void (*)(void *, bool)>> _toggleDispatchers;
+
+    bool _active;
     bool _freed;
 };
 

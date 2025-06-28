@@ -38,9 +38,11 @@ void Device::Initialize(const std::vector<const char *> requiredExtensions, vk::
 {
     _freed = false;
 
+    _debugDispatch = vk::DispatchLoaderDynamic(instance, vkGetInstanceProcAddr);
+
     PickPhysicalDevice(requiredExtensions, instance, surface);
-    CreateLogicalDevice(requiredExtensions, _physicalDevice, surface);
-    CreateCommandPool(_physicalDevice, surface);
+    CreateLogicalDevice(requiredExtensions, _physicalDevice, surface, "main logical device");
+    CreateCommandPool(_physicalDevice, surface, "main command pool");
 }
 
 void Device::Free()
@@ -253,7 +255,7 @@ void Device::EndSingleTimeCommand(vk::CommandBuffer commandBuffer) const
 }
 
 void Device::CreateLogicalDevice(const std::vector<const char *> &requiredExtensions, vk::PhysicalDevice physicalDevice,
-                                 vk::SurfaceKHR surface)
+                                 vk::SurfaceKHR surface, const std::string &name)
 {
     const QueueFamilyIndices indices = FindQueueFamilies(physicalDevice, surface);
 
@@ -294,16 +296,19 @@ void Device::CreateLogicalDevice(const std::vector<const char *> &requiredExtens
 
     _graphicsQueue = _device.getQueue(indices.graphicsFamily, 0);
     _presentQueue = _device.getQueue(indices.presentFamily, 0);
+
+    DebugNameObject(_device, vk::ObjectType::eDevice, name);
+    DebugNameObject(_graphicsQueue, vk::ObjectType::eQueue, "main graphics queue");
+    DebugNameObject(_presentQueue, vk::ObjectType::eQueue, "main present queue");
 }
 
-void Device::CreateCommandPool(vk::PhysicalDevice physicalDevice, vk::SurfaceKHR surface)
+void Device::CreateCommandPool(vk::PhysicalDevice physicalDevice, vk::SurfaceKHR surface, const std::string &name)
 {
     check(_device);
 
     const QueueFamilyIndices queueFamilyIndices = FindQueueFamilies(physicalDevice, surface);
 
     vk::CommandPoolCreateInfo poolInfo = {};
-    poolInfo.sType = vk::StructureType::eCommandPoolCreateInfo;
     poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily;
     poolInfo.flags = vk::CommandPoolCreateFlagBits::eTransient | vk::CommandPoolCreateFlagBits::eResetCommandBuffer;
 
@@ -314,7 +319,7 @@ void Device::CreateCommandPool(vk::PhysicalDevice physicalDevice, vk::SurfaceKHR
         throw std::runtime_error("Device: failed to create command pool");
     }
 
-    // DebugUtil::nameObject(_renderPass, vk::ObjectType::eRenderPass, "Swapchain RenderPass");
+    DebugNameObject(_commandPool, vk::ObjectType::eCommandPool, name);
 }
 
 void Device::CreateTracyContext(TracyVkCtx *tracyCtx)
@@ -388,7 +393,8 @@ void Device::PresentKHR(const vk::PresentInfoKHR *presentInfo) const
     }
 }
 
-void Device::CreateSemaphore(const vk::SemaphoreCreateInfo &createInfo, vk::Semaphore *semaphore) const
+void Device::CreateSemaphore(const vk::SemaphoreCreateInfo &createInfo, vk::Semaphore *semaphore,
+                             const std::string &name) const
 {
     check(_device);
 
@@ -399,10 +405,10 @@ void Device::CreateSemaphore(const vk::SemaphoreCreateInfo &createInfo, vk::Sema
         throw std::runtime_error("Device: failed to create semaphore");
     }
 
-    // DebugUtil::nameObject(_renderPass, vk::ObjectType::eRenderPass, "Swapchain RenderPass");
+    DebugNameObject(*semaphore, vk::ObjectType::eSemaphore, name);
 }
 
-void Device::CreateFence(const vk::FenceCreateInfo &createInfo, vk::Fence *fence) const
+void Device::CreateFence(const vk::FenceCreateInfo &createInfo, vk::Fence *fence, const std::string &name) const
 {
     check(_device);
 
@@ -412,10 +418,11 @@ void Device::CreateFence(const vk::FenceCreateInfo &createInfo, vk::Fence *fence
         throw std::runtime_error("Device: failed to create fence");
     }
 
-    // DebugUtil::nameObject(_renderPass, vk::ObjectType::eRenderPass, "Swapchain RenderPass");
+    DebugNameObject(*fence, vk::ObjectType::eFence, name);
 }
 
-void Device::CreateFramebuffer(const vk::FramebufferCreateInfo &createInfo, vk::Framebuffer *framebuffer) const
+void Device::CreateFramebuffer(const vk::FramebufferCreateInfo &createInfo, vk::Framebuffer *framebuffer,
+                               const std::string &name) const
 {
     check(_device);
 
@@ -426,10 +433,11 @@ void Device::CreateFramebuffer(const vk::FramebufferCreateInfo &createInfo, vk::
         throw std::runtime_error("Device: failed to create framebuffer");
     }
 
-    // DebugUtil::nameObject(_renderPass, vk::ObjectType::eRenderPass, "Swapchain RenderPass");
+    DebugNameObject(*framebuffer, vk::ObjectType::eFramebuffer, name);
 }
 
-void Device::CreateRenderPass(const vk::RenderPassCreateInfo &createInfo, vk::RenderPass *renderPass) const
+void Device::CreateRenderPass(const vk::RenderPassCreateInfo &createInfo, vk::RenderPass *renderPass,
+                              const std::string &name) const
 {
     check(_device);
 
@@ -440,11 +448,11 @@ void Device::CreateRenderPass(const vk::RenderPassCreateInfo &createInfo, vk::Re
         throw std::runtime_error("Device: failed to create renderPass");
     }
 
-    // DebugUtil::nameObject(_renderPass, vk::ObjectType::eRenderPass, "Swapchain RenderPass");
+    DebugNameObject(*renderPass, vk::ObjectType::eRenderPass, name);
 }
 
 void Device::CreateImageAndBindMemory(const vk::ImageCreateInfo &createInfo, vk::Image *image,
-                                      vk::DeviceMemory *imageMemory) const
+                                      vk::DeviceMemory *imageMemory, const std::string &name) const
 {
     check(_device);
 
@@ -469,10 +477,12 @@ void Device::CreateImageAndBindMemory(const vk::ImageCreateInfo &createInfo, vk:
 
     _device.bindImageMemory(*image, *imageMemory, 0);
 
-    // DebugUtil::nameObject(_renderPass, vk::ObjectType::eRenderPass, "Swapchain RenderPass");
+    DebugNameObject(*image, vk::ObjectType::eImage, name);
+    DebugNameObject(*imageMemory, vk::ObjectType::eDeviceMemory, name + " device memory");
 }
 
-void Device::CreateImageView(const vk::ImageViewCreateInfo &createInfo, vk::ImageView *imageView) const
+void Device::CreateImageView(const vk::ImageViewCreateInfo &createInfo, vk::ImageView *imageView,
+                             const std::string &name) const
 {
     check(_device);
 
@@ -483,32 +493,33 @@ void Device::CreateImageView(const vk::ImageViewCreateInfo &createInfo, vk::Imag
         throw std::runtime_error("Device: failed to create imageView");
     }
 
-    // DebugUtil::nameObject(_renderPass, vk::ObjectType::eRenderPass, "Swapchain RenderPass");
+    DebugNameObject(*imageView, vk::ObjectType::eImageView, name);
 }
 
-vk::Sampler Device::CreateSampler(const vk::SamplerCreateInfo &createInfo) const
+vk::Sampler Device::CreateSampler(const vk::SamplerCreateInfo &createInfo, const std::string &name) const
 {
     check(_device);
 
     vk::Sampler sampler = _device.createSampler(createInfo);
 
-    // DebugUtil::nameObject(_renderPass, vk::ObjectType::eRenderPass, "Swapchain RenderPass");
+    DebugNameObject(sampler, vk::ObjectType::eSampler, name);
 
     return sampler;
 }
 
-void Device::AllocateDescriptorSet(const vk::DescriptorSetAllocateInfo &allocInfo,
-                                   vk::DescriptorSet *descriptorSet) const
+void Device::AllocateDescriptorSet(const vk::DescriptorSetAllocateInfo &allocInfo, vk::DescriptorSet *descriptorSet,
+                                   const std::string &name) const
 {
     check(_device);
 
     if (const vk::Result result = _device.allocateDescriptorSets(&allocInfo, descriptorSet);
         result != vk::Result::eSuccess)
     {
-        throw std::runtime_error("Device: failed to allocate descriptor set.");
+        spdlog::critical("ErrorMsg: {}", vk::to_string(static_cast<vk::Result>(result)));
+        throw std::runtime_error("Device: failed to allocate descriptor set");
     }
 
-    // DebugUtil::nameObject(_renderPass, vk::ObjectType::eRenderPass, "Swapchain RenderPass");
+    DebugNameObject(*descriptorSet, vk::ObjectType::eDescriptorSet, name);
 }
 
 void Device::UpdateDescriptorSet(const vk::WriteDescriptorSet &writeDescriptor) const
@@ -518,7 +529,21 @@ void Device::UpdateDescriptorSet(const vk::WriteDescriptorSet &writeDescriptor) 
     _device.updateDescriptorSets(1, &writeDescriptor, 0, nullptr);
 }
 
-void Device::CreateSwapchainKHR(const vk::SwapchainCreateInfoKHR &createInfo, vk::SwapchainKHR *swapchain) const
+void Device::FreeDescriptorSets(vk::DescriptorPool descriptorPool, std::vector<vk::DescriptorSet> descriptorSets) const
+{
+    check(_device);
+
+    if (const vk::Result result =
+            _device.freeDescriptorSets(descriptorPool, descriptorSets.size(), descriptorSets.data());
+        result != vk::Result::eSuccess)
+    {
+        spdlog::critical("ErrorMsg: {}", vk::to_string(static_cast<vk::Result>(result)));
+        throw std::runtime_error("Device: failed to free descriptor sets");
+    }
+}
+
+void Device::CreateSwapchainKHR(const vk::SwapchainCreateInfoKHR &createInfo, vk::SwapchainKHR *swapchain,
+                                const std::string &name) const
 {
     check(_device);
 
@@ -529,11 +554,11 @@ void Device::CreateSwapchainKHR(const vk::SwapchainCreateInfoKHR &createInfo, vk
         throw std::runtime_error("Device: failed to create swapchain");
     }
 
-    // DebugUtil::nameObject(_renderPass, vk::ObjectType::eRenderPass, "Swapchain RenderPass");
+    DebugNameObject(*swapchain, vk::ObjectType::eSwapchainKHR, name);
 }
 
-void Device::CreateDescriptorPool(const vk::DescriptorPoolCreateInfo &createInfo,
-                                  vk::DescriptorPool *descriptorPool) const
+void Device::CreateDescriptorPool(const vk::DescriptorPoolCreateInfo &createInfo, vk::DescriptorPool *descriptorPool,
+                                  const std::string &name) const
 {
     check(_device);
 
@@ -544,11 +569,11 @@ void Device::CreateDescriptorPool(const vk::DescriptorPoolCreateInfo &createInfo
         throw std::runtime_error("Device: failed to create descriptor pool");
     }
 
-    // DebugUtil::nameObject(_renderPass, vk::ObjectType::eRenderPass, "Swapchain RenderPass");
+    DebugNameObject(*descriptorPool, vk::ObjectType::eDescriptorPool, name);
 }
 
 void Device::CreateDescriptorSetLayout(const vk::DescriptorSetLayoutCreateInfo &createInfo,
-                                       vk::DescriptorSetLayout *descriptorSetLayout) const
+                                       vk::DescriptorSetLayout *descriptorSetLayout, const std::string &name) const
 {
     check(_device);
 
@@ -559,10 +584,11 @@ void Device::CreateDescriptorSetLayout(const vk::DescriptorSetLayoutCreateInfo &
         throw std::runtime_error("Device: failed to create descriptor set layout");
     }
 
-    // DebugUtil::nameObject(_renderPass, vk::ObjectType::eRenderPass, "Swapchain RenderPass");
+    DebugNameObject(*descriptorSetLayout, vk::ObjectType::eDescriptorSetLayout, name);
 }
 
-void Device::CreateShaderModule(const std::vector<char> &code, vk::ShaderModule *shaderModule) const
+void Device::CreateShaderModule(const std::vector<char> &code, vk::ShaderModule *shaderModule,
+                                const std::string &name) const
 {
     vk::ShaderModuleCreateInfo createInfo{};
     createInfo.sType = vk::StructureType::eShaderModuleCreateInfo;
@@ -577,8 +603,8 @@ void Device::CreateShaderModule(const std::vector<char> &code, vk::ShaderModule 
     }
 }
 
-void Device::CreatePipelineLayout(const vk::PipelineLayoutCreateInfo &createInfo,
-                                  vk::PipelineLayout *pipelineLayout) const
+void Device::CreatePipelineLayout(const vk::PipelineLayoutCreateInfo &createInfo, vk::PipelineLayout *pipelineLayout,
+                                  const std::string &name) const
 {
     check(_device);
 
@@ -589,10 +615,11 @@ void Device::CreatePipelineLayout(const vk::PipelineLayoutCreateInfo &createInfo
         throw std::runtime_error("Device: failed to create pipeline layout");
     }
 
-    // DebugUtil::nameObject(_renderPass, vk::ObjectType::eRenderPass, "Swapchain RenderPass");
+    DebugNameObject(*pipelineLayout, vk::ObjectType::ePipelineLayout, name);
 }
 
-void Device::CreateGraphicsPipeline(const vk::GraphicsPipelineCreateInfo &createInfo, vk::Pipeline *pipeline) const
+void Device::CreateGraphicsPipeline(const vk::GraphicsPipelineCreateInfo &createInfo, vk::Pipeline *pipeline,
+                                    const std::string &name) const
 {
     check(_device);
 
@@ -603,7 +630,7 @@ void Device::CreateGraphicsPipeline(const vk::GraphicsPipelineCreateInfo &create
         throw std::runtime_error("Device: failed to create pipeline layout");
     }
 
-    // DebugUtil::nameObject(_renderPass, vk::ObjectType::eRenderPass, "Swapchain RenderPass");
+    DebugNameObject(*pipeline, vk::ObjectType::ePipeline, name);
 }
 
 void Device::DestroySemaphore(vk::Semaphore semaphore) const
@@ -751,222 +778,3 @@ void Device::WaitIdle() const
 }
 
 } // namespace wsp
-
-// class member functions
-/**
-bool Device::checkValidationLayerSupport()
-{
-    std::vector<vk::LayerProperties> availableLayers = vk::enumerateInstanceLayerProperties();
-
-    for (const char *layerName : _validationLayers)
-    {
-        bool layerFound = false;
-
-        for (const auto &layerProperties : availableLayers)
-        {
-            if (strcmp(layerName, layerProperties.layerName) == 0)
-            {
-                layerFound = true;
-                break;
-            }
-        }
-
-        if (!layerFound)
-        {
-            return false;
-        }
-    }
-
-    return true;
-}
-
-vk::SampleCountFlagBits Device::getSampleCount()
-{
-    // Get properties of our new device to know some values
-    vk::PhysicalDeviceProperties deviceProperties = _physicalDevice.getProperties();
-
-    vk::SampleCountFlagBits msaaSamples;
-
-    vk::SampleCountFlags counts =
-        deviceProperties.limits.framebufferColorSampleCounts & deviceProperties.limits.framebufferDepthSampleCounts;
-    if (counts & vk::SampleCountFlagBits::e64)
-        msaaSamples = vk::SampleCountFlagBits::e64;
-    else if (counts & vk::SampleCountFlagBits::e32)
-        msaaSamples = vk::SampleCountFlagBits::e32;
-    else if (counts & vk::SampleCountFlagBits::e16)
-        msaaSamples = vk::SampleCountFlagBits::e16;
-    else if (counts & vk::SampleCountFlagBits::e8)
-        msaaSamples = vk::SampleCountFlagBits::e8;
-    else if (counts & vk::SampleCountFlagBits::e4)
-        msaaSamples = vk::SampleCountFlagBits::e4;
-    else if (counts & vk::SampleCountFlagBits::e2)
-        msaaSamples = vk::SampleCountFlagBits::e2;
-    else
-        msaaSamples = vk::SampleCountFlagBits::e1;
-
-    return msaaSamples;
-}
-
-vk::Format Device::findSupportedFormat(const std::vector<vk::Format> &candidates, vk::ImageTiling tiling,
-                                       vk::FormatFeatureFlags features)
-{
-    for (vk::Format format : candidates)
-    {
-        vk::FormatProperties props = _physicalDevice.getFormatProperties(format);
-
-        if (tiling == vk::ImageTiling::eLinear && (props.linearTilingFeatures & features) == features)
-        {
-            return format;
-        }
-        else if (tiling == vk::ImageTiling::eOptimal && (props.optimalTilingFeatures & features) == features)
-        {
-            return format;
-        }
-    }
-    throw std::runtime_error("failed to find supported format");
-}
-
-uint32_t Device::findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties) const
-{
-    vk::PhysicalDeviceMemoryProperties memProperties = _physicalDevice.getMemoryProperties();
-    for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++)
-    {
-        if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties)
-        {
-            return i;
-        }
-    }
-
-    throw std::runtime_error("failed to find suitable memory type");
-}
-
-void Device::createBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties,
-                          vk::Buffer &buffer, vk::DeviceMemory &bufferMemory)
-{
-    vk::BufferCreateInfo bufferInfo{};
-    bufferInfo.sType = vk::StructureType::eBufferCreateInfo;
-    bufferInfo.size = size;
-    bufferInfo.usage = usage;
-    bufferInfo.sharingMode = vk::SharingMode::eExclusive;
-
-    if (_device.createBuffer(&bufferInfo, nullptr, &buffer) != vk::Result::eSuccess)
-    {
-        throw std::runtime_error("failed to create vertex buffer");
-    }
-
-    vk::MemoryRequirements memRequirements = _device.getBufferMemoryRequirements(buffer);
-
-    vk::MemoryAllocateInfo allocInfo{};
-    allocInfo.sType = vk::StructureType::eMemoryAllocateInfo;
-    allocInfo.allocationSize = memRequirements.size;
-    allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, properties);
-
-    if (_device.allocateMemory(&allocInfo, nullptr, &bufferMemory) != vk::Result::eSuccess)
-    {
-        throw std::runtime_error("failed to allocate vertex buffer memory ");
-    }
-
-    _device.bindBufferMemory(buffer, bufferMemory, 0);
-}
-
-void Device::copyBuffer(vk::Buffer srcBuffer, vk::Buffer dstBuffer, vk::DeviceSize size)
-{
-    vk::CommandBuffer commandBuffer = beginSingleTimeCommands();
-
-    vk::BufferCopy copyRegion{};
-    copyRegion.srcOffset = 0; // Optional
-    copyRegion.dstOffset = 0; // Optional
-    copyRegion.size = size;
-    commandBuffer.copyBuffer(srcBuffer, dstBuffer, 1, &copyRegion);
-
-    endSingleTimeCommands(commandBuffer);
-}
-
-void Device::copyBufferToImage(vk::Buffer buffer, vk::Image image, uint32_t width, uint32_t height, uint32_t depth,
-                               uint32_t layerCount)
-{
-    vk::CommandBuffer commandBuffer = beginSingleTimeCommands();
-
-    vk::BufferImageCopy region{};
-    region.bufferOffset = 0;
-    region.bufferRowLength = 0;
-    region.bufferImageHeight = 0;
-
-    region.imageSubresource.aspectMask = vk::ImageAspectFlagBits::eColor;
-    region.imageSubresource.mipLevel = 0;
-    region.imageSubresource.baseArrayLayer = 0;
-    region.imageSubresource.layerCount = layerCount;
-
-    region.imageOffset = vk::Offset3D{0, 0, 0};
-    region.imageExtent = vk::Extent3D{width, height, depth};
-
-    commandBuffer.copyBufferToImage(buffer, image, vk::ImageLayout::eTransferDstOptimal, 1, &region);
-
-    endSingleTimeCommands(commandBuffer);
-}
-
-void Device::createImageWithInfo(const vk::ImageCreateInfo &imageInfo, vk::MemoryPropertyFlags properties,
-                                 vk::Image &image, vk::DeviceMemory &imageMemory) const
-{
-    if (_device.createImage(&imageInfo, nullptr, &image) != vk::Result::eSuccess)
-    {
-        throw std::runtime_error("failed to create image");
-    }
-
-    vk::MemoryRequirements memRequirements = _device.getImageMemoryRequirements(image);
-
-    vk::MemoryAllocateInfo allocInfo{};
-    allocInfo.sType = vk::StructureType::eMemoryAllocateInfo;
-    allocInfo.allocationSize = memRequirements.size;
-    allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, properties);
-
-    if (_device.allocateMemory(&allocInfo, nullptr, &imageMemory) != vk::Result::eSuccess)
-    {
-        throw std::runtime_error("failed to allocate image memory");
-    }
-
-    _device.bindImageMemory(image, imageMemory, 0);
-}
-
-void Device::transitionImageLayout(vk::Image image, vk::ImageLayout oldLayout, vk::ImageLayout newLayout,
-                                   uint32_t mipLevels)
-{
-    vk::CommandBuffer commandBuffer = beginSingleTimeCommands();
-
-    vk::ImageMemoryBarrier imageMemoryBarrier{};
-    imageMemoryBarrier.oldLayout = oldLayout;
-    imageMemoryBarrier.newLayout = newLayout;
-    imageMemoryBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    imageMemoryBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    imageMemoryBarrier.image = image;
-    imageMemoryBarrier.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
-    imageMemoryBarrier.subresourceRange.baseMipLevel = 0;
-    imageMemoryBarrier.subresourceRange.levelCount = mipLevels;
-    imageMemoryBarrier.subresourceRange.baseArrayLayer = 0;
-    imageMemoryBarrier.subresourceRange.layerCount = 1;
-
-    vk::PipelineStageFlags srcStage;
-    vk::PipelineStageFlags dstStage;
-
-    if (oldLayout == vk::ImageLayout::eUndefined && newLayout == vk::ImageLayout::eTransferDstOptimal)
-    {
-        imageMemoryBarrier.srcAccessMask = vk::AccessFlagBits::eNone;
-        imageMemoryBarrier.dstAccessMask = vk::AccessFlagBits::eTransferWrite;
-
-        srcStage = vk::PipelineStageFlagBits::eTopOfPipe;
-        dstStage = vk::PipelineStageFlagBits::eTransfer;
-    }
-    else if (oldLayout == vk::ImageLayout::eTransferDstOptimal && newLayout == vk::ImageLayout::eShaderReadOnlyOptimal)
-    {
-        imageMemoryBarrier.srcAccessMask = vk::AccessFlagBits::eTransferWrite;
-        imageMemoryBarrier.dstAccessMask = vk::AccessFlagBits::eShaderRead;
-
-        srcStage = vk::PipelineStageFlagBits::eTransfer;
-        dstStage = vk::PipelineStageFlagBits::eFragmentShader;
-    }
-
-    commandBuffer.pipelineBarrier(srcStage, dstStage, {}, 0, nullptr, 0, nullptr, 1, &imageMemoryBarrier);
-
-    endSingleTimeCommands(commandBuffer);
-}
-**/

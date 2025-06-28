@@ -1,10 +1,10 @@
 #include "wsp_engine.h"
 
-#include "fl_graph.h"
 #include "wsp_device.h"
 #include "wsp_editor.h"
 #include "wsp_renderer.h"
 #include "wsp_static_utils.h"
+#include "wsp_swapchain.h"
 #include "wsp_window.h"
 
 // lib
@@ -184,6 +184,20 @@ void CreateInstance()
     ExtensionsCompatibilityTest();
 }
 
+void OnEditorToggle(void *, bool isActive)
+{
+    if (!isActive)
+    {
+        renderer->ChangeGoal(device, Renderer::RendererGoal::eToTransfer);
+        window->BuildSwapchain(Swapchain::SwapchainGoal::eBlittedTo);
+    }
+    else
+    {
+        renderer->ChangeGoal(device, Renderer::RendererGoal::eToDescriptorSet);
+        window->BuildSwapchain(Swapchain::SwapchainGoal::eCleared);
+    }
+}
+
 bool Initialize()
 {
     spdlog::info("Engine: began initialization");
@@ -206,15 +220,16 @@ bool Initialize()
         window = new Window(vkInstance, 1024, 1024, "test");
 
         device = new Device();
-        device->Initialize(deviceExtensions, vkInstance, *window->GetSurface());
+        device->Initialize(deviceExtensions, vkInstance, window->GetSurface());
         device->CreateTracyContext(&tracyCtx);
 
         window->SetDevice(device);
-        window->BuildSwapchain();
+        window->BuildSwapchain(Swapchain::eBlittedTo);
 
-        renderer = new Renderer(device, window);
+        renderer = new Renderer(device, window, Renderer::eToTransfer);
 #ifndef NDEBUG
         editor = new Editor(window, device, vkInstance);
+        editor->BindToggle(nullptr, OnEditorToggle);
 #endif
 
         initialized = true;
@@ -242,9 +257,10 @@ void Run()
 
         renderer->SwapchainOpen(device, commandBuffer);
 #ifndef NDEBUG
-        editor->Render(commandBuffer);
+        editor->Render(commandBuffer, renderer);
 #endif
         renderer->SwapchainFlush(device, commandBuffer);
+        editor->Update(0.f);
         FrameMarkEnd("frame");
     }
 }

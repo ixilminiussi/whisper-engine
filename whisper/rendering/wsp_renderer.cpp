@@ -1,35 +1,39 @@
 #include "wsp_renderer.h"
 
-#include "fl_graph.h"
-#include "fl_handles.h"
 #include "wsp_device.h"
 #include "wsp_devkit.h"
 #include "wsp_engine.h"
+#include "wsp_graph.h"
+#include "wsp_handles.h"
 #include "wsp_window.h"
+
+// lib
 #include <spdlog/spdlog.h>
 #include <tracy/Tracy.hpp>
 
 namespace wsp
 {
 
-Renderer::Renderer(const Device *device, Window *window) : _freed{false}, _currentImageIndex{0}, _currentFrameIndex{0}
+Renderer::Renderer(const Device *device, Window *window, RendererGoal goal)
+    : _freed{false}, _currentImageIndex{0}, _currentFrameIndex{0}, _goal{goal}
 {
     check(device);
     check(window);
 
     _window = window;
 
-    _graph = new fl::Graph(device, _window->GetExtent().width, _window->GetExtent().height);
-    window->BindResizeCallback(_graph, fl::Graph::WindowResizeCallback);
+    _graph = new Graph(device, _window->GetExtent().width, _window->GetExtent().height);
+    window->BindResizeCallback((void *)_graph, Graph::WindowResizeCallback);
 
-    fl::ResourceCreateInfo colorResourceInfo{};
-    colorResourceInfo.role = fl::ResourceRole::eColor;
+    ResourceCreateInfo colorResourceInfo{};
+    colorResourceInfo.role = ResourceRole::eColor;
     colorResourceInfo.format = vk::Format::eR8G8B8A8Unorm;
     colorResourceInfo.clear.color = vk::ClearColorValue{0.1f, 0.1f, 0.1f, 1.0f};
+    colorResourceInfo.debugName = "color";
 
-    const fl::Resource color = _graph->NewResource(colorResourceInfo);
+    const Resource color = _graph->NewResource(colorResourceInfo);
 
-    fl::PassCreateInfo passCreateInfo{};
+    PassCreateInfo passCreateInfo{};
     passCreateInfo.writes = {color};
     passCreateInfo.reads = {};
     passCreateInfo.vertFile = "triangle.vert.spv";
@@ -39,9 +43,10 @@ Renderer::Renderer(const Device *device, Window *window) : _freed{false}, _curre
 
     _graph->NewPass(passCreateInfo);
 
-    const fl::Resource reverseColor = _graph->NewResource(colorResourceInfo);
+    colorResourceInfo.debugName = "reverse color";
+    const Resource reverseColor = _graph->NewResource(colorResourceInfo);
 
-    fl::PassCreateInfo postPassCreateInfo{};
+    PassCreateInfo postPassCreateInfo{};
     postPassCreateInfo.writes = {reverseColor};
     postPassCreateInfo.reads = {color};
     postPassCreateInfo.vertFile = "postprocess.vert.spv";
@@ -51,7 +56,7 @@ Renderer::Renderer(const Device *device, Window *window) : _freed{false}, _curre
 
     _graph->NewPass(postPassCreateInfo);
 
-    _graph->Compile(device, reverseColor);
+    _graph->Compile(device, reverseColor, (Graph::GraphGoal)goal);
 
     CreateCommandBuffers(device);
 }
@@ -110,7 +115,11 @@ void Renderer::SwapchainOpen(const Device *device, vk::CommandBuffer commandBuff
     check(device);
 
     Swapchain *swapchain = _window->GetSwapchain();
-    swapchain->BlitImage(commandBuffer, _graph->GetTargetImage(), _window->GetExtent(), _currentImageIndex);
+
+    if (_goal == RendererGoal::eToTransfer)
+    {
+        swapchain->BlitImage(commandBuffer, _graph->GetTargetImage(), _window->GetExtent(), _currentImageIndex);
+    }
     swapchain->BeginRenderPass(commandBuffer, _currentImageIndex);
 }
 
@@ -128,6 +137,21 @@ void Renderer::SwapchainFlush(const Device *device, vk::CommandBuffer commandBuf
     _currentFrameIndex = (_currentFrameIndex + 1) % Swapchain::MAX_FRAMES_IN_FLIGHT;
 
     device->WaitIdle();
+}
+
+vk::DescriptorSet Renderer::GetRenderedDescriptorSet() const
+{
+    check(_graph);
+
+    return _graph->GetTargetDescriptorSet();
+}
+
+void Renderer::ChangeGoal(const Device *device, RendererGoal goal)
+{
+    check(_graph);
+
+    _goal = goal;
+    _graph->ChangeGoal(device, (Graph::GraphGoal)goal);
 }
 
 void Renderer::CreateCommandBuffers(const Device *device)

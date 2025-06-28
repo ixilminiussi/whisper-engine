@@ -1,8 +1,8 @@
-#include "fl_graph.h"
-#include "fl_handles.h"
+#include "wsp_graph.h"
 #include "wsp_device.h"
 #include "wsp_devkit.h"
 #include "wsp_engine.h"
+#include "wsp_handles.h"
 #include "wsp_static_utils.h"
 
 // lib
@@ -10,16 +10,16 @@
 #include <spdlog/spdlog.h>
 #include <tracy/TracyC.h>
 #include <unistd.h>
+#include <variant>
 #include <vulkan/vulkan_enums.hpp>
 
 // std
 #include <optional>
 #include <stdexcept>
-#include <variant>
 #include <vulkan/vulkan_handles.hpp>
 #include <vulkan/vulkan_structs.hpp>
 
-namespace fl
+namespace wsp
 {
 
 const size_t Graph::SAMPLER_DEPTH{0};
@@ -27,7 +27,7 @@ const size_t Graph::SAMPLER_COLOR_CLAMPED{1};
 const size_t Graph::SAMPLER_COLOR_REPEATED{2};
 const size_t Graph::MAX_SAMPLER_SETS{500};
 
-Graph::Graph(const wsp::Device *device, size_t width, size_t height)
+Graph::Graph(const Device *device, size_t width, size_t height)
     : _passInfos{}, _resourceInfos{}, _images{}, _deviceMemories{}, _imageViews{}, _freed{false}, _target{0},
       _width{width}, _height{height}
 {
@@ -36,7 +36,7 @@ Graph::Graph(const wsp::Device *device, size_t width, size_t height)
     CreateSamplers(device);
 }
 
-void Graph::CreateSamplers(const wsp::Device *device)
+void Graph::CreateSamplers(const Device *device)
 {
     check(device);
 
@@ -50,17 +50,17 @@ void Graph::CreateSamplers(const wsp::Device *device)
     samplerCreateInfo.unnormalizedCoordinates = false;
     samplerCreateInfo.compareEnable = true;
 
-    _samplers[SAMPLER_DEPTH] = device->CreateSampler(samplerCreateInfo);
+    _samplers[SAMPLER_DEPTH] = device->CreateSampler(samplerCreateInfo, "depth sampler");
 
     samplerCreateInfo.compareEnable = false;
 
-    _samplers[SAMPLER_COLOR_CLAMPED] = device->CreateSampler(samplerCreateInfo);
+    _samplers[SAMPLER_COLOR_CLAMPED] = device->CreateSampler(samplerCreateInfo, "color sampler clamped");
 
     samplerCreateInfo.addressModeU = vk::SamplerAddressMode::eRepeat;
     samplerCreateInfo.addressModeV = vk::SamplerAddressMode::eRepeat;
     samplerCreateInfo.addressModeW = vk::SamplerAddressMode::eRepeat;
 
-    _samplers[SAMPLER_COLOR_REPEATED] = device->CreateSampler(samplerCreateInfo);
+    _samplers[SAMPLER_COLOR_REPEATED] = device->CreateSampler(samplerCreateInfo, "color sampler repeated");
 
     std::vector<vk::DescriptorPoolSize> poolSizes = {{vk::DescriptorType::eCombinedImageSampler, 100}};
 
@@ -70,7 +70,7 @@ void Graph::CreateSamplers(const wsp::Device *device)
     poolInfo.poolSizeCount = (uint32_t)poolSizes.size();
     poolInfo.pPoolSizes = poolSizes.data();
 
-    device->CreateDescriptorPool(poolInfo, &_samplerDescriptorPool);
+    device->CreateDescriptorPool(poolInfo, &_descriptorPool, "graph descriptor pool");
 
     std::vector<vk::DescriptorSetLayoutBinding> setLayoutBindings{
         {0, vk::DescriptorType::eCombinedImageSampler, 1, {vk::ShaderStageFlagBits::eFragment}}};
@@ -80,7 +80,7 @@ void Graph::CreateSamplers(const wsp::Device *device)
     descriptorSetLayoutInfo.bindingCount = static_cast<uint32_t>(setLayoutBindings.size());
     descriptorSetLayoutInfo.pBindings = setLayoutBindings.data();
 
-    device->CreateDescriptorSetLayout(descriptorSetLayoutInfo, &_samplerDescriptorSetLayout);
+    device->CreateDescriptorSetLayout(descriptorSetLayoutInfo, &_descriptorSetLayout, "graph descriptor set layout");
 }
 
 Graph::~Graph()
@@ -91,19 +91,19 @@ Graph::~Graph()
     }
 }
 
-void Graph::Free(const wsp::Device *device)
+void Graph::Free(const Device *device)
 {
     check(device);
+
+    Reset(device);
 
     for (auto &[id, sampler] : _samplers)
     {
         device->DestroySampler(sampler);
     }
     _samplers.clear();
-    device->DestroyDescriptorSetLayout(_samplerDescriptorSetLayout);
-    device->DestroyDescriptorPool(_samplerDescriptorPool);
-
-    Reset(device);
+    device->DestroyDescriptorSetLayout(_descriptorSetLayout);
+    device->DestroyDescriptorPool(_descriptorPool);
 
     _freed = true;
     spdlog::info("Graph: succesfully freed");
@@ -149,13 +149,14 @@ void Graph::FindDependencies(std::set<Resource> *validResources, std::set<Pass> 
     }
 }
 
-void Graph::Compile(const wsp::Device *device, Resource target)
+void Graph::Compile(const Device *device, Resource target, GraphGoal graphGoal)
 {
     check(device);
 
-    Reset(device);
-
     _target = target;
+    _graphGoal = graphGoal;
+
+    Reset(device);
 
     for (size_t pass = 0; pass < _passInfos.size(); pass++)
     {
@@ -207,21 +208,33 @@ void Graph::Compile(const wsp::Device *device, Resource target)
 
 vk::Image Graph::GetTargetImage()
 {
-    return _images[_target];
+    return _images.at(_target);
 }
 
-void Graph::CreatePipeline(const wsp::Device *device, Pass pass)
+vk::DescriptorSet Graph::GetTargetDescriptorSet()
+{
+    return _descriptorSets.at(_target);
+}
+
+void Graph::ChangeGoal(const Device *device, GraphGoal goal)
+{
+    Compile(device, _target, goal);
+}
+
+void Graph::CreatePipeline(const Device *device, Pass pass)
 {
     check(device);
 
     const PassCreateInfo &passInfo = GetPassInfo(pass);
 
-    const std::vector<char> vertCode = wsp::ReadShaderFile(passInfo.vertFile);
-    const std::vector<char> fragCode = wsp::ReadShaderFile(passInfo.fragFile);
+    const std::vector<char> vertCode = ReadShaderFile(passInfo.vertFile);
+    const std::vector<char> fragCode = ReadShaderFile(passInfo.fragFile);
 
     PipelineHolder &pipelineHolder = _pipelines[pass];
-    device->CreateShaderModule(vertCode, &pipelineHolder.vertShaderModule);
-    device->CreateShaderModule(fragCode, &pipelineHolder.fragShaderModule);
+    device->CreateShaderModule(vertCode, &pipelineHolder.vertShaderModule,
+                               passInfo.debugName + " vertex shader module");
+    device->CreateShaderModule(fragCode, &pipelineHolder.fragShaderModule,
+                               passInfo.debugName + " fragment shader module");
 
     vk::PipelineShaderStageCreateInfo shaderStages[2];
     shaderStages[0].stage = vk::ShaderStageFlagBits::eVertex;
@@ -322,7 +335,7 @@ void Graph::CreatePipeline(const wsp::Device *device, Pass pass)
     dynamicStateInfo.dynamicStateCount = static_cast<uint32_t>(dynamicStateEnables.size());
     dynamicStateInfo.flags = vk::PipelineDynamicStateCreateFlagBits{};
 
-    const std::vector<vk::DescriptorSetLayout> descriptorSetLayouts(passInfo.reads.size(), _samplerDescriptorSetLayout);
+    const std::vector<vk::DescriptorSetLayout> descriptorSetLayouts(passInfo.reads.size(), _descriptorSetLayout);
 
     vk::PipelineLayoutCreateInfo pipelineLayoutInfo{};
     pipelineLayoutInfo.sType = vk::StructureType::ePipelineLayoutCreateInfo;
@@ -331,7 +344,8 @@ void Graph::CreatePipeline(const wsp::Device *device, Pass pass)
     pipelineLayoutInfo.pushConstantRangeCount = 0;
     pipelineLayoutInfo.pPushConstantRanges = nullptr; // change with pushConstantRanges
 
-    device->CreatePipelineLayout(pipelineLayoutInfo, &pipelineHolder.pipelineLayout);
+    device->CreatePipelineLayout(pipelineLayoutInfo, &pipelineHolder.pipelineLayout,
+                                 passInfo.debugName + " pipeline layout");
 
     vk::GraphicsPipelineCreateInfo pipelineInfo{};
     pipelineInfo.sType = vk::StructureType::eGraphicsPipelineCreateInfo;
@@ -353,12 +367,12 @@ void Graph::CreatePipeline(const wsp::Device *device, Pass pass)
     pipelineInfo.basePipelineIndex = -1;
     pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
 
-    device->CreateGraphicsPipeline(pipelineInfo, &pipelineHolder.pipeline);
+    device->CreateGraphicsPipeline(pipelineInfo, &pipelineHolder.pipeline, passInfo.debugName + " graphics pipeline");
 }
 
 void Graph::Run(vk::CommandBuffer commandBuffer)
 {
-    TracyVkZone(wsp::engine::TracyCtx(), commandBuffer, "graph");
+    TracyVkZone(engine::TracyCtx(), commandBuffer, "graph");
 
     for (const Pass pass : _orderedPasses)
     {
@@ -384,7 +398,7 @@ void Graph::Run(vk::CommandBuffer commandBuffer)
 
         commandBuffer.beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);
 
-        TracyVkZoneTransient(wsp::engine::TracyCtx(), __tracy, commandBuffer, passInfo.debugName.c_str(), true);
+        TracyVkZoneTransient(engine::TracyCtx(), __tracy, commandBuffer, passInfo.debugName.c_str(), true);
 
         static vk::Viewport viewport{};
         viewport.x = 0.0f;
@@ -403,16 +417,16 @@ void Graph::Run(vk::CommandBuffer commandBuffer)
 
         if (passInfo.reads.size() > 0)
         {
-            std::vector<vk::DescriptorSet> samplerDescriptorSets;
-            samplerDescriptorSets.reserve(passInfo.reads.size());
+            std::vector<vk::DescriptorSet> descriptorSets;
+            descriptorSets.reserve(passInfo.reads.size());
 
             for (const Resource resource : passInfo.reads)
             {
-                samplerDescriptorSets.push_back(_samplerDescriptorSets.at(resource));
+                descriptorSets.push_back(_descriptorSets.at(resource));
             }
 
             commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, _pipelines.at(pass).pipelineLayout, 0,
-                                             samplerDescriptorSets.size(), samplerDescriptorSets.data(), 0, nullptr);
+                                             descriptorSets.size(), descriptorSets.data(), 0, nullptr);
         }
 
         commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, _pipelines.at(pass).pipeline);
@@ -421,7 +435,7 @@ void Graph::Run(vk::CommandBuffer commandBuffer)
     }
 }
 
-void Graph::Reset(const wsp::Device *device)
+void Graph::Reset(const Device *device)
 {
     check(device);
 
@@ -444,6 +458,7 @@ void Graph::Reset(const wsp::Device *device)
         Free(device, pass);
     }
 
+    _descriptorSets.clear();
     _pipelines.clear();
     _images.clear();
     _deviceMemories.clear();
@@ -452,10 +467,17 @@ void Graph::Reset(const wsp::Device *device)
     _renderPasses.clear();
 }
 
-void Graph::Free(const wsp::Device *device, Resource resource)
+void Graph::Free(const Device *device, Resource resource)
 {
     check(device);
     check(_validResources.find(resource) != _validResources.end());
+
+    if (_descriptorSets.find(resource) != _descriptorSets.end())
+    {
+        const vk::DescriptorSet descriptorSet = _descriptorSets.at(resource);
+        device->FreeDescriptorSets(_descriptorPool, {descriptorSet});
+        _descriptorSets.erase(resource);
+    }
 
     const vk::Image image = _images.at(resource);
     device->DestroyImage(image);
@@ -467,7 +489,7 @@ void Graph::Free(const wsp::Device *device, Resource resource)
     device->DestroyImageView(imageView);
 }
 
-void Graph::Free(const wsp::Device *device, Pass pass)
+void Graph::Free(const Device *device, Pass pass)
 {
     check(device);
     check(_validPasses.find(pass) != _validPasses.end());
@@ -540,7 +562,7 @@ void Graph::KhanFindOrder(const std::set<Resource> &resources, const std::set<Pa
     }
 }
 
-void Graph::Build(const wsp::Device *device, Resource resource)
+void Graph::Build(const Device *device, Resource resource)
 {
     check(device);
 
@@ -571,26 +593,29 @@ void Graph::Build(const wsp::Device *device, Resource resource)
     {
         switch (createInfo.role)
         {
-        case fl::ResourceRole::eColor:
+        case ResourceRole::eColor:
             imageInfo.usage |= vk::ImageUsageFlagBits::eColorAttachment;
             break;
-        case fl::ResourceRole::eDepth:
+        case ResourceRole::eDepth:
             imageInfo.usage |= vk::ImageUsageFlagBits::eDepthStencilAttachment;
             break;
         }
     }
-    if (createInfo.readers.size() > 0)
+    if (isSampled(resource))
     {
         imageInfo.usage |= vk::ImageUsageFlagBits::eSampled;
     }
-    if (resource == _target)
+    else
     {
-        imageInfo.usage |= vk::ImageUsageFlagBits::eTransferSrc;
+        if (resource == _target)
+        {
+            imageInfo.usage |= vk::ImageUsageFlagBits::eTransferSrc;
+        }
     }
 
     vk::Image image;
     vk::DeviceMemory deviceMemory;
-    device->CreateImageAndBindMemory(imageInfo, &image, &deviceMemory);
+    device->CreateImageAndBindMemory(imageInfo, &image, &deviceMemory, createInfo.debugName + " image");
     _images[resource] = image;
     _deviceMemories[resource] = deviceMemory;
 
@@ -606,16 +631,16 @@ void Graph::Build(const wsp::Device *device, Resource resource)
     viewInfo.subresourceRange.layerCount = 1;
 
     vk::ImageView imageView;
-    device->CreateImageView(viewInfo, &imageView);
+    device->CreateImageView(viewInfo, &imageView, createInfo.debugName + " image view");
     _imageViews[resource] = imageView;
 
-    if (createInfo.readers.size() > 0)
+    if (isSampled(resource))
     {
-        CreateSamplerDescriptor(device, resource);
+        CreateDescriptor(device, resource);
     }
 }
 
-void Graph::Build(const wsp::Device *device, Pass pass)
+void Graph::Build(const Device *device, Pass pass)
 {
     check(device);
 
@@ -673,7 +698,7 @@ void Graph::Build(const wsp::Device *device, Pass pass)
             break;
         }
 
-        if (resource == _target)
+        if (resource == _target && _graphGoal == GraphGoal::eToTransfer)
         {
             attachment.finalLayout = vk::ImageLayout::eTransferSrcOptimal;
         }
@@ -696,7 +721,7 @@ void Graph::Build(const wsp::Device *device, Pass pass)
     renderPassInfo.pSubpasses = &subpass;
 
     vk::RenderPass renderPass;
-    device->CreateRenderPass(renderPassInfo, &renderPass);
+    device->CreateRenderPass(renderPassInfo, &renderPass, createInfo.debugName + " render pass");
     _renderPasses[pass] = renderPass;
 
     vk::FramebufferCreateInfo framebufferInfo{};
@@ -708,28 +733,28 @@ void Graph::Build(const wsp::Device *device, Pass pass)
     framebufferInfo.layers = 1;
 
     vk::Framebuffer framebuffer;
-    device->CreateFramebuffer(framebufferInfo, &framebuffer);
+    device->CreateFramebuffer(framebufferInfo, &framebuffer, createInfo.debugName + " framebuffer");
     _framebuffers[pass] = framebuffer;
 }
 
-void Graph::CreateSamplerDescriptor(const wsp::Device *device, Resource resource)
+void Graph::CreateDescriptor(const Device *device, Resource resource)
 {
     check(device);
 
     const ResourceCreateInfo &resourceInfo = GetResourceInfo(resource);
 
-    check(resourceInfo.readers.size() > 0);
+    check(isSampled(resource));
     check(_validResources.find(resource) != _validResources.end());
     check(_samplers.find(resourceInfo.sampler) != _samplers.end());
 
     vk::DescriptorSet descriptorSet;
 
     vk::DescriptorSetAllocateInfo setAllocInfo{};
-    setAllocInfo.descriptorPool = _samplerDescriptorPool;
+    setAllocInfo.descriptorPool = _descriptorPool;
     setAllocInfo.descriptorSetCount = 1;
-    setAllocInfo.pSetLayouts = &(_samplerDescriptorSetLayout);
+    setAllocInfo.pSetLayouts = &(_descriptorSetLayout);
 
-    device->AllocateDescriptorSet(setAllocInfo, &descriptorSet);
+    device->AllocateDescriptorSet(setAllocInfo, &descriptorSet, resourceInfo.debugName + " descriptor set");
 
     vk::DescriptorImageInfo imageInfo{};
     imageInfo.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
@@ -746,10 +771,10 @@ void Graph::CreateSamplerDescriptor(const wsp::Device *device, Resource resource
 
     device->UpdateDescriptorSet(descriptorWrite);
 
-    _samplerDescriptorSets[resource] = descriptorSet;
+    _descriptorSets[resource] = descriptorSet;
 }
 
-void Graph::WindowResizeCallback(void *graph, const wsp::Device *device, size_t width, size_t height)
+void Graph::WindowResizeCallback(void *graph, const Device *device, size_t width, size_t height)
 {
     check(graph);
     check(device);
@@ -757,7 +782,7 @@ void Graph::WindowResizeCallback(void *graph, const wsp::Device *device, size_t 
     reinterpret_cast<Graph *>(graph)->OnResize(device, width, height);
 }
 
-void Graph::OnResize(const wsp::Device *device, size_t width, size_t height)
+void Graph::OnResize(const Device *device, size_t width, size_t height)
 {
     check(device);
 
@@ -802,6 +827,11 @@ void Graph::OnResize(const wsp::Device *device, size_t width, size_t height)
     }
 }
 
+bool Graph::isSampled(Resource resource)
+{
+    return GetResourceInfo(resource).readers.size() > 0 || (_graphGoal == eToDescriptorSet && resource == _target);
+}
+
 const PassCreateInfo &Graph::GetPassInfo(Pass pass) const
 {
     check(_passInfos.size() > pass.index);
@@ -814,4 +844,4 @@ const ResourceCreateInfo &Graph::GetResourceInfo(Resource resource) const
     return _resourceInfos.at(resource.index);
 }
 
-} // namespace fl
+} // namespace wsp

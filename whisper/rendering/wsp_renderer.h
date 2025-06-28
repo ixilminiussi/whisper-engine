@@ -3,6 +3,7 @@
 
 // wps
 #include "wsp_device.h"
+#include "wsp_handles.h"
 
 // std
 #include <vector>
@@ -12,18 +13,19 @@
 //
 #include <tracy/TracyVulkan.hpp>
 
-namespace fl
-{
-class Graph;
-}
-
 namespace wsp
 {
 
 class Renderer
 {
   public:
-    Renderer(const class Device *, class Window *);
+    enum RendererGoal
+    {
+        eToTransfer = 0,
+        eToDescriptorSet = 1
+    };
+
+    Renderer(const class Device *, class Window *, RendererGoal goal = eToDescriptorSet);
     ~Renderer();
 
     Renderer(const Renderer &) = delete;
@@ -35,12 +37,17 @@ class Renderer
     void SwapchainOpen(const class Device *, vk::CommandBuffer);
     void SwapchainFlush(const class Device *, vk::CommandBuffer);
 
+    vk::DescriptorSet GetRenderedDescriptorSet() const;
+
+    void ChangeGoal(const class Device *, RendererGoal);
+
   private:
     void CreateCommandBuffers(const class Device *);
     std::vector<vk::CommandBuffer> _commandBuffers;
 
     const class Window *_window;
-    class fl::Graph *_graph;
+    class Graph *_graph;
+    RendererGoal _goal;
 
     uint32_t _currentImageIndex;
     uint32_t _currentFrameIndex;

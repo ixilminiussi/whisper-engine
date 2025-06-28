@@ -1,8 +1,8 @@
-#ifndef FL_GRAPH
-#define FL_GRAPH
+#ifndef WSP_GRAPH
+#define WSP_GRAPH
 
 // flow
-#include "fl_handles.h"
+#include "wsp_handles.h"
 
 // lib
 #include <vulkan/vulkan.hpp>
@@ -14,22 +14,22 @@
 
 namespace wsp
 {
-class Window;
-class Device;
-} // namespace wsp
-
-namespace fl
-{
 
 class Graph
 {
   public:
+    enum GraphGoal
+    {
+        eToTransfer = 0,
+        eToDescriptorSet = 1
+    };
+
     static const size_t SAMPLER_DEPTH;
     static const size_t SAMPLER_COLOR_CLAMPED;
     static const size_t SAMPLER_COLOR_REPEATED;
     static const size_t MAX_SAMPLER_SETS;
 
-    Graph(const wsp::Device *, size_t width, size_t height);
+    Graph(const class Device *, size_t width, size_t height);
     ~Graph();
 
     Graph(const Graph &) = delete;
@@ -38,7 +38,7 @@ class Graph
     [[nodiscard]] Resource NewResource(const struct ResourceCreateInfo &);
     Pass NewPass(const struct PassCreateInfo &);
 
-    void Compile(const wsp::Device *, Resource target);
+    void Compile(const wsp::Device *, Resource target, GraphGoal);
     void Run(vk::CommandBuffer);
 
     static void WindowResizeCallback(void *graph, const wsp::Device *, size_t width, size_t height);
@@ -46,6 +46,9 @@ class Graph
     void Free(const wsp::Device *);
 
     vk::Image GetTargetImage();
+    vk::DescriptorSet GetTargetDescriptorSet();
+
+    void ChangeGoal(const class Device *, GraphGoal);
 
   protected:
     struct PipelineHolder
@@ -58,6 +61,8 @@ class Graph
 
     void OnResize(const wsp::Device *, size_t width, size_t height);
 
+    bool isSampled(Resource resouce);
+
     void KhanFindOrder(const std::set<Resource> &, const std::set<Pass> &);
 
     void Build(const wsp::Device *, Resource);
@@ -68,7 +73,7 @@ class Graph
 
     void CreatePipeline(const wsp::Device *, Pass);
     void CreateSamplers(const wsp::Device *);
-    void CreateSamplerDescriptor(const wsp::Device *, Resource resource);
+    void CreateDescriptor(const wsp::Device *, Resource resource);
 
     void FindDependencies(std::set<Resource> *validResources, std::set<Pass> *validPasses, Resource resource);
     void FindDependencies(std::set<Resource> *validResources, std::set<Pass> *validPasses, Pass resource);
@@ -82,6 +87,7 @@ class Graph
     std::vector<PassCreateInfo> _passInfos;
     std::vector<ResourceCreateInfo> _resourceInfos;
     Resource _target;
+    GraphGoal _graphGoal;
 
     std::map<Resource, vk::Image> _images;
     std::map<Resource, vk::DeviceMemory> _deviceMemories;
@@ -93,9 +99,9 @@ class Graph
                                                // GIGA SHADER Unity approach?
 
     std::map<size_t, vk::Sampler> _samplers;
-    vk::DescriptorPool _samplerDescriptorPool;
-    vk::DescriptorSetLayout _samplerDescriptorSetLayout;
-    std::map<Resource, vk::DescriptorSet> _samplerDescriptorSets;
+    vk::DescriptorPool _descriptorPool;
+    vk::DescriptorSetLayout _descriptorSetLayout;
+    std::map<Resource, vk::DescriptorSet> _descriptorSets;
 
     std::vector<Pass> _orderedPasses;
     std::set<Resource> _validResources;
@@ -106,6 +112,6 @@ class Graph
     bool _freed;
 };
 
-} // namespace fl
+} // namespace wsp
 
 #endif

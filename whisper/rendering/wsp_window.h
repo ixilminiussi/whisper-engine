@@ -34,10 +34,10 @@ class Window
 
     Swapchain *GetSwapchain() const;
 
-    const vk::SurfaceKHR *GetSurface() const;
+    vk::SurfaceKHR GetSurface() const;
 
     void SetDevice(const class Device *);
-    void BuildSwapchain();
+    void BuildSwapchain(Swapchain::SwapchainGoal goal);
 
     void BindResizeCallback(void *, void (*)(void *, const wsp::Device *, size_t, size_t));
 

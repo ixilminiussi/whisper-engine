@@ -69,8 +69,9 @@ void Window::Resize(size_t width, size_t height)
     _height = height;
 
     check(_device);
+    check(_swapchain);
 
-    BuildSwapchain();
+    BuildSwapchain(_swapchain->GetGoal());
 
     for (auto [pointer, function] : _resizeCallbacks)
     {
@@ -97,7 +98,7 @@ void Window::SetDevice(const Device *device)
     _device = device;
 }
 
-void Window::BuildSwapchain()
+void Window::BuildSwapchain(Swapchain::SwapchainGoal goal)
 {
     if (!_device)
     {
@@ -109,13 +110,14 @@ void Window::BuildSwapchain()
     if (_swapchain != nullptr)
     {
         Swapchain *oldSwapchain = _swapchain;
-        _swapchain = new Swapchain(this, _device, {(uint32_t)_width, (uint32_t)_height}, oldSwapchain->GetHandle());
+        _swapchain =
+            new Swapchain(this, _device, {(uint32_t)_width, (uint32_t)_height}, goal, oldSwapchain->GetHandle());
         oldSwapchain->Free(_device, true);
         delete oldSwapchain;
     }
     else
     {
-        _swapchain = new Swapchain(this, _device, {(uint32_t)_width, (uint32_t)_height});
+        _swapchain = new Swapchain(this, _device, {(uint32_t)_width, (uint32_t)_height}, goal);
         glfwSetWindowUserPointer(_glfwWindow, this);
         glfwSetFramebufferSizeCallback(_glfwWindow, FramebufferResizeCallback);
     }
@@ -143,12 +145,14 @@ GLFWwindow *Window::GetGLFWHandle() const
 
 Swapchain *Window::GetSwapchain() const
 {
+    check(_swapchain);
+
     return _swapchain;
 }
 
-const vk::SurfaceKHR *Window::GetSurface() const
+vk::SurfaceKHR Window::GetSurface() const
 {
-    return &_surface;
+    return _surface;
 }
 
 } // namespace wsp

@@ -17,9 +17,16 @@ namespace wsp
 class Swapchain
 {
   public:
+    enum SwapchainGoal
+    {
+        eCleared = 0,
+        eBlittedTo = 1
+    };
+
     static constexpr int MAX_FRAMES_IN_FLIGHT = 2;
 
-    Swapchain(const class Window *, const class Device *, vk::Extent2D, vk::SwapchainKHR oldSwapchain = VK_NULL_HANDLE);
+    Swapchain(const class Window *, const class Device *, vk::Extent2D, SwapchainGoal,
+              vk::SwapchainKHR oldSwapchain = VK_NULL_HANDLE);
     ~Swapchain();
 
     Swapchain(const Swapchain &) = delete;
@@ -36,7 +43,7 @@ class Swapchain
     void AcquireNextImage(const class Device *, uint32_t frameIndex, uint32_t *imageIndex) const;
 
     vk::SwapchainKHR GetHandle() const;
-    size_t GetCurrentFrameIndex() const;
+    SwapchainGoal GetGoal() const;
 
     void BeginRenderPass(vk::CommandBuffer, uint32_t frameIndex) const;
     void BlitImage(vk::CommandBuffer, vk::Image, vk::Extent2D resolution, size_t imageIndex) const;
@@ -68,6 +75,8 @@ class Swapchain
     vk::Format _imageFormat;
     vk::Extent2D _extent;
     uint32_t _minImageCount;
+
+    SwapchainGoal _goal;
 
     bool _freed;
 };

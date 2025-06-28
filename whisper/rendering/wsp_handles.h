@@ -1,5 +1,5 @@
-#ifndef FL_HANDLES
-#define FL_HANDLES
+#ifndef WSP_HANDLES
+#define WSP_HANDLES
 
 #include <cstddef>
 #include <functional>
@@ -8,7 +8,7 @@
 // lib
 #include <vulkan/vulkan.hpp>
 
-namespace fl
+namespace wsp
 {
 
 struct Pass
@@ -84,6 +84,6 @@ struct ResourceCreateInfo
     std::vector<Pass> readers;
 };
 
-} // namespace fl
+} // namespace wsp
 
 #endif

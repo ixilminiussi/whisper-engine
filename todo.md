@@ -10,5 +10,5 @@
 
 # editor
 - [ ] option for scaling
-- [ ] start profiling
+- [x] start profiling
 - [ ] draw scene into imgui window, and to screen on play

@@ -1,4 +1,6 @@
 #include "wsp_devkit.h"
+#include "wsp_engine.h"
+#include "wsp_renderer.h"
 #include "wsp_static_utils.h"
 #include <vulkan/vulkan_handles.hpp>
 #ifndef NDEBUG
@@ -18,14 +20,8 @@
 namespace wsp
 {
 
-bool Editor::_active{true};
-
-bool Editor::IsActive()
-{
-    return _active;
-}
-
-Editor::Editor(const Window *window, const Device *device, vk::Instance instance) : _freed{false}
+Editor::Editor(const Window *window, const Device *device, vk::Instance instance)
+    : _freed{false}, _active{false}, _toggleDispatchers{}
 {
     check(device);
     check(window);
@@ -65,15 +61,49 @@ void Editor::Free(const Device *device)
     _freed = true;
 }
 
-void Editor::Render(vk::CommandBuffer commandBuffer)
+void Editor::Render(vk::CommandBuffer commandBuffer, const Renderer *renderer)
 {
+    TracyVkZone(wsp::engine::TracyCtx(), commandBuffer, "editor");
+
     ImGui_ImplVulkan_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
 
+    if (_active)
+    {
+        ImGui::Begin("Scene");
+        ImGui::Image((ImTextureID)(renderer->GetRenderedDescriptorSet().operator VkDescriptorSet()),
+                     ImVec2(1080, 1080));
+        ImGui::End();
+    }
+
+    ImGui::Begin("Controls");
+    ImGui::Checkbox("editor mode", &_active);
+    ImGui::End();
+
     ImGui::EndFrame();
     ImGui::Render();
     ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), commandBuffer);
+}
+
+void Editor::Update(float dt)
+{
+    static bool wasActive = _active;
+
+    if (_active != wasActive)
+    {
+        for (auto [pointer, func] : _toggleDispatchers)
+        {
+            func(pointer, _active);
+        }
+
+        wasActive = _active;
+    }
+}
+
+void Editor::BindToggle(void *who, void (*func)(void *, bool))
+{
+    _toggleDispatchers.emplace_back(who, func);
 }
 
 void Editor::InitImGui(const Window *window, const Device *device, vk::Instance instance)
@@ -107,7 +137,7 @@ void Editor::InitImGui(const Window *window, const Device *device, vk::Instance 
     poolInfo.poolSizeCount = (uint32_t)poolSizes.size();
     poolInfo.pPoolSizes = poolSizes.data();
 
-    device->CreateDescriptorPool(poolInfo, &_imguiDescriptorPool);
+    device->CreateDescriptorPool(poolInfo, &_imguiDescriptorPool, "imgui descriptor pool");
 
     const vk::Format format = vk::Format::eB8G8R8A8Unorm;
     vk::PipelineRenderingCreateInfo pipelineRenderingCreateInfo{};
