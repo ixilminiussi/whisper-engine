@@ -121,7 +121,7 @@ Pass Graph::NewPass(const PassCreateInfo &createInfo)
     return Pass{_passInfos.size() - 1};
 }
 
-void Graph::SetUniformSize(size_t size)
+void Graph::setUboSize(size_t size)
 {
     _uboSize = size;
 }
@@ -403,6 +403,25 @@ void Graph::CreatePipeline(const Device *device, Pass pass)
     device->CreateGraphicsPipeline(pipelineInfo, &pipelineHolder.pipeline, passInfo.debugName + " graphics pipeline");
 }
 
+void Graph::FlushUbo(void *ubo, size_t frameIndex, const Device *device)
+{
+    if (_uboSize == 0)
+    {
+        spdlog::warn("Graph: flushing ubo in a graph which doesn't include one");
+        return;
+    }
+    check(ubo);
+    check(device);
+    memcpy(_uboMappedMemories[frameIndex], ubo, _uboSize);
+
+    vk::MappedMemoryRange mappedRange = {};
+    mappedRange.memory = _uboDeviceMemories[frameIndex];
+    mappedRange.offset = 0;
+    mappedRange.size = _uboSize;
+
+    device->FlushMappedMemoryRange(mappedRange);
+}
+
 void Graph::Render(vk::CommandBuffer commandBuffer)
 {
     TracyVkZone(engine::TracyCtx(), commandBuffer, "graph");
@@ -489,10 +508,10 @@ void Graph::Reset(const Device *device)
         device->DestroyBuffer(buffer);
     }
     _uboBuffers.clear();
-    _uboMappedMemory.clear();
     _uboDeviceMemories.clear();
-    _uboMappedMemory.clear();
+    _uboMappedMemories.clear();
     _uboDescriptorSets.clear();
+    _uboSize = 0;
 
     for (ResourceCreateInfo &resourceInfo : _resourceInfos)
     {
@@ -816,19 +835,19 @@ void Graph::BuildUbo(const Device *device)
 
     check(_uboBuffers.size() == 0);
     check(_uboDeviceMemories.size() == 0);
-    check(_uboMappedMemory.size() == 0);
+    check(_uboMappedMemories.size() == 0);
     check(_uboDescriptorSets.size() == 0);
 
     _uboBuffers.reserve(Swapchain::MAX_FRAMES_IN_FLIGHT);
     _uboDeviceMemories.reserve(Swapchain::MAX_FRAMES_IN_FLIGHT);
-    _uboMappedMemory.reserve(Swapchain::MAX_FRAMES_IN_FLIGHT);
+    _uboMappedMemories.reserve(Swapchain::MAX_FRAMES_IN_FLIGHT);
     _uboDescriptorSets.reserve(Swapchain::MAX_FRAMES_IN_FLIGHT);
 
     for (size_t i = 0; i < Swapchain::MAX_FRAMES_IN_FLIGHT; i++)
     {
         vk::Buffer uboBuffer;
         vk::DeviceMemory uboDeviceMemory;
-        void *uboMappedMemory = nullptr;
+        void *uboMappedMemories = nullptr;
 
         vk::BufferCreateInfo createInfo;
         createInfo.size = _uboSize;
@@ -839,9 +858,9 @@ void Graph::BuildUbo(const Device *device)
         _uboBuffers.push_back(uboBuffer);
         _uboDeviceMemories.push_back(uboDeviceMemory);
 
-        device->MapMemory(uboDeviceMemory, &uboMappedMemory);
+        device->MapMemory(uboDeviceMemory, &uboMappedMemories);
 
-        _uboMappedMemory.push_back(uboMappedMemory);
+        _uboMappedMemories.push_back(uboMappedMemories);
 
         vk::DescriptorSet descriptorSet;
 

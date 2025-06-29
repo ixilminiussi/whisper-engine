@@ -35,20 +35,21 @@ class Graph
     Graph(const Graph &) = delete;
     Graph &operator=(const Graph &) = delete;
 
-    void SetUniformSize(size_t uboSize);
+    void setUboSize(size_t uboSize);
     [[nodiscard]] Resource NewResource(const struct ResourceCreateInfo &);
     Pass NewPass(const struct PassCreateInfo &);
 
-    void Compile(const wsp::Device *, Resource target, GraphGoal);
+    void Compile(const Device *, Resource target, GraphGoal);
+    void FlushUbo(void *ubo, size_t frameIndex, const Device *);
     void Render(vk::CommandBuffer);
 
-    void Free(const wsp::Device *);
+    void Free(const Device *);
 
     vk::Image GetTargetImage() const;
     vk::DescriptorSet GetTargetDescriptorSet() const;
 
     void ChangeGoal(const class Device *, GraphGoal);
-    void Resize(const wsp::Device *, size_t width, size_t height);
+    void Resize(const Device *, size_t width, size_t height);
     static void OnResizeCallback(void *, const class Device *, size_t width, size_t height);
 
   protected:
@@ -64,21 +65,21 @@ class Graph
 
     void KhanFindOrder(const std::set<Resource> &, const std::set<Pass> &);
 
-    void Build(const wsp::Device *, Resource);
-    void Build(const wsp::Device *, Pass);
-    void BuildUbo(const wsp::Device *);
+    void Build(const Device *, Resource);
+    void Build(const Device *, Pass);
+    void BuildUbo(const Device *);
 
-    void Free(const wsp::Device *, Resource);
-    void Free(const wsp::Device *, Pass);
+    void Free(const Device *, Resource);
+    void Free(const Device *, Pass);
 
-    void CreatePipeline(const wsp::Device *, Pass);
-    void CreateSamplers(const wsp::Device *);
-    void CreateDescriptor(const wsp::Device *, Resource resource);
+    void CreatePipeline(const Device *, Pass);
+    void CreateSamplers(const Device *);
+    void CreateDescriptor(const Device *, Resource resource);
 
     void FindDependencies(std::set<Resource> *validResources, std::set<Pass> *validPasses, Resource resource);
     void FindDependencies(std::set<Resource> *validResources, std::set<Pass> *validPasses, Pass resource);
 
-    void Reset(const wsp::Device *);
+    void Reset(const Device *);
 
     const PassCreateInfo &GetPassInfo(Pass) const;
     const ResourceCreateInfo &GetResourceInfo(Resource) const;
@@ -107,7 +108,7 @@ class Graph
     std::vector<vk::Buffer> _uboBuffers;
     std::vector<vk::DeviceMemory> _uboDeviceMemories;
     std::vector<vk::DescriptorSet> _uboDescriptorSets;
-    std::vector<void *> _uboMappedMemory;
+    std::vector<void *> _uboMappedMemories;
     vk::DescriptorPool _uboDescriptorPool;
     vk::DescriptorSetLayout _uboDescriptorSetLayout;
 

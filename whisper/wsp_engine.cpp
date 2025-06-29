@@ -24,6 +24,11 @@ namespace wsp
 namespace engine
 {
 
+struct GlobalUbo
+{
+    float a;
+};
+
 const std::vector<const char *> validationLayers{"VK_LAYER_KHRONOS_validation"};
 const std::vector<const char *> deviceExtensions{vk::KHRSwapchainExtensionName, vk::KHRMaintenance2ExtensionName};
 
@@ -226,7 +231,7 @@ bool Initialize()
         check(device);
 
         graph = new Graph(device, window->GetExtent().width, window->GetExtent().height);
-        graph->SetUniformSize(sizeof(float) * 3);
+        graph->SetUboSize(sizeof(GlobalUbo));
 
         ResourceCreateInfo colorResourceInfo{};
         colorResourceInfo.role = ResourceRole::eColor;

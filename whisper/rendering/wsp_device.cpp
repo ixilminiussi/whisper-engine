@@ -514,6 +514,12 @@ void Device::MapMemory(vk::DeviceMemory deviceMemory, void **mappedMemory) const
     }
 }
 
+void Device::FlushMappedMemoryRange(const vk::MappedMemoryRange &mappedMemoryRange) const
+{
+    check(_device);
+    _device.flushMappedMemoryRanges({mappedMemoryRange});
+}
+
 void Device::CreateImageView(const vk::ImageViewCreateInfo &createInfo, vk::ImageView *imageView,
                              const std::string &name) const
 {

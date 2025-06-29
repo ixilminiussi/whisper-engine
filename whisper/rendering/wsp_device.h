@@ -69,6 +69,7 @@ class Device
     void CreateBufferAndBindMemory(const vk::BufferCreateInfo &, vk::Buffer *, vk::DeviceMemory *,
                                    const std::string &name) const;
     void MapMemory(vk::DeviceMemory, void **mappedMemory) const;
+    void FlushMappedMemoryRange(const vk::MappedMemoryRange &mappedMemoryRange) const;
     void CreateImageView(const vk::ImageViewCreateInfo &, vk::ImageView *, const std::string &name) const;
     vk::Sampler CreateSampler(const vk::SamplerCreateInfo &, const std::string &name) const;
     void AllocateDescriptorSet(const vk::DescriptorSetAllocateInfo &, vk::DescriptorSet *,
