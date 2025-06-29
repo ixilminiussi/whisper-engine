@@ -3,7 +3,10 @@
 
 // std
 #include "wsp_swapchain.h"
+#include <map>
 #include <string>
+#include <vulkan/vulkan_core.h>
+#include <vulkan/vulkan_handles.hpp>
 
 // lib
 #define GLFW_INCLUDE_VULKAN
@@ -32,16 +35,21 @@ class Window
 
     GLFWwindow *GetGLFWHandle() const;
 
-    Swapchain *GetSwapchain() const;
+    class Swapchain *GetSwapchain() const;
 
     vk::SurfaceKHR GetSurface() const;
 
-    void SetDevice(const class Device *);
-    void BuildSwapchain(Swapchain::SwapchainGoal goal);
+    void Initialize(const class Device *);
+
+    vk::CommandBuffer NextCommandBuffer();
+    void SwapchainOpen(vk::CommandBuffer, vk::Image blittedImage = VK_NULL_HANDLE) const;
+    void SwapchainFlush(vk::CommandBuffer);
 
     void BindResizeCallback(void *, void (*)(void *, const wsp::Device *, size_t, size_t));
+    void UnbindResizeCallback(void *);
 
   private:
+    void BuildSwapchain();
     void CreateSurface(vk::Instance);
 
     static void FramebufferResizeCallback(GLFWwindow *, int width, int height);
@@ -57,7 +65,7 @@ class Window
 
     vk::SurfaceKHR _surface;
 
-    std::vector<std::pair<void *, void (*)(void *, const wsp::Device *, size_t, size_t)>> _resizeCallbacks;
+    std::map<void *, void (*)(void *, const wsp::Device *, size_t, size_t)> _resizeCallbacks;
 
     bool _freed;
 };

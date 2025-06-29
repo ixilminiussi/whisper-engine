@@ -2,7 +2,7 @@
 
 #include "wsp_device.h"
 #include "wsp_editor.h"
-#include "wsp_renderer.h"
+#include "wsp_graph.h"
 #include "wsp_static_utils.h"
 #include "wsp_swapchain.h"
 #include "wsp_window.h"
@@ -15,6 +15,7 @@
 // std
 #include <stdexcept>
 #include <unordered_set>
+#include <vulkan/vulkan_handles.hpp>
 #include <vulkan/vulkan_structs.hpp>
 
 namespace wsp
@@ -32,11 +33,11 @@ bool terminated{false};
 vk::Instance vkInstance;
 Window *window{nullptr};
 Device *device{nullptr};
-Renderer *renderer{nullptr};
+Graph *graph{nullptr};
 
-#ifndef NDEBUG
+Resource targetResource{0};
+
 Editor *editor{nullptr};
-#endif
 
 TracyVkCtx tracyCtx;
 
@@ -188,13 +189,13 @@ void OnEditorToggle(void *, bool isActive)
 {
     if (!isActive)
     {
-        renderer->ChangeGoal(device, Renderer::RendererGoal::eToTransfer);
-        window->BuildSwapchain(Swapchain::SwapchainGoal::eBlittedTo);
+        graph->Compile(device, targetResource, Graph::GraphGoal::eToTransfer);
+        window->BindResizeCallback(graph, Graph::OnResizeCallback);
     }
     else
     {
-        renderer->ChangeGoal(device, Renderer::RendererGoal::eToDescriptorSet);
-        window->BuildSwapchain(Swapchain::SwapchainGoal::eCleared);
+        graph->Compile(device, targetResource, Graph::GraphGoal::eToDescriptorSet);
+        window->UnbindResizeCallback(graph);
     }
 }
 
@@ -223,10 +224,44 @@ bool Initialize()
         device->Initialize(deviceExtensions, vkInstance, window->GetSurface());
         device->CreateTracyContext(&tracyCtx);
 
-        window->SetDevice(device);
-        window->BuildSwapchain(Swapchain::eBlittedTo);
+        window->Initialize(device);
 
-        renderer = new Renderer(device, window, Renderer::eToTransfer);
+        check(device);
+
+        graph = new Graph(device, window->GetExtent().width, window->GetExtent().height);
+
+        ResourceCreateInfo colorResourceInfo{};
+        colorResourceInfo.role = ResourceRole::eColor;
+        colorResourceInfo.format = vk::Format::eR8G8B8A8Unorm;
+        colorResourceInfo.clear.color = vk::ClearColorValue{0.1f, 0.1f, 0.1f, 1.0f};
+        colorResourceInfo.debugName = "color";
+
+        const Resource color = graph->NewResource(colorResourceInfo);
+
+        PassCreateInfo passCreateInfo{};
+        passCreateInfo.writes = {color};
+        passCreateInfo.reads = {};
+        passCreateInfo.vertFile = "triangle.vert.spv";
+        passCreateInfo.fragFile = "triangle.frag.spv";
+        passCreateInfo.debugName = "white triangle";
+        passCreateInfo.execute = [](vk::CommandBuffer commandBuffer) { commandBuffer.draw(3, 1, 0, 0); };
+
+        graph->NewPass(passCreateInfo);
+
+        colorResourceInfo.debugName = "reverse color";
+        targetResource = graph->NewResource(colorResourceInfo);
+
+        PassCreateInfo postPassCreateInfo{};
+        postPassCreateInfo.writes = {targetResource};
+        postPassCreateInfo.reads = {color};
+        postPassCreateInfo.vertFile = "postprocess.vert.spv";
+        postPassCreateInfo.fragFile = "postprocess.frag.spv";
+        postPassCreateInfo.debugName = "post processing";
+        postPassCreateInfo.execute = [](vk::CommandBuffer commandBuffer) { commandBuffer.draw(6, 1, 0, 0); };
+
+        graph->NewPass(postPassCreateInfo);
+        graph->Compile(device, targetResource, Graph::GraphGoal::eToDescriptorSet);
+
 #ifndef NDEBUG
         editor = new Editor(window, device, vkInstance);
         editor->BindToggle(nullptr, OnEditorToggle);
@@ -253,14 +288,23 @@ void Run()
         FrameMarkStart("frame");
         glfwPollEvents();
 
-        const vk::CommandBuffer commandBuffer = renderer->RenderGraph(device);
+        vk::CommandBuffer commandBuffer = window->NextCommandBuffer();
 
-        renderer->SwapchainOpen(device, commandBuffer);
-#ifndef NDEBUG
-        editor->Render(commandBuffer, renderer);
-#endif
-        renderer->SwapchainFlush(device, commandBuffer);
+        graph->Render(commandBuffer);
+
+        if (editor->isActive())
+        {
+            window->SwapchainOpen(commandBuffer);
+        }
+        else
+        {
+            window->SwapchainOpen(commandBuffer, graph->GetTargetImage());
+        }
+        editor->Render(commandBuffer, graph, device);
+
+        window->SwapchainFlush(commandBuffer);
         editor->Update(0.f);
+
         FrameMarkEnd("frame");
     }
 }
@@ -287,20 +331,18 @@ void Terminate()
         editor->Free(device);
         delete editor;
 
-        renderer->Free(device);
-        delete renderer;
+        graph->Free(device);
+        delete graph;
 
         window->Free(vkInstance);
         delete window;
 
-#ifndef NDEBUG
         auto func = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(static_cast<VkInstance>(vkInstance),
                                                                                "vkDestroyDebugUtilsMessengerEXT");
         if (func != nullptr)
         {
             func(static_cast<VkInstance>(vkInstance), debugMessenger, nullptr);
         }
-#endif
 
         TracyVkDestroy(tracyCtx);
         device->Free();

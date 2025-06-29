@@ -39,16 +39,16 @@ class Graph
     Pass NewPass(const struct PassCreateInfo &);
 
     void Compile(const wsp::Device *, Resource target, GraphGoal);
-    void Run(vk::CommandBuffer);
-
-    static void WindowResizeCallback(void *graph, const wsp::Device *, size_t width, size_t height);
+    void Render(vk::CommandBuffer);
 
     void Free(const wsp::Device *);
 
-    vk::Image GetTargetImage();
-    vk::DescriptorSet GetTargetDescriptorSet();
+    vk::Image GetTargetImage() const;
+    vk::DescriptorSet GetTargetDescriptorSet() const;
 
     void ChangeGoal(const class Device *, GraphGoal);
+    void Resize(const wsp::Device *, size_t width, size_t height);
+    static void OnResizeCallback(void *, const class Device *, size_t width, size_t height);
 
   protected:
     struct PipelineHolder
@@ -58,8 +58,6 @@ class Graph
         vk::PipelineLayout pipelineLayout;
         vk::Pipeline pipeline;
     };
-
-    void OnResize(const wsp::Device *, size_t width, size_t height);
 
     bool isSampled(Resource resouce);
 
@@ -87,7 +85,7 @@ class Graph
     std::vector<PassCreateInfo> _passInfos;
     std::vector<ResourceCreateInfo> _resourceInfos;
     Resource _target;
-    GraphGoal _graphGoal;
+    GraphGoal _goal;
 
     std::map<Resource, vk::Image> _images;
     std::map<Resource, vk::DeviceMemory> _deviceMemories;

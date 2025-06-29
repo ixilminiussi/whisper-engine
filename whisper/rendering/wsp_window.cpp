@@ -1,6 +1,7 @@
 #include "wsp_window.h"
 #include "wsp_device.h"
 #include "wsp_devkit.h"
+#include "wsp_engine.h"
 #include "wsp_swapchain.h"
 
 // std
@@ -71,7 +72,7 @@ void Window::Resize(size_t width, size_t height)
     check(_device);
     check(_swapchain);
 
-    BuildSwapchain(_swapchain->GetGoal());
+    BuildSwapchain();
 
     for (auto [pointer, function] : _resizeCallbacks)
     {
@@ -91,14 +92,15 @@ void Window::CreateSurface(vk::Instance instance)
     }
 }
 
-void Window::SetDevice(const Device *device)
+void Window::Initialize(const Device *device)
 {
     check(device);
 
     _device = device;
+    BuildSwapchain();
 }
 
-void Window::BuildSwapchain(Swapchain::SwapchainGoal goal)
+void Window::BuildSwapchain()
 {
     if (!_device)
     {
@@ -110,17 +112,52 @@ void Window::BuildSwapchain(Swapchain::SwapchainGoal goal)
     if (_swapchain != nullptr)
     {
         Swapchain *oldSwapchain = _swapchain;
-        _swapchain =
-            new Swapchain(this, _device, {(uint32_t)_width, (uint32_t)_height}, goal, oldSwapchain->GetHandle());
+        _swapchain = new Swapchain(this, _device, {(uint32_t)_width, (uint32_t)_height}, oldSwapchain->GetHandle());
         oldSwapchain->Free(_device, true);
         delete oldSwapchain;
     }
     else
     {
-        _swapchain = new Swapchain(this, _device, {(uint32_t)_width, (uint32_t)_height}, goal);
+        _swapchain = new Swapchain(this, _device, {(uint32_t)_width, (uint32_t)_height});
         glfwSetWindowUserPointer(_glfwWindow, this);
         glfwSetFramebufferSizeCallback(_glfwWindow, FramebufferResizeCallback);
     }
+}
+
+vk::CommandBuffer Window::NextCommandBuffer()
+{
+    check(_device);
+
+    return _swapchain->NextCommandBuffer(_device);
+}
+
+void Window::SwapchainOpen(vk::CommandBuffer commandBuffer, vk::Image blittedImage) const
+{
+    TracyVkZone(engine::TracyCtx(), commandBuffer, "swapchain");
+
+    if (blittedImage != VK_NULL_HANDLE)
+    {
+        _swapchain->BlitImage(commandBuffer, blittedImage, GetExtent());
+        _swapchain->BeginRenderPass(commandBuffer, false);
+    }
+    else
+    {
+        _swapchain->SkipBlit(commandBuffer);
+        _swapchain->BeginRenderPass(commandBuffer, true);
+    }
+}
+
+void Window::SwapchainFlush(vk::CommandBuffer commandBuffer)
+{
+    check(_device);
+
+    ZoneScopedN("submit and wait idle");
+    commandBuffer.endRenderPass();
+    commandBuffer.end();
+
+    _swapchain->SubmitCommandBuffer(_device, commandBuffer);
+
+    _device->WaitIdle();
 }
 
 bool Window::ShouldClose() const
@@ -130,7 +167,13 @@ bool Window::ShouldClose() const
 
 void Window::BindResizeCallback(void *pointer, void (*function)(void *, const wsp::Device *, size_t, size_t))
 {
-    _resizeCallbacks.emplace_back(pointer, function);
+    _resizeCallbacks[pointer] = function;
+    function(pointer, _device, _width, _height);
+}
+
+void Window::UnbindResizeCallback(void *pointer)
+{
+    _resizeCallbacks.erase(pointer);
 }
 
 vk::Extent2D Window::GetExtent() const
@@ -140,13 +183,13 @@ vk::Extent2D Window::GetExtent() const
 
 GLFWwindow *Window::GetGLFWHandle() const
 {
+    check(_glfwWindow);
     return _glfwWindow;
 }
 
 Swapchain *Window::GetSwapchain() const
 {
     check(_swapchain);
-
     return _swapchain;
 }
 

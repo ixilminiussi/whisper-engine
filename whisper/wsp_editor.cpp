@@ -1,13 +1,11 @@
-#include "wsp_devkit.h"
-#include "wsp_engine.h"
-#include "wsp_renderer.h"
-#include "wsp_static_utils.h"
-#include <vulkan/vulkan_handles.hpp>
-#ifndef NDEBUG
 #include "wsp_editor.h"
 
 // wsp
 #include "wsp_device.h"
+#include "wsp_devkit.h"
+#include "wsp_engine.h"
+#include "wsp_graph.h"
+#include "wsp_static_utils.h"
 #include "wsp_window.h"
 
 // lib
@@ -16,12 +14,12 @@
 #include <imgui_impl_vulkan.h>
 #include <spdlog/spdlog.h>
 #include <vulkan/vulkan.hpp>
+#include <vulkan/vulkan_handles.hpp>
 
 namespace wsp
 {
 
-Editor::Editor(const Window *window, const Device *device, vk::Instance instance)
-    : _freed{false}, _active{false}, _toggleDispatchers{}
+Editor::Editor(const Window *window, const Device *device, vk::Instance instance) : _freed{false}, _active{false}
 {
     check(device);
     check(window);
@@ -61,9 +59,11 @@ void Editor::Free(const Device *device)
     _freed = true;
 }
 
-void Editor::Render(vk::CommandBuffer commandBuffer, const Renderer *renderer)
+void Editor::Render(vk::CommandBuffer commandBuffer, Graph *graph, const Device *device)
 {
     TracyVkZone(wsp::engine::TracyCtx(), commandBuffer, "editor");
+
+    _deferredQueue.clear();
 
     ImGui_ImplVulkan_NewFrame();
     ImGui_ImplGlfw_NewFrame();
@@ -71,9 +71,20 @@ void Editor::Render(vk::CommandBuffer commandBuffer, const Renderer *renderer)
 
     if (_active)
     {
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
         ImGui::Begin("Scene");
-        ImGui::Image((ImTextureID)(renderer->GetRenderedDescriptorSet().operator VkDescriptorSet()),
-                     ImVec2(1080, 1080));
+        ImGui::PopStyleVar(3);
+
+        ImVec2 size = ImGui::GetContentRegionAvail();
+        static ImVec2 oldSize = ImVec2(10, 10);
+        ImGui::Image((ImTextureID)(graph->GetTargetDescriptorSet().operator VkDescriptorSet()), size);
+        if (oldSize.x != size.x && oldSize.y != size.y)
+        {
+            _deferredQueue.push_back([=]() { graph->Resize(device, (size_t)size.x, (size_t)size.y); });
+            oldSize = size;
+        }
         ImGui::End();
     }
 
@@ -89,21 +100,36 @@ void Editor::Render(vk::CommandBuffer commandBuffer, const Renderer *renderer)
 void Editor::Update(float dt)
 {
     static bool wasActive = _active;
-
-    if (_active != wasActive)
+    if (wasActive != _active)
     {
-        for (auto [pointer, func] : _toggleDispatchers)
+        for (auto &[who, func] : _toggleDispatchers)
         {
-            func(pointer, _active);
+            func(who, _active);
         }
 
         wasActive = _active;
+    }
+
+    for (std::function<void()> &func : _deferredQueue)
+    {
+        func();
     }
 }
 
 void Editor::BindToggle(void *who, void (*func)(void *, bool))
 {
-    _toggleDispatchers.emplace_back(who, func);
+    _toggleDispatchers[who] = func;
+    func(who, _active);
+}
+
+void Editor::UnbindToggle(void *who)
+{
+    _toggleDispatchers.erase(who);
+}
+
+bool Editor::isActive() const
+{
+    return _active;
 }
 
 void Editor::InitImGui(const Window *window, const Device *device, vk::Instance instance)
@@ -252,4 +278,3 @@ void Editor::ApplyImGuiTheme()
 }
 
 } // namespace wsp
-#endif

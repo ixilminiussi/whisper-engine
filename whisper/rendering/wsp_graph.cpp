@@ -149,12 +149,12 @@ void Graph::FindDependencies(std::set<Resource> *validResources, std::set<Pass> 
     }
 }
 
-void Graph::Compile(const Device *device, Resource target, GraphGoal graphGoal)
+void Graph::Compile(const Device *device, Resource target, GraphGoal goal)
 {
     check(device);
 
     _target = target;
-    _graphGoal = graphGoal;
+    _goal = goal;
 
     Reset(device);
 
@@ -206,13 +206,21 @@ void Graph::Compile(const Device *device, Resource target, GraphGoal graphGoal)
     return;
 }
 
-vk::Image Graph::GetTargetImage()
+vk::Image Graph::GetTargetImage() const
 {
+    if (_goal != GraphGoal::eToTransfer)
+    {
+        throw std::runtime_error("Graph: goal must be eToTransfer in order to get target image");
+    }
     return _images.at(_target);
 }
 
-vk::DescriptorSet Graph::GetTargetDescriptorSet()
+vk::DescriptorSet Graph::GetTargetDescriptorSet() const
 {
+    if (_goal != GraphGoal::eToDescriptorSet)
+    {
+        throw std::runtime_error("Graph: goal must be eToDescriptorSet in order to get target descriptor set");
+    }
     return _descriptorSets.at(_target);
 }
 
@@ -370,7 +378,7 @@ void Graph::CreatePipeline(const Device *device, Pass pass)
     device->CreateGraphicsPipeline(pipelineInfo, &pipelineHolder.pipeline, passInfo.debugName + " graphics pipeline");
 }
 
-void Graph::Run(vk::CommandBuffer commandBuffer)
+void Graph::Render(vk::CommandBuffer commandBuffer)
 {
     TracyVkZone(engine::TracyCtx(), commandBuffer, "graph");
 
@@ -698,7 +706,7 @@ void Graph::Build(const Device *device, Pass pass)
             break;
         }
 
-        if (resource == _target && _graphGoal == GraphGoal::eToTransfer)
+        if (resource == _target && _goal == GraphGoal::eToTransfer)
         {
             attachment.finalLayout = vk::ImageLayout::eTransferSrcOptimal;
         }
@@ -774,15 +782,7 @@ void Graph::CreateDescriptor(const Device *device, Resource resource)
     _descriptorSets[resource] = descriptorSet;
 }
 
-void Graph::WindowResizeCallback(void *graph, const Device *device, size_t width, size_t height)
-{
-    check(graph);
-    check(device);
-
-    reinterpret_cast<Graph *>(graph)->OnResize(device, width, height);
-}
-
-void Graph::OnResize(const Device *device, size_t width, size_t height)
+void Graph::Resize(const Device *device, size_t width, size_t height)
 {
     check(device);
 
@@ -827,9 +827,15 @@ void Graph::OnResize(const Device *device, size_t width, size_t height)
     }
 }
 
+void Graph::OnResizeCallback(void *graph, const class Device *device, size_t width, size_t height)
+{
+    check(graph);
+    reinterpret_cast<Graph *>(graph)->Resize(device, width, height);
+}
+
 bool Graph::isSampled(Resource resource)
 {
-    return GetResourceInfo(resource).readers.size() > 0 || (_graphGoal == eToDescriptorSet && resource == _target);
+    return GetResourceInfo(resource).readers.size() > 0 || (_goal == eToDescriptorSet && resource == _target);
 }
 
 const PassCreateInfo &Graph::GetPassInfo(Pass pass) const

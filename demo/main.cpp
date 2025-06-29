@@ -5,7 +5,6 @@
 
 #include <wsp_engine.h>
 #include <wsp_graph.h>
-#include <wsp_renderer.h>
 
 // lib
 #include <spdlog/spdlog.h>

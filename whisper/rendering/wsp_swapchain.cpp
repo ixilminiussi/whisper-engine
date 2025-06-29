@@ -2,6 +2,7 @@
 #include "imgui_impl_vulkan.h"
 #include "wsp_device.h"
 #include "wsp_devkit.h"
+#include "wsp_engine.h"
 #include "wsp_window.h"
 
 // lib
@@ -14,10 +15,10 @@
 namespace wsp
 {
 
-Swapchain::Swapchain(const class Window *window, const class Device *device, vk::Extent2D extent2D, SwapchainGoal goal,
+Swapchain::Swapchain(const class Window *window, const class Device *device, vk::Extent2D extent2D,
                      vk::SwapchainKHR oldSwapchain)
     : _freed{false}, _imageAvailableSemaphores{}, _renderFinishedSemaphores{}, _inFlightFences{}, _imagesInFlight{},
-      _goal{goal}, _images{}
+      _images{}, _currentImageIndex{0}, _currentFrameIndex{0}
 {
     check(device);
 
@@ -42,12 +43,7 @@ Swapchain::Swapchain(const class Window *window, const class Device *device, vk:
     createInfo.imageColorSpace = surfaceFormat.colorSpace;
     createInfo.imageExtent = extent;
     createInfo.imageArrayLayers = 1;
-    createInfo.imageUsage = vk::ImageUsageFlagBits::eColorAttachment;
-
-    if (goal == SwapchainGoal::eBlittedTo)
-    {
-        createInfo.imageUsage |= vk::ImageUsageFlagBits::eTransferDst;
-    }
+    createInfo.imageUsage = vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransferDst;
 
     const QueueFamilyIndices indices = device->FindQueueFamilies(surface);
     int queueFamilyIndices[] = {indices.graphicsFamily, indices.presentFamily};
@@ -84,6 +80,7 @@ Swapchain::Swapchain(const class Window *window, const class Device *device, vk:
     CreateRenderPass(device);
     CreateFramebuffers(device, _images.size());
     CreateSyncObjects(device, _images.size());
+    CreateCommandBuffers(device);
 }
 
 Swapchain::~Swapchain()
@@ -146,22 +143,21 @@ void Swapchain::PopulateImGuiInitInfo(ImGui_ImplVulkan_InitInfo *initInfo) const
 }
 #endif
 
-void Swapchain::SubmitCommandBuffer(const Device *device, vk::CommandBuffer commandBuffers, uint32_t imageIndex,
-                                    uint32_t frameIndex)
+void Swapchain::SubmitCommandBuffer(const Device *device, vk::CommandBuffer commandBuffers)
 {
     check(device);
-    check(imageIndex < _imagesInFlight.size());
+    check(_currentImageIndex < _imagesInFlight.size());
 
-    if (_imagesInFlight[imageIndex] != nullptr)
+    if (_imagesInFlight[_currentImageIndex] != nullptr)
     {
-        device->WaitForFences({_imagesInFlight[imageIndex]});
+        device->WaitForFences({_imagesInFlight[_currentImageIndex]});
     }
-    _imagesInFlight[imageIndex] = _inFlightFences[frameIndex];
+    _imagesInFlight[_currentImageIndex] = _inFlightFences[_currentFrameIndex];
 
     vk::SubmitInfo submitInfo = {};
     submitInfo.sType = vk::StructureType::eSubmitInfo;
 
-    vk::Semaphore waitSemaphores[] = {_imageAvailableSemaphores[frameIndex]};
+    vk::Semaphore waitSemaphores[] = {_imageAvailableSemaphores[_currentFrameIndex]};
     vk::PipelineStageFlags waitStages[] = {vk::PipelineStageFlagBits::eColorAttachmentOutput};
     submitInfo.waitSemaphoreCount = 1;
     submitInfo.pWaitSemaphores = waitSemaphores;
@@ -170,12 +166,12 @@ void Swapchain::SubmitCommandBuffer(const Device *device, vk::CommandBuffer comm
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers = &commandBuffers;
 
-    vk::Semaphore signalSemaphores[] = {_renderFinishedSemaphores[frameIndex]};
+    vk::Semaphore signalSemaphores[] = {_renderFinishedSemaphores[_currentFrameIndex]};
     submitInfo.signalSemaphoreCount = 1;
     submitInfo.pSignalSemaphores = signalSemaphores;
 
-    device->ResetFences({_inFlightFences[frameIndex]});
-    device->SubmitToGraphicsQueue({&submitInfo}, _inFlightFences[frameIndex]);
+    device->ResetFences({_inFlightFences[_currentFrameIndex]});
+    device->SubmitToGraphicsQueue({&submitInfo}, _inFlightFences[_currentFrameIndex]);
 
     vk::PresentInfoKHR presentInfo = {};
     presentInfo.sType = vk::StructureType::ePresentInfoKHR;
@@ -187,24 +183,41 @@ void Swapchain::SubmitCommandBuffer(const Device *device, vk::CommandBuffer comm
     presentInfo.swapchainCount = 1;
     presentInfo.pSwapchains = swapChains;
 
-    presentInfo.pImageIndices = &imageIndex;
+    presentInfo.pImageIndices = &_currentImageIndex;
 
-    try
-    {
-        device->PresentKHR(&presentInfo);
-    }
-    catch (...)
-    {
-    }
+    _currentFrameIndex = (_currentFrameIndex + 1) % Swapchain::MAX_FRAMES_IN_FLIGHT;
+
+    device->PresentKHR(&presentInfo);
 }
 
-void Swapchain::AcquireNextImage(const Device *device, uint32_t frameIndex, uint32_t *imageIndex) const
+[[nodiscard]] vk::CommandBuffer Swapchain::NextCommandBuffer(const Device *device)
 {
     check(device);
 
-    device->WaitForFences({_inFlightFences[frameIndex]});
+    AcquireNextImage(device);
+    vk::CommandBuffer commandBuffer = _commandBuffers[_currentFrameIndex];
 
-    device->AcquireNextImageKHR(_swapchain, _imageAvailableSemaphores[frameIndex], VK_NULL_HANDLE, imageIndex);
+    vk::CommandBufferBeginInfo beginInfo{};
+
+    if (const vk::Result result = commandBuffer.begin(&beginInfo); result != vk::Result::eSuccess)
+    {
+        spdlog::critical("ErrorMsg: {}", vk::to_string(static_cast<vk::Result>(result)));
+        throw std::runtime_error("Renderer: failed to begin recording command buffer!");
+    }
+
+    TracyVkCollect(engine::TracyCtx(), commandBuffer);
+
+    return commandBuffer;
+}
+
+void Swapchain::AcquireNextImage(const Device *device)
+{
+    check(device);
+
+    device->WaitForFences({_inFlightFences[_currentFrameIndex]});
+
+    device->AcquireNextImageKHR(_swapchain, _imageAvailableSemaphores[_currentFrameIndex], VK_NULL_HANDLE,
+                                &_currentImageIndex);
 }
 
 vk::SwapchainKHR Swapchain::GetHandle() const
@@ -212,37 +225,37 @@ vk::SwapchainKHR Swapchain::GetHandle() const
     return _swapchain;
 }
 
-Swapchain::SwapchainGoal Swapchain::GetGoal() const
+void Swapchain::BeginRenderPass(vk::CommandBuffer commandBuffer, bool isCleared) const
 {
-    return _goal;
-}
-
-void Swapchain::BeginRenderPass(vk::CommandBuffer commandBuffer, uint32_t frameIndex) const
-{
-    check(frameIndex < _framebuffers.size());
-
     vk::RenderPassBeginInfo renderPassInfo{};
     renderPassInfo.sType = vk::StructureType::eRenderPassBeginInfo;
     renderPassInfo.renderPass = _renderPass;
-    renderPassInfo.framebuffer = _framebuffers[frameIndex];
+    renderPassInfo.framebuffer = _framebuffers[_currentImageIndex];
 
     renderPassInfo.renderArea.offset = vk::Offset2D{0, 0};
     renderPassInfo.renderArea.extent = _extent;
 
-    std::array<vk::ClearValue, 2> clearValues{};
-    if (_goal == SwapchainGoal::eCleared)
-    {
-        clearValues[0].color = {0.1f, 0.1f, 0.1f, 1.0f};
-        renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
-        renderPassInfo.pClearValues = clearValues.data();
-    }
-    if (_goal == SwapchainGoal::eBlittedTo)
-    {
-        renderPassInfo.clearValueCount = 0;
-        renderPassInfo.pClearValues = nullptr;
-    }
+    renderPassInfo.clearValueCount = 0;
+    renderPassInfo.pClearValues = nullptr;
 
     commandBuffer.beginRenderPass(&renderPassInfo, vk::SubpassContents::eInline);
+
+    if (isCleared)
+    {
+        TracyVkZone(engine::TracyCtx(), commandBuffer, "clear");
+        vk::ClearAttachment clearAttachment = {};
+        clearAttachment.aspectMask = vk::ImageAspectFlagBits::eColor;
+        clearAttachment.clearValue.color = vk::ClearColorValue(std::array<float, 4>{0.157f, 0.165f, 0.212f, 1.f});
+        clearAttachment.colorAttachment = 0;
+
+        vk::ClearRect clearRect = {};
+        clearRect.rect.offset = vk::Offset2D{0, 0};
+        clearRect.rect.extent = _extent;
+        clearRect.baseArrayLayer = 0;
+        clearRect.layerCount = 1;
+
+        commandBuffer.clearAttachments(clearAttachment, clearRect);
+    }
 
     vk::Viewport viewport{};
     viewport.x = 0.0f;
@@ -258,11 +271,10 @@ void Swapchain::BeginRenderPass(vk::CommandBuffer commandBuffer, uint32_t frameI
     commandBuffer.setScissor(0, 1, &scissor);
 }
 
-void Swapchain::BlitImage(vk::CommandBuffer commandBuffer, vk::Image image, vk::Extent2D resolution,
-                          size_t imageIndex) const
+void Swapchain::BlitImage(vk::CommandBuffer commandBuffer, vk::Image image, vk::Extent2D resolution) const
 {
-    check(imageIndex < _images.size());
-    const vk::Image swapchainImage = _images.at(imageIndex);
+    TracyVkZone(engine::TracyCtx(), commandBuffer, "blit");
+    const vk::Image swapchainImage = _images.at(_currentImageIndex);
 
     commandBuffer.pipelineBarrier(vk::PipelineStageFlagBits::eColorAttachmentOutput,
                                   vk::PipelineStageFlagBits::eTransfer, {}, {}, {},
@@ -294,6 +306,23 @@ void Swapchain::BlitImage(vk::CommandBuffer commandBuffer, vk::Image image, vk::
 
     commandBuffer.blitImage(image, vk::ImageLayout::eTransferSrcOptimal, swapchainImage,
                             vk::ImageLayout::eTransferDstOptimal, 1, &blitRegion, vk::Filter::eLinear);
+}
+
+void Swapchain::SkipBlit(vk::CommandBuffer commandBuffer) const
+{
+    TracyVkZone(engine::TracyCtx(), commandBuffer, "skip blit");
+    const vk::Image swapchainImage = _images.at(_currentImageIndex);
+
+    commandBuffer.pipelineBarrier(vk::PipelineStageFlagBits::eColorAttachmentOutput,
+                                  vk::PipelineStageFlagBits::eColorAttachmentOutput, {}, {}, {},
+                                  vk::ImageMemoryBarrier{vk::AccessFlagBits::eNone,
+                                                         vk::AccessFlagBits::eColorAttachmentWrite,
+                                                         vk::ImageLayout::eUndefined,
+                                                         vk::ImageLayout::eTransferDstOptimal,
+                                                         VK_QUEUE_FAMILY_IGNORED,
+                                                         VK_QUEUE_FAMILY_IGNORED,
+                                                         swapchainImage,
+                                                         {vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1}});
 }
 
 vk::SurfaceFormatKHR Swapchain::ChooseSwapSurfaceFormat(const std::vector<vk::SurfaceFormatKHR> &availableFormats)
@@ -376,16 +405,10 @@ void Swapchain::CreateRenderPass(const Device *device)
     colorAttachment.stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
     colorAttachment.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
     colorAttachment.finalLayout = vk::ImageLayout::ePresentSrcKHR;
-    if (_goal == SwapchainGoal::eCleared)
-    {
-        colorAttachment.loadOp = vk::AttachmentLoadOp::eClear;
-        colorAttachment.initialLayout = vk::ImageLayout::eUndefined;
-    }
-    if (_goal == SwapchainGoal::eBlittedTo)
-    {
-        colorAttachment.loadOp = vk::AttachmentLoadOp::eLoad;
-        colorAttachment.initialLayout = vk::ImageLayout::eTransferDstOptimal;
-    }
+    // colorAttachment.loadOp = vk::AttachmentLoadOp::eClear;
+    // colorAttachment.initialLayout = vk::ImageLayout::eUndefined;
+    colorAttachment.loadOp = vk::AttachmentLoadOp::eLoad;
+    colorAttachment.initialLayout = vk::ImageLayout::eTransferDstOptimal;
 
     vk::AttachmentReference colorAttachmentRef = {};
     colorAttachmentRef.attachment = 0;
@@ -470,6 +493,14 @@ void Swapchain::CreateSyncObjects(const Device *device, size_t count)
                                 "swapchain semaphore " + std::to_string(i));
         device->CreateFence(fenceInfo, &_inFlightFences[i], "swapchain fence " + std::to_string(i));
     }
+}
+
+void Swapchain::CreateCommandBuffers(const Device *device)
+{
+    check(device);
+
+    _commandBuffers.resize(MAX_FRAMES_IN_FLIGHT);
+    device->AllocateCommandBuffers(&_commandBuffers);
 }
 
 } // namespace wsp

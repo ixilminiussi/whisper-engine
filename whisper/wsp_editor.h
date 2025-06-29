@@ -1,8 +1,12 @@
-#ifndef NDEBUG
 #ifndef WSP_EDITOR
 #define WSP_EDITOR
 
+// lib
 #include <vulkan/vulkan.hpp>
+
+// std
+#include <functional>
+#include <map>
 
 namespace wsp
 {
@@ -17,10 +21,12 @@ class Editor
     Editor &operator=(const Editor &) = delete;
 
     void Free(const class Device *);
-    void Render(vk::CommandBuffer, const class Renderer *);
+    void Render(vk::CommandBuffer, class Graph *, const class Device *);
     void Update(float dt);
 
-    void BindToggle(void *who, void (*)(void *, bool));
+    void BindToggle(void *, void (*)(void *, bool));
+    void UnbindToggle(void *);
+    bool isActive() const;
 
   protected:
     void InitImGui(const class Window *, const class Device *, vk::Instance);
@@ -28,13 +34,14 @@ class Editor
 
     static void ApplyImGuiTheme();
 
-    std::vector<std::pair<void *, void (*)(void *, bool)>> _toggleDispatchers;
+    std::map<void *, void (*)(void *, bool)> _toggleDispatchers;
 
     bool _active;
     bool _freed;
+
+    std::vector<std::function<void()>> _deferredQueue;
 };
 
 } // namespace wsp
 
-#endif
 #endif
