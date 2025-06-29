@@ -66,6 +66,9 @@ class Device
     void CreateRenderPass(const vk::RenderPassCreateInfo &, vk::RenderPass *, const std::string &name) const;
     void CreateImageAndBindMemory(const vk::ImageCreateInfo &, vk::Image *, vk::DeviceMemory *,
                                   const std::string &name) const;
+    void CreateBufferAndBindMemory(const vk::BufferCreateInfo &, vk::Buffer *, vk::DeviceMemory *,
+                                   const std::string &name) const;
+    void MapMemory(vk::DeviceMemory, void **mappedMemory) const;
     void CreateImageView(const vk::ImageViewCreateInfo &, vk::ImageView *, const std::string &name) const;
     vk::Sampler CreateSampler(const vk::SamplerCreateInfo &, const std::string &name) const;
     void AllocateDescriptorSet(const vk::DescriptorSetAllocateInfo &, vk::DescriptorSet *,
@@ -91,6 +94,8 @@ class Device
     void DestroyRenderPass(vk::RenderPass) const;
     void DestroyImage(vk::Image) const;
     void FreeDeviceMemory(vk::DeviceMemory) const;
+    void DestroyBuffer(vk::Buffer) const;
+    void UnmapMemory(vk::DeviceMemory) const;
     void DestroyImageView(vk::ImageView) const;
     void DestroySampler(vk::Sampler) const;
     void DestroySwapchainKHR(vk::SwapchainKHR) const;

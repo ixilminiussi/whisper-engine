@@ -45,6 +45,7 @@ struct PassCreateInfo
 {
     std::vector<Resource> reads;
     std::vector<Resource> writes;
+    bool readsUniform;
 
     std::string vertFile;
     std::string fragFile;

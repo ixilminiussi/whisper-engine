@@ -35,7 +35,6 @@ Swapchain::Swapchain(const class Window *window, const class Device *device, vk:
     }
 
     vk::SwapchainCreateInfoKHR createInfo = {};
-    createInfo.sType = vk::StructureType::eSwapchainCreateInfoKHR;
     createInfo.surface = surface;
 
     createInfo.minImageCount = _minImageCount;
@@ -155,7 +154,6 @@ void Swapchain::SubmitCommandBuffer(const Device *device, vk::CommandBuffer comm
     _imagesInFlight[_currentImageIndex] = _inFlightFences[_currentFrameIndex];
 
     vk::SubmitInfo submitInfo = {};
-    submitInfo.sType = vk::StructureType::eSubmitInfo;
 
     vk::Semaphore waitSemaphores[] = {_imageAvailableSemaphores[_currentFrameIndex]};
     vk::PipelineStageFlags waitStages[] = {vk::PipelineStageFlagBits::eColorAttachmentOutput};
@@ -174,7 +172,6 @@ void Swapchain::SubmitCommandBuffer(const Device *device, vk::CommandBuffer comm
     device->SubmitToGraphicsQueue({&submitInfo}, _inFlightFences[_currentFrameIndex]);
 
     vk::PresentInfoKHR presentInfo = {};
-    presentInfo.sType = vk::StructureType::ePresentInfoKHR;
 
     presentInfo.waitSemaphoreCount = 1;
     presentInfo.pWaitSemaphores = signalSemaphores;
@@ -228,7 +225,6 @@ vk::SwapchainKHR Swapchain::GetHandle() const
 void Swapchain::BeginRenderPass(vk::CommandBuffer commandBuffer, bool isCleared) const
 {
     vk::RenderPassBeginInfo renderPassInfo{};
-    renderPassInfo.sType = vk::StructureType::eRenderPassBeginInfo;
     renderPassInfo.renderPass = _renderPass;
     renderPassInfo.framebuffer = _framebuffers[_currentImageIndex];
 
@@ -380,7 +376,6 @@ void Swapchain::CreateImageViews(const Device *device, size_t count)
     for (size_t i = 0; i < count; i++)
     {
         vk::ImageViewCreateInfo viewInfo{};
-        viewInfo.sType = vk::StructureType::eImageViewCreateInfo;
         viewInfo.image = _images[i];
         viewInfo.viewType = vk::ImageViewType::e2D;
         viewInfo.format = _imageFormat;
@@ -433,7 +428,6 @@ void Swapchain::CreateRenderPass(const Device *device)
 
     std::array<vk::AttachmentDescription, 1> attachments = {colorAttachment};
     vk::RenderPassCreateInfo renderPassInfo = {};
-    renderPassInfo.sType = vk::StructureType::eRenderPassCreateInfo;
     renderPassInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
     renderPassInfo.pAttachments = attachments.data();
     renderPassInfo.subpassCount = 1;
@@ -456,7 +450,6 @@ void Swapchain::CreateFramebuffers(const Device *device, size_t count)
 
         const vk::Extent2D swapChainExtent = _extent;
         vk::FramebufferCreateInfo framebufferInfo = {};
-        framebufferInfo.sType = vk::StructureType::eFramebufferCreateInfo;
         framebufferInfo.renderPass = _renderPass;
         framebufferInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
         framebufferInfo.pAttachments = attachments.data();
@@ -479,10 +472,8 @@ void Swapchain::CreateSyncObjects(const Device *device, size_t count)
     _imagesInFlight.resize(count, VK_NULL_HANDLE);
 
     vk::SemaphoreCreateInfo semaphoreInfo = {};
-    semaphoreInfo.sType = vk::StructureType::eSemaphoreCreateInfo;
 
     vk::FenceCreateInfo fenceInfo = {};
-    fenceInfo.sType = vk::StructureType::eFenceCreateInfo;
     fenceInfo.flags = vk::FenceCreateFlagBits::eSignaled;
 
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)

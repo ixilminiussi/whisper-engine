@@ -209,7 +209,6 @@ vk::CommandBuffer Device::BeginSingleTimeCommand() const
     check(_device);
 
     vk::CommandBufferAllocateInfo allocInfo{};
-    allocInfo.sType = vk::StructureType::eCommandBufferAllocateInfo;
     allocInfo.level = vk::CommandBufferLevel::ePrimary;
     allocInfo.commandPool = _commandPool;
     allocInfo.commandBufferCount = 1;
@@ -223,7 +222,6 @@ vk::CommandBuffer Device::BeginSingleTimeCommand() const
     }
 
     vk::CommandBufferBeginInfo beginInfo{};
-    beginInfo.sType = vk::StructureType::eCommandBufferBeginInfo;
     beginInfo.flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit;
 
     if (const vk::Result result = commandBuffer.begin(&beginInfo); result != vk::Result::eSuccess)
@@ -240,7 +238,6 @@ void Device::EndSingleTimeCommand(vk::CommandBuffer commandBuffer) const
     commandBuffer.end();
 
     vk::SubmitInfo submitInfo{};
-    submitInfo.sType = vk::StructureType::eSubmitInfo;
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers = &commandBuffer;
 
@@ -266,7 +263,6 @@ void Device::CreateLogicalDevice(const std::vector<const char *> &requiredExtens
     for (const uint32_t queueFamily : uniqueQueueFamilies)
     {
         vk::DeviceQueueCreateInfo queueCreateInfo = {};
-        queueCreateInfo.sType = vk::StructureType::eDeviceQueueCreateInfo;
         queueCreateInfo.queueFamilyIndex = queueFamily;
         queueCreateInfo.queueCount = 1;
         queueCreateInfo.pQueuePriorities = &queuePriority;
@@ -278,8 +274,6 @@ void Device::CreateLogicalDevice(const std::vector<const char *> &requiredExtens
     deviceFeatures.fillModeNonSolid = VK_TRUE;
 
     vk::DeviceCreateInfo createInfo = {};
-    createInfo.sType = vk::StructureType::eDeviceCreateInfo;
-
     createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
     createInfo.pQueueCreateInfos = queueCreateInfos.data();
 
@@ -329,7 +323,6 @@ void Device::CreateTracyContext(TracyVkCtx *tracyCtx)
     check(_graphicsQueue);
 
     vk::CommandBufferAllocateInfo allocInfo{};
-    allocInfo.sType = vk::StructureType::eCommandBufferAllocateInfo;
     allocInfo.level = vk::CommandBufferLevel::ePrimary;
     allocInfo.commandPool = _commandPool;
     allocInfo.commandBufferCount = 1;
@@ -465,20 +458,60 @@ void Device::CreateImageAndBindMemory(const vk::ImageCreateInfo &createInfo, vk:
     const vk::MemoryRequirements memRequirements = _device.getImageMemoryRequirements(*image);
 
     vk::MemoryAllocateInfo allocInfo{};
-    allocInfo.sType = vk::StructureType::eMemoryAllocateInfo;
     allocInfo.allocationSize = memRequirements.size;
     allocInfo.memoryTypeIndex =
         FindMemoryType(memRequirements.memoryTypeBits, {vk::MemoryPropertyFlagBits::eDeviceLocal});
 
     if (_device.allocateMemory(&allocInfo, nullptr, imageMemory) != vk::Result::eSuccess)
     {
-        throw std::runtime_error("Device: failed to allocate image memory!");
+        throw std::runtime_error("Device: failed to allocate image memory");
     }
 
     _device.bindImageMemory(*image, *imageMemory, 0);
 
     DebugNameObject(*image, vk::ObjectType::eImage, name);
     DebugNameObject(*imageMemory, vk::ObjectType::eDeviceMemory, name + " device memory");
+}
+
+void Device::CreateBufferAndBindMemory(const vk::BufferCreateInfo &createInfo, vk::Buffer *buffer,
+                                       vk::DeviceMemory *bufferMemory, const std::string &name) const
+{
+    check(_device);
+
+    if (const vk::Result result = _device.createBuffer(&createInfo, nullptr, buffer); result != vk::Result::eSuccess)
+    {
+        spdlog::critical("ErrorMsg: {}", vk::to_string(static_cast<vk::Result>(result)));
+        throw std::runtime_error("Device: failed to create buffer");
+    }
+
+    const vk::MemoryRequirements memRequirements = _device.getBufferMemoryRequirements(*buffer);
+
+    vk::MemoryAllocateInfo allocInfo{};
+    allocInfo.allocationSize = memRequirements.size;
+    allocInfo.memoryTypeIndex =
+        FindMemoryType(memRequirements.memoryTypeBits, {vk::MemoryPropertyFlagBits::eHostVisible});
+
+    if (vk::Result result = _device.allocateMemory(&allocInfo, nullptr, bufferMemory); result != vk::Result::eSuccess)
+    {
+        spdlog::critical("ErrorMsg: {}", vk::to_string(static_cast<vk::Result>(result)));
+        throw std::runtime_error("Device: failed to allocate buffer memory");
+    }
+
+    _device.bindBufferMemory(*buffer, *bufferMemory, 0);
+
+    DebugNameObject(*buffer, vk::ObjectType::eBuffer, name);
+    DebugNameObject(*bufferMemory, vk::ObjectType::eDeviceMemory, name + " device memory");
+}
+
+void Device::MapMemory(vk::DeviceMemory deviceMemory, void **mappedMemory) const
+{
+    if (const vk::Result result =
+            _device.mapMemory(deviceMemory, 0, VK_WHOLE_SIZE, vk::MemoryMapFlagBits{}, mappedMemory);
+        result != vk::Result::eSuccess)
+    {
+        spdlog::critical("ErrorMsg: {}", vk::to_string(static_cast<vk::Result>(result)));
+        throw std::runtime_error("Device: failed to map memory");
+    }
 }
 
 void Device::CreateImageView(const vk::ImageViewCreateInfo &createInfo, vk::ImageView *imageView,
@@ -591,7 +624,6 @@ void Device::CreateShaderModule(const std::vector<char> &code, vk::ShaderModule 
                                 const std::string &name) const
 {
     vk::ShaderModuleCreateInfo createInfo{};
-    createInfo.sType = vk::StructureType::eShaderModuleCreateInfo;
     createInfo.codeSize = code.size();
     createInfo.pCode = reinterpret_cast<const uint32_t *>(code.data());
 
@@ -658,6 +690,16 @@ void Device::DestroyImage(vk::Image image) const
     check(_device);
     _device.destroyImage(image, nullptr);
 }
+void Device::DestroyBuffer(vk::Buffer buffer) const
+{
+    check(_device);
+    _device.destroyBuffer(buffer, nullptr);
+}
+void Device::UnmapMemory(vk::DeviceMemory deviceMemory) const
+{
+    check(_device);
+    _device.unmapMemory(deviceMemory);
+}
 void Device::FreeDeviceMemory(vk::DeviceMemory deviceMemory) const
 {
     check(_device);
@@ -722,7 +764,6 @@ uint32_t Device::FindMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags pro
 void Device::AllocateCommandBuffers(std::vector<vk::CommandBuffer> *commandBuffers) const
 {
     vk::CommandBufferAllocateInfo allocInfo{};
-    allocInfo.sType = vk::StructureType::eCommandBufferAllocateInfo;
     allocInfo.level = vk::CommandBufferLevel::ePrimary;
     allocInfo.commandPool = _commandPool;
     allocInfo.commandBufferCount = static_cast<uint32_t>(commandBuffers->size());

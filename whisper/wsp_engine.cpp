@@ -124,7 +124,6 @@ void CreateInstance()
 #endif
 
     vk::ApplicationInfo appInfo = {};
-    appInfo.sType = vk::StructureType::eApplicationInfo;
     appInfo.pApplicationName = "Whisper App";
     appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
     appInfo.pEngineName = "Whisper Engine";
@@ -132,7 +131,6 @@ void CreateInstance()
     appInfo.apiVersion = VK_API_VERSION_1_0;
 
     vk::InstanceCreateInfo createInfo = {};
-    createInfo.sType = vk::StructureType::eInstanceCreateInfo;
     createInfo.pApplicationInfo = &appInfo;
 
     std::vector<const char *> extensions = GetRequiredExtensions();
@@ -150,7 +148,6 @@ void CreateInstance()
     createInfo.ppEnabledLayerNames = validationLayers.data();
 
     vk::DebugUtilsMessengerCreateInfoEXT debugCreateInfo{};
-    debugCreateInfo.sType = vk::StructureType::eDebugUtilsMessengerCreateInfoEXT;
     debugCreateInfo.messageSeverity = vk::DebugUtilsMessageSeverityFlagBitsEXT::eInfo |
                                       vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning |
                                       vk::DebugUtilsMessageSeverityFlagBitsEXT::eError;
@@ -229,6 +226,7 @@ bool Initialize()
         check(device);
 
         graph = new Graph(device, window->GetExtent().width, window->GetExtent().height);
+        graph->SetUniformSize(sizeof(float) * 3);
 
         ResourceCreateInfo colorResourceInfo{};
         colorResourceInfo.role = ResourceRole::eColor;
@@ -241,6 +239,7 @@ bool Initialize()
         PassCreateInfo passCreateInfo{};
         passCreateInfo.writes = {color};
         passCreateInfo.reads = {};
+        passCreateInfo.readsUniform = true;
         passCreateInfo.vertFile = "triangle.vert.spv";
         passCreateInfo.fragFile = "triangle.frag.spv";
         passCreateInfo.debugName = "white triangle";

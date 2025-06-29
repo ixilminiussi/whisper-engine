@@ -35,6 +35,7 @@ class Graph
     Graph(const Graph &) = delete;
     Graph &operator=(const Graph &) = delete;
 
+    void SetUniformSize(size_t uboSize);
     [[nodiscard]] Resource NewResource(const struct ResourceCreateInfo &);
     Pass NewPass(const struct PassCreateInfo &);
 
@@ -65,6 +66,7 @@ class Graph
 
     void Build(const wsp::Device *, Resource);
     void Build(const wsp::Device *, Pass);
+    void BuildUbo(const wsp::Device *);
 
     void Free(const wsp::Device *, Resource);
     void Free(const wsp::Device *, Pass);
@@ -100,6 +102,14 @@ class Graph
     vk::DescriptorPool _descriptorPool;
     vk::DescriptorSetLayout _descriptorSetLayout;
     std::map<Resource, vk::DescriptorSet> _descriptorSets;
+
+    size_t _uboSize;
+    std::vector<vk::Buffer> _uboBuffers;
+    std::vector<vk::DeviceMemory> _uboDeviceMemories;
+    std::vector<vk::DescriptorSet> _uboDescriptorSets;
+    std::vector<void *> _uboMappedMemory;
+    vk::DescriptorPool _uboDescriptorPool;
+    vk::DescriptorSetLayout _uboDescriptorSetLayout;
 
     std::vector<Pass> _orderedPasses;
     std::set<Resource> _validResources;

@@ -4,6 +4,7 @@
 #include "wsp_engine.h"
 #include "wsp_handles.h"
 #include "wsp_static_utils.h"
+#include "wsp_swapchain.h"
 
 // lib
 #include <client/TracyScoped.hpp>
@@ -29,7 +30,7 @@ const size_t Graph::MAX_SAMPLER_SETS{500};
 
 Graph::Graph(const Device *device, size_t width, size_t height)
     : _passInfos{}, _resourceInfos{}, _images{}, _deviceMemories{}, _imageViews{}, _freed{false}, _target{0},
-      _width{width}, _height{height}
+      _width{width}, _height{height}, _uboSize{0}, _uboDescriptorSets{}, _uboBuffers{}, _uboDeviceMemories{}
 {
     check(device);
 
@@ -62,23 +63,22 @@ void Graph::CreateSamplers(const Device *device)
 
     _samplers[SAMPLER_COLOR_REPEATED] = device->CreateSampler(samplerCreateInfo, "color sampler repeated");
 
-    std::vector<vk::DescriptorPoolSize> poolSizes = {{vk::DescriptorType::eCombinedImageSampler, 100}};
+    std::vector<vk::DescriptorPoolSize> descriptorPoolSizes = {{vk::DescriptorType::eCombinedImageSampler, 100}};
 
-    vk::DescriptorPoolCreateInfo poolInfo{};
-    poolInfo.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet;
-    poolInfo.maxSets = MAX_SAMPLER_SETS;
-    poolInfo.poolSizeCount = (uint32_t)poolSizes.size();
-    poolInfo.pPoolSizes = poolSizes.data();
+    vk::DescriptorPoolCreateInfo descriptorPoolInfo{};
+    descriptorPoolInfo.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet;
+    descriptorPoolInfo.maxSets = MAX_SAMPLER_SETS;
+    descriptorPoolInfo.poolSizeCount = (uint32_t)descriptorPoolSizes.size();
+    descriptorPoolInfo.pPoolSizes = descriptorPoolSizes.data();
 
-    device->CreateDescriptorPool(poolInfo, &_descriptorPool, "graph descriptor pool");
+    device->CreateDescriptorPool(descriptorPoolInfo, &_descriptorPool, "graph descriptor pool");
 
-    std::vector<vk::DescriptorSetLayoutBinding> setLayoutBindings{
+    std::vector<vk::DescriptorSetLayoutBinding> descriptorSetLayoutBindings{
         {0, vk::DescriptorType::eCombinedImageSampler, 1, {vk::ShaderStageFlagBits::eFragment}}};
 
     vk::DescriptorSetLayoutCreateInfo descriptorSetLayoutInfo{};
-    descriptorSetLayoutInfo.sType = vk::StructureType::eDescriptorSetLayoutCreateInfo;
-    descriptorSetLayoutInfo.bindingCount = static_cast<uint32_t>(setLayoutBindings.size());
-    descriptorSetLayoutInfo.pBindings = setLayoutBindings.data();
+    descriptorSetLayoutInfo.bindingCount = static_cast<uint32_t>(descriptorSetLayoutBindings.size());
+    descriptorSetLayoutInfo.pBindings = descriptorSetLayoutBindings.data();
 
     device->CreateDescriptorSetLayout(descriptorSetLayoutInfo, &_descriptorSetLayout, "graph descriptor set layout");
 }
@@ -121,6 +121,11 @@ Pass Graph::NewPass(const PassCreateInfo &createInfo)
     return Pass{_passInfos.size() - 1};
 }
 
+void Graph::SetUniformSize(size_t size)
+{
+    _uboSize = size;
+}
+
 void Graph::FindDependencies(std::set<Resource> *validResources, std::set<Pass> *validPasses, Resource resource)
 {
     check(validResources);
@@ -158,9 +163,22 @@ void Graph::Compile(const Device *device, Resource target, GraphGoal goal)
 
     Reset(device);
 
+    bool requestsUniform = false;
+
     for (size_t pass = 0; pass < _passInfos.size(); pass++)
     {
         const PassCreateInfo &passInfo = GetPassInfo(Pass{pass});
+
+        if (passInfo.readsUniform)
+        {
+            if (_uboSize == 0)
+            {
+                throw std::runtime_error("Graph: Pass {0} reads uniform, but no uniform buffer size was set");
+            }
+
+            requestsUniform = true;
+        }
+
         if (!(passInfo.writes.empty() ||
               std::all_of(passInfo.writes.begin() + 1, passInfo.writes.end(), [&](Resource resource) {
                   return GetResourceInfo(resource).extent == GetResourceInfo(passInfo.writes[0]).extent;
@@ -188,6 +206,11 @@ void Graph::Compile(const Device *device, Resource target, GraphGoal goal)
     _validResources.clear();
 
     FindDependencies(&_validResources, &_validPasses, target);
+
+    if (requestsUniform)
+    {
+        BuildUbo(device);
+    }
 
     for (const Resource resource : _validResources)
     {
@@ -338,15 +361,18 @@ void Graph::CreatePipeline(const Device *device, Pass pass)
 
     vk::PipelineDynamicStateCreateInfo dynamicStateInfo{};
     std::vector<vk::DynamicState> dynamicStateEnables = {vk::DynamicState::eViewport, vk::DynamicState::eScissor};
-    dynamicStateInfo.sType = vk::StructureType::ePipelineDynamicStateCreateInfo;
     dynamicStateInfo.pDynamicStates = dynamicStateEnables.data();
     dynamicStateInfo.dynamicStateCount = static_cast<uint32_t>(dynamicStateEnables.size());
     dynamicStateInfo.flags = vk::PipelineDynamicStateCreateFlagBits{};
 
-    const std::vector<vk::DescriptorSetLayout> descriptorSetLayouts(passInfo.reads.size(), _descriptorSetLayout);
+    std::vector<vk::DescriptorSetLayout> descriptorSetLayouts(passInfo.reads.size(), _descriptorSetLayout);
+
+    if (passInfo.readsUniform)
+    {
+        descriptorSetLayouts.push_back(_uboDescriptorSetLayout);
+    }
 
     vk::PipelineLayoutCreateInfo pipelineLayoutInfo{};
-    pipelineLayoutInfo.sType = vk::StructureType::ePipelineLayoutCreateInfo;
     pipelineLayoutInfo.setLayoutCount = static_cast<uint32_t>(descriptorSetLayouts.size());
     pipelineLayoutInfo.pSetLayouts = descriptorSetLayouts.data();
     pipelineLayoutInfo.pushConstantRangeCount = 0;
@@ -356,7 +382,6 @@ void Graph::CreatePipeline(const Device *device, Pass pass)
                                  passInfo.debugName + " pipeline layout");
 
     vk::GraphicsPipelineCreateInfo pipelineInfo{};
-    pipelineInfo.sType = vk::StructureType::eGraphicsPipelineCreateInfo;
     pipelineInfo.stageCount = 2;
     pipelineInfo.pStages = shaderStages;
     pipelineInfo.pVertexInputState = &passInfo.vertexInputInfo;
@@ -385,7 +410,6 @@ void Graph::Render(vk::CommandBuffer commandBuffer)
     for (const Pass pass : _orderedPasses)
     {
         vk::RenderPassBeginInfo renderPassInfo{};
-        renderPassInfo.sType = vk::StructureType::eRenderPassBeginInfo;
         renderPassInfo.renderPass = _renderPasses.at(pass);
         renderPassInfo.framebuffer = _framebuffers.at(pass);
 
@@ -448,6 +472,27 @@ void Graph::Reset(const Device *device)
     check(device);
 
     Resource resource{0};
+
+    if (_uboDescriptorSets.size() > 0)
+    {
+        device->FreeDescriptorSets(_uboDescriptorPool, _uboDescriptorSets);
+        device->DestroyDescriptorPool(_uboDescriptorPool);
+        device->DestroyDescriptorSetLayout(_uboDescriptorSetLayout);
+    }
+    for (vk::DeviceMemory deviceMemory : _uboDeviceMemories)
+    {
+        device->UnmapMemory(deviceMemory);
+        device->FreeDeviceMemory(deviceMemory);
+    }
+    for (vk::Buffer buffer : _uboBuffers)
+    {
+        device->DestroyBuffer(buffer);
+    }
+    _uboBuffers.clear();
+    _uboMappedMemory.clear();
+    _uboDeviceMemories.clear();
+    _uboMappedMemory.clear();
+    _uboDescriptorSets.clear();
 
     for (ResourceCreateInfo &resourceInfo : _resourceInfos)
     {
@@ -743,6 +788,87 @@ void Graph::Build(const Device *device, Pass pass)
     vk::Framebuffer framebuffer;
     device->CreateFramebuffer(framebufferInfo, &framebuffer, createInfo.debugName + " framebuffer");
     _framebuffers[pass] = framebuffer;
+}
+
+void Graph::BuildUbo(const Device *device)
+{
+    check(_uboSize != 0);
+    std::vector<vk::DescriptorPoolSize> descriptorPoolSizes = {
+        {vk::DescriptorType::eUniformBuffer, Swapchain::MAX_FRAMES_IN_FLIGHT}};
+
+    vk::DescriptorPoolCreateInfo descriptorPoolInfo{};
+    descriptorPoolInfo.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet;
+    descriptorPoolInfo.maxSets = Swapchain::MAX_FRAMES_IN_FLIGHT;
+    descriptorPoolInfo.poolSizeCount = (uint32_t)descriptorPoolSizes.size();
+    descriptorPoolInfo.pPoolSizes = descriptorPoolSizes.data();
+
+    device->CreateDescriptorPool(descriptorPoolInfo, &_uboDescriptorPool, "graph ubo descriptor pool");
+
+    std::vector<vk::DescriptorSetLayoutBinding> descriptorSetLayoutBindings{
+        {0, vk::DescriptorType::eUniformBuffer, 1, {vk::ShaderStageFlagBits::eAllGraphics}}};
+
+    vk::DescriptorSetLayoutCreateInfo descriptorSetLayoutInfo{};
+    descriptorSetLayoutInfo.bindingCount = static_cast<uint32_t>(descriptorSetLayoutBindings.size());
+    descriptorSetLayoutInfo.pBindings = descriptorSetLayoutBindings.data();
+
+    device->CreateDescriptorSetLayout(descriptorSetLayoutInfo, &_uboDescriptorSetLayout,
+                                      "graph ubo descriptor set layout");
+
+    check(_uboBuffers.size() == 0);
+    check(_uboDeviceMemories.size() == 0);
+    check(_uboMappedMemory.size() == 0);
+    check(_uboDescriptorSets.size() == 0);
+
+    _uboBuffers.reserve(Swapchain::MAX_FRAMES_IN_FLIGHT);
+    _uboDeviceMemories.reserve(Swapchain::MAX_FRAMES_IN_FLIGHT);
+    _uboMappedMemory.reserve(Swapchain::MAX_FRAMES_IN_FLIGHT);
+    _uboDescriptorSets.reserve(Swapchain::MAX_FRAMES_IN_FLIGHT);
+
+    for (size_t i = 0; i < Swapchain::MAX_FRAMES_IN_FLIGHT; i++)
+    {
+        vk::Buffer uboBuffer;
+        vk::DeviceMemory uboDeviceMemory;
+        void *uboMappedMemory = nullptr;
+
+        vk::BufferCreateInfo createInfo;
+        createInfo.size = _uboSize;
+        createInfo.usage = vk::BufferUsageFlagBits::eUniformBuffer;
+
+        device->CreateBufferAndBindMemory(createInfo, &uboBuffer, &uboDeviceMemory, "ubo buffer " + std::to_string(i));
+
+        _uboBuffers.push_back(uboBuffer);
+        _uboDeviceMemories.push_back(uboDeviceMemory);
+
+        device->MapMemory(uboDeviceMemory, &uboMappedMemory);
+
+        _uboMappedMemory.push_back(uboMappedMemory);
+
+        vk::DescriptorSet descriptorSet;
+
+        vk::DescriptorSetAllocateInfo setAllocInfo{};
+        setAllocInfo.descriptorPool = _uboDescriptorPool;
+        setAllocInfo.descriptorSetCount = 1;
+        setAllocInfo.pSetLayouts = &(_uboDescriptorSetLayout);
+
+        device->AllocateDescriptorSet(setAllocInfo, &descriptorSet, "ubo descriptor set " + std::to_string(i));
+
+        vk::DescriptorBufferInfo bufferInfo{};
+        bufferInfo.offset = 0;
+        bufferInfo.buffer = uboBuffer;
+        bufferInfo.range = _uboSize;
+
+        vk::WriteDescriptorSet descriptorWrite{};
+        descriptorWrite.dstSet = descriptorSet;
+        descriptorWrite.dstBinding = 0;
+        descriptorWrite.dstArrayElement = 0;
+        descriptorWrite.descriptorType = vk::DescriptorType::eUniformBuffer;
+        descriptorWrite.descriptorCount = 1;
+        descriptorWrite.pBufferInfo = &bufferInfo;
+
+        device->UpdateDescriptorSet(descriptorWrite);
+
+        _uboDescriptorSets.push_back(descriptorSet);
+    }
 }
 
 void Graph::CreateDescriptor(const Device *device, Resource resource)
