@@ -36,6 +36,7 @@ class Swapchain
     [[nodiscard]] vk::CommandBuffer NextCommandBuffer(const class Device *);
 
     vk::SwapchainKHR GetHandle() const;
+    size_t GetCurrentFrameIndeex() const;
 
     void BeginRenderPass(vk::CommandBuffer, bool isCleared) const;
     void BlitImage(vk::CommandBuffer, vk::Image, vk::Extent2D resolution) const;

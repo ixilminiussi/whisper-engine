@@ -35,7 +35,7 @@ class Graph
     Graph(const Graph &) = delete;
     Graph &operator=(const Graph &) = delete;
 
-    void setUboSize(size_t uboSize);
+    void SetUboSize(size_t uboSize);
     [[nodiscard]] Resource NewResource(const struct ResourceCreateInfo &);
     Pass NewPass(const struct PassCreateInfo &);
 
@@ -117,6 +117,7 @@ class Graph
     std::set<Pass> _validPasses;
 
     size_t _width, _height;
+    size_t _currentFrameIndex; // only accurate when calling FlushUbo to update
 
     bool _freed;
 };

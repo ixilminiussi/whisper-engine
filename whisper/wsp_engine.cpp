@@ -292,7 +292,13 @@ void Run()
         FrameMarkStart("frame");
         glfwPollEvents();
 
-        vk::CommandBuffer commandBuffer = window->NextCommandBuffer();
+        size_t frameIndex = 0;
+        vk::CommandBuffer commandBuffer = window->NextCommandBuffer(&frameIndex);
+
+        GlobalUbo ubo{};
+        ubo.a = 0.5;
+
+        graph->FlushUbo(&ubo, frameIndex, device);
 
         graph->Render(commandBuffer);
 

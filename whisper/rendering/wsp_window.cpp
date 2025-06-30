@@ -124,10 +124,12 @@ void Window::BuildSwapchain()
     }
 }
 
-vk::CommandBuffer Window::NextCommandBuffer()
+vk::CommandBuffer Window::NextCommandBuffer(size_t *frameIndex)
 {
     check(_device);
+    check(frameIndex);
 
+    *frameIndex = _swapchain->GetCurrentFrameIndeex();
     return _swapchain->NextCommandBuffer(_device);
 }
 

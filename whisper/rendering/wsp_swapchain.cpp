@@ -222,6 +222,11 @@ vk::SwapchainKHR Swapchain::GetHandle() const
     return _swapchain;
 }
 
+size_t Swapchain::GetCurrentFrameIndeex() const
+{
+    return _currentFrameIndex;
+}
+
 void Swapchain::BeginRenderPass(vk::CommandBuffer commandBuffer, bool isCleared) const
 {
     vk::RenderPassBeginInfo renderPassInfo{};

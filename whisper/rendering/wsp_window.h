@@ -41,7 +41,7 @@ class Window
 
     void Initialize(const class Device *);
 
-    vk::CommandBuffer NextCommandBuffer();
+    vk::CommandBuffer NextCommandBuffer(size_t *frameIndex);
     void SwapchainOpen(vk::CommandBuffer, vk::Image blittedImage = VK_NULL_HANDLE) const;
     void SwapchainFlush(vk::CommandBuffer);
 

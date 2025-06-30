@@ -121,7 +121,7 @@ Pass Graph::NewPass(const PassCreateInfo &createInfo)
     return Pass{_passInfos.size() - 1};
 }
 
-void Graph::setUboSize(size_t size)
+void Graph::SetUboSize(size_t size)
 {
     _uboSize = size;
 }
@@ -365,11 +365,16 @@ void Graph::CreatePipeline(const Device *device, Pass pass)
     dynamicStateInfo.dynamicStateCount = static_cast<uint32_t>(dynamicStateEnables.size());
     dynamicStateInfo.flags = vk::PipelineDynamicStateCreateFlagBits{};
 
-    std::vector<vk::DescriptorSetLayout> descriptorSetLayouts(passInfo.reads.size(), _descriptorSetLayout);
+    std::vector<vk::DescriptorSetLayout> descriptorSetLayouts;
 
     if (passInfo.readsUniform)
     {
         descriptorSetLayouts.push_back(_uboDescriptorSetLayout);
+    }
+
+    for (size_t i = 0; i < passInfo.reads.size(); ++i)
+    {
+        descriptorSetLayouts.push_back(_descriptorSetLayout);
     }
 
     vk::PipelineLayoutCreateInfo pipelineLayoutInfo{};
@@ -420,6 +425,8 @@ void Graph::FlushUbo(void *ubo, size_t frameIndex, const Device *device)
     mappedRange.size = _uboSize;
 
     device->FlushMappedMemoryRange(mappedRange);
+
+    _currentFrameIndex = frameIndex;
 }
 
 void Graph::Render(vk::CommandBuffer commandBuffer)
@@ -480,6 +487,13 @@ void Graph::Render(vk::CommandBuffer commandBuffer)
                                              descriptorSets.size(), descriptorSets.data(), 0, nullptr);
         }
 
+        if (passInfo.readsUniform)
+        {
+            commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, _pipelines.at(pass).pipelineLayout,
+                                             passInfo.reads.size(), 1, &_uboDescriptorSets[_currentFrameIndex], 0,
+                                             nullptr);
+        }
+
         commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, _pipelines.at(pass).pipeline);
         passInfo.execute(commandBuffer);
         commandBuffer.endRenderPass();
@@ -511,7 +525,6 @@ void Graph::Reset(const Device *device)
     _uboDeviceMemories.clear();
     _uboMappedMemories.clear();
     _uboDescriptorSets.clear();
-    _uboSize = 0;
 
     for (ResourceCreateInfo &resourceInfo : _resourceInfos)
     {
