@@ -17,17 +17,19 @@ set(TRACY_ON_DEMAND ON)
 set(TRACY_NO_SAMPLING ON)
 
 find_package(Tracy QUIET)
+message(CHECK_START "Find Tracy")
 if(NOT Tracy_FOUND)
   message(STATUS "System Tracy not found, fetching from GitHub")
   FetchContent_Declare(
     Tracy URL https://github.com/wolfpld/tracy/archive/refs/tags/v0.12.2.zip)
   FetchContent_MakeAvailable(Tracy)
 else()
-  message(STATUS "Found system Tracy")
+  message(CHECK_PASS "Found system Tracy")
 endif()
 
 # -- tinyxml2: Try to use system tinyxml2 first
 find_package(tinyxml2 QUIET)
+message(CHECK_START "Find tinyxml2")
 if(NOT tinyxml2_FOUND)
   message(STATUS "System tinyxml2 not found, fetching from GitHub")
   FetchContent_Declare(
@@ -35,11 +37,12 @@ if(NOT tinyxml2_FOUND)
     URL https://github.com/leethomason/tinyxml2/archive/refs/tags/11.0.0.zip)
   FetchContent_MakeAvailable(tinyxml2)
 else()
-  message(STATUS "Found system tinyxml2")
+  message(CHECK_PASS "Found system tinyxml2")
 endif()
 
 # -- tinyobjloader: Try to use system tinyobjloader first
 find_package(tinyobjloader CONFIG QUIET)
+message(CHECK_START "Find tinyobjloader")
 if(NOT tinyobjloader_FOUND)
   message(STATUS "System tinyobjloader not found, fetching from GitHub")
   FetchContent_Declare(
@@ -48,11 +51,12 @@ if(NOT tinyobjloader_FOUND)
   )
   FetchContent_MakeAvailable(tinyobjloader)
 else()
-  message(STATUS "Found system tinyobjloader")
+  message(CHECK_PASS "Found system tinyobjloader")
 endif()
 
 # -- Vulkan: Try to use system Vulkan first
 find_package(Vulkan QUIET)
+message(CHECK_START "Find Vulkan")
 if(NOT Vulkan_FOUND)
   message(STATUS "System Vulkan not found, fetching from GitHub")
   FetchContent_Declare(
@@ -70,29 +74,31 @@ if(NOT Vulkan_FOUND)
       CACHE PATH "" FORCE)
   FetchContent_MakeAvailable(VulkanLoader)
 else()
-  message(STATUS "Found system Vulkan")
+  message(CHECK_PASS "Found system Vulkan")
 endif()
 
 # -- GLFW: Try to use system glfw3 first
 find_package(glfw3 QUIET)
+message(CHECK_START "Find glfw3")
 if(NOT glfw3_FOUND)
   message(STATUS "System glfw3 not found, fetching from GitHub")
   FetchContent_Declare(
     glfw URL https://github.com/glfw/glfw/archive/refs/tags/3.4.zip)
   FetchContent_MakeAvailable(glfw)
 else()
-  message(STATUS "Found system glfw3")
+  message(CHECK_PASS "Found system glfw3")
 endif()
 
 # -- spdlog: Try to use system spdlog first
 find_package(spdlog QUIET)
+message(CHECK_START "Find spdlog")
 if(NOT spdlog_FOUND)
   message(STATUS "System spdlog not found, fetching from GitHub")
   FetchContent_Declare(
     spdlog URL https://github.com/gabime/spdlog/archive/refs/tags/v1.15.3.zip)
   FetchContent_MakeAvailable(spdlog)
 else()
-  message(STATUS "Found system spdlog")
+  message(CHECK_PASS "Found system spdlog")
 endif()
 
 # -- imgui
