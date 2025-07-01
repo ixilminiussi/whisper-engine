@@ -126,32 +126,61 @@ void Graph::SetUboSize(size_t size)
     _uboSize = size;
 }
 
-void Graph::FindDependencies(std::set<Resource> *validResources, std::set<Pass> *validPasses, Resource resource)
+bool Graph::FindDependencies(std::set<Resource> *validResources, std::set<Pass> *validPasses, Resource resource,
+                             std::set<std::variant<Resource, Pass>> &visitingStack)
 {
     check(validResources);
     check(validPasses);
 
-    validResources->emplace(resource);
-    for (const Pass writer : GetResourceInfo(resource).writers)
+    if (visitingStack.find(resource) != visitingStack.end())
     {
-        FindDependencies(validResources, validPasses, writer);
+        return true;
     }
+
+    visitingStack.insert(resource);
+    validResources->insert(resource);
+
+    for (const Pass &writer : GetResourceInfo(resource).writers)
+    {
+        if (FindDependencies(validResources, validPasses, writer, visitingStack))
+        {
+            return true;
+        }
+    }
+
+    visitingStack.erase(resource);
+    return false;
 }
 
-void Graph::FindDependencies(std::set<Resource> *validResources, std::set<Pass> *validPasses, Pass pass)
+bool Graph::FindDependencies(std::set<Resource> *validResources, std::set<Pass> *validPasses, Pass pass,
+                             std::set<std::variant<Resource, Pass>> &visitingStack)
 {
     check(validResources);
     check(validPasses);
 
-    validPasses->emplace(pass);
-    for (const Resource write : GetPassInfo(pass).writes)
+    if (visitingStack.find(pass) != visitingStack.end())
     {
-        validResources->emplace(write);
+        return true;
     }
-    for (const Resource read : GetPassInfo(pass).reads)
+
+    visitingStack.insert(pass);
+    validPasses->insert(pass);
+
+    for (const Resource &write : GetPassInfo(pass).writes)
     {
-        FindDependencies(validResources, validPasses, read);
+        validResources->insert(write);
     }
+
+    for (const Resource &read : GetPassInfo(pass).reads)
+    {
+        if (FindDependencies(validResources, validPasses, read, visitingStack))
+        {
+            return true;
+        }
+    }
+
+    visitingStack.erase(pass);
+    return false;
 }
 
 void Graph::Compile(const Device *device, Resource target, GraphGoal goal)
@@ -163,21 +192,9 @@ void Graph::Compile(const Device *device, Resource target, GraphGoal goal)
 
     Reset(device);
 
-    bool requestsUniform = false;
-
     for (size_t pass = 0; pass < _passInfos.size(); pass++)
     {
         const PassCreateInfo &passInfo = GetPassInfo(Pass{pass});
-
-        if (passInfo.readsUniform)
-        {
-            if (_uboSize == 0)
-            {
-                throw std::runtime_error("Graph: Pass {0} reads uniform, but no uniform buffer size was set");
-            }
-
-            requestsUniform = true;
-        }
 
         if (!(passInfo.writes.empty() ||
               std::all_of(passInfo.writes.begin() + 1, passInfo.writes.end(), [&](Resource resource) {
@@ -204,9 +221,41 @@ void Graph::Compile(const Device *device, Resource target, GraphGoal goal)
 
     _validPasses.clear();
     _validResources.clear();
+    std::set<std::variant<Resource, Pass>> visitingStack{};
 
-    FindDependencies(&_validResources, &_validPasses, target);
+    if (FindDependencies(&_validResources, &_validPasses, target, visitingStack))
+    {
+        throw std::runtime_error("Graph: circular dependency found! cannot compile");
+    }
 
+    std::ostringstream oss;
+    oss << "Graph: dependencies : ";
+    for (const Resource resource : _validResources)
+    {
+        oss << GetResourceInfo(resource).debugName << ", ";
+    }
+    for (const Pass pass : _validPasses)
+    {
+        oss << GetPassInfo(pass).debugName << ", ";
+    }
+    spdlog::info("{0}", oss.str());
+
+    KhanFindOrder(_validResources, _validPasses);
+
+    bool requestsUniform = false;
+
+    for (const Pass pass : _validPasses)
+    {
+        if (GetPassInfo(pass).readsUniform)
+        {
+            if (_uboSize == 0)
+            {
+                throw std::runtime_error("Graph: Pass {0} reads uniform, but no uniform buffer size was set");
+            }
+
+            requestsUniform = true;
+        }
+    }
     if (requestsUniform)
     {
         BuildUbo(device);
@@ -221,8 +270,6 @@ void Graph::Compile(const Device *device, Resource target, GraphGoal goal)
         Build(device, pass);
         CreatePipeline(device, pass);
     }
-
-    KhanFindOrder(_validResources, _validPasses);
 
     spdlog::info("Graph: finished compilation");
 
@@ -512,12 +559,12 @@ void Graph::Reset(const Device *device)
         device->DestroyDescriptorPool(_uboDescriptorPool);
         device->DestroyDescriptorSetLayout(_uboDescriptorSetLayout);
     }
-    for (vk::DeviceMemory deviceMemory : _uboDeviceMemories)
+    for (const vk::DeviceMemory deviceMemory : _uboDeviceMemories)
     {
         device->UnmapMemory(deviceMemory);
         device->FreeDeviceMemory(deviceMemory);
     }
-    for (vk::Buffer buffer : _uboBuffers)
+    for (const vk::Buffer buffer : _uboBuffers)
     {
         device->DestroyBuffer(buffer);
     }
@@ -596,55 +643,85 @@ void Graph::KhanFindOrder(const std::set<Resource> &resources, const std::set<Pa
 {
     _orderedPasses.clear();
 
-    std::map<std::variant<Resource, Pass>, int> degrees;
+    std::map<Resource, int> resourceDegrees{};
+    std::map<Pass, int> passDegrees{};
 
     for (const Resource resource : resources)
     {
         const ResourceCreateInfo &resourceInfo = GetResourceInfo(resource);
-        degrees[resource] = resourceInfo.writers.size();
+        resourceDegrees[resource] = resourceInfo.writers.size();
     }
 
     for (const Pass pass : passes)
     {
         const PassCreateInfo &passInfo = GetPassInfo(pass);
-        degrees[pass] = passInfo.reads.size();
+        passDegrees[pass] = passInfo.reads.size();
     }
 
-    while (degrees.size() > 0)
+    while (passDegrees.size() > 0 && resourceDegrees.size() > 0)
     {
-    restart:
-        for (auto &[value, degree] : degrees)
+        bool progress = false;
+
+        for (auto it = resourceDegrees.begin(); it != resourceDegrees.end();)
         {
-            if (degree == 0)
+            if (it->second == 0)
             {
-                if (std::holds_alternative<Resource>(value))
+                const ResourceCreateInfo &resourceInfo = GetResourceInfo(it->first);
+                for (const Pass reader : resourceInfo.readers)
                 {
-                    const ResourceCreateInfo &resourceInfo = GetResourceInfo(std::get<Resource>(value));
-                    for (Pass reader : resourceInfo.readers)
-                    {
-                        degrees[reader]--;
-                    }
-                    degrees.erase(value);
-                    goto restart;
+                    passDegrees.at(reader)--;
                 }
-                if (std::holds_alternative<Pass>(value))
-                {
-                    const PassCreateInfo &passInfo = GetPassInfo(std::get<Pass>(value));
-                    for (Resource writey : passInfo.writes)
-                    {
-                        degrees[writey]--;
-                    }
-                    degrees.erase(value);
-                    _orderedPasses.push_back(std::get<Pass>(value));
-                    goto restart;
-                }
+                it = resourceDegrees.erase(it);
+                progress = true;
+            }
+            else
+            {
+                it++;
             }
         }
-        if (degrees.size() > 0)
+        for (auto it = passDegrees.begin(); it != passDegrees.end();)
         {
-            throw std::runtime_error("Graph: circular dependency found! cannot compile");
+            if (it->second == 0)
+            {
+                const PassCreateInfo &passInfo = GetPassInfo(it->first);
+                for (const Resource writey : passInfo.writes)
+                {
+                    resourceDegrees.at(writey)--;
+                }
+                _orderedPasses.push_back(it->first);
+                it = passDegrees.erase(it);
+                progress = true;
+            }
+            else
+            {
+                it++;
+            }
+        }
+        if (progress == false)
+        {
+            std::ostringstream oss;
+            oss << "Graph: circular dependency found! cannot compile: ";
+            for (const auto &[resource, degree] : resourceDegrees)
+            {
+                const ResourceCreateInfo &resourceInfo = GetResourceInfo(resource);
+                oss << resourceInfo.debugName << ", ";
+            }
+            for (const auto &[pass, degree] : passDegrees)
+            {
+                const PassCreateInfo &passInfo = GetPassInfo(pass);
+                oss << passInfo.debugName << ", ";
+            }
+            throw std::runtime_error(oss.str());
         }
     }
+
+    std::ostringstream oss;
+    oss << "Graph: pass order selected: ";
+    for (const Pass pass : _orderedPasses)
+    {
+        oss << " -> " << GetPassInfo(pass).debugName;
+    }
+    spdlog::info("{0}", oss.str());
 }
 
 void Graph::Build(const Device *device, Resource resource)
@@ -723,6 +800,8 @@ void Graph::Build(const Device *device, Resource resource)
     {
         CreateDescriptor(device, resource);
     }
+
+    spdlog::info("Graph: finished build {0} resource", createInfo.debugName);
 }
 
 void Graph::Build(const Device *device, Pass pass)
@@ -820,6 +899,8 @@ void Graph::Build(const Device *device, Pass pass)
     vk::Framebuffer framebuffer;
     device->CreateFramebuffer(framebufferInfo, &framebuffer, createInfo.debugName + " framebuffer");
     _framebuffers[pass] = framebuffer;
+
+    spdlog::info("Graph: finished build {0} pass", createInfo.debugName);
 }
 
 void Graph::BuildUbo(const Device *device)
@@ -901,6 +982,8 @@ void Graph::BuildUbo(const Device *device)
 
         _uboDescriptorSets.push_back(descriptorSet);
     }
+
+    spdlog::info("Graph: finished build ubo");
 }
 
 void Graph::CreateDescriptor(const Device *device, Resource resource)
@@ -993,7 +1076,11 @@ void Graph::OnResizeCallback(void *graph, const class Device *device, size_t wid
 
 bool Graph::isSampled(Resource resource)
 {
-    return GetResourceInfo(resource).readers.size() > 0 || (_goal == eToDescriptorSet && resource == _target);
+    if (_goal == eToTransfer)
+    {
+        return GetResourceInfo(resource).readers.size() > 0 && resource != _target;
+    }
+    return GetResourceInfo(resource).readers.size() > 0 || resource == _target;
 }
 
 const PassCreateInfo &Graph::GetPassInfo(Pass pass) const

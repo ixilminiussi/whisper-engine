@@ -491,7 +491,8 @@ void Device::CreateBufferAndBindMemory(const vk::BufferCreateInfo &createInfo, v
     allocInfo.memoryTypeIndex =
         FindMemoryType(memRequirements.memoryTypeBits, {vk::MemoryPropertyFlagBits::eHostVisible});
 
-    if (vk::Result result = _device.allocateMemory(&allocInfo, nullptr, bufferMemory); result != vk::Result::eSuccess)
+    if (const vk::Result result = _device.allocateMemory(&allocInfo, nullptr, bufferMemory);
+        result != vk::Result::eSuccess)
     {
         spdlog::critical("ErrorMsg: {}", vk::to_string(static_cast<vk::Result>(result)));
         throw std::runtime_error("Device: failed to allocate buffer memory");

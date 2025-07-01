@@ -140,7 +140,7 @@ inline void Device::DebugNameObject(const T &object, vk::ObjectType objectType, 
 
     uint64_t handle = reinterpret_cast<uint64_t>(static_cast<typename T::CType>(object));
 
-    vk::DebugUtilsObjectNameInfoEXT nameInfo{objectType, handle, name.c_str()};
+    const vk::DebugUtilsObjectNameInfoEXT nameInfo{objectType, handle, name.c_str()};
 
     _device.setDebugUtilsObjectNameEXT(nameInfo, _debugDispatch);
 }

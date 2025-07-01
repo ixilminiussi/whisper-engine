@@ -24,6 +24,10 @@ struct Pass
     {
         return index == other.index;
     }
+    bool operator!=(const Pass &other) const
+    {
+        return index != other.index;
+    }
 };
 
 struct Resource
@@ -38,6 +42,10 @@ struct Resource
     bool operator==(const Resource &other) const
     {
         return index == other.index;
+    }
+    bool operator!=(const Resource &other) const
+    {
+        return index != other.index;
     }
 };
 

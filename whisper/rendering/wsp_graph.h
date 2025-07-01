@@ -5,6 +5,7 @@
 #include "wsp_handles.h"
 
 // lib
+#include <variant>
 #include <vulkan/vulkan.hpp>
 
 // set
@@ -76,8 +77,10 @@ class Graph
     void CreateSamplers(const Device *);
     void CreateDescriptor(const Device *, Resource resource);
 
-    void FindDependencies(std::set<Resource> *validResources, std::set<Pass> *validPasses, Resource resource);
-    void FindDependencies(std::set<Resource> *validResources, std::set<Pass> *validPasses, Pass resource);
+    bool FindDependencies(std::set<Resource> *validResources, std::set<Pass> *validPasses, Resource pass,
+                          std::set<std::variant<Resource, Pass>> &visitingStack);
+    bool FindDependencies(std::set<Resource> *validResources, std::set<Pass> *validPasses, Pass pass,
+                          std::set<std::variant<Resource, Pass>> &visitingStack);
 
     void Reset(const Device *);
 

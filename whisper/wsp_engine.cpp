@@ -4,7 +4,6 @@
 #include "wsp_editor.h"
 #include "wsp_graph.h"
 #include "wsp_static_utils.h"
-#include "wsp_swapchain.h"
 #include "wsp_window.h"
 
 // lib
@@ -40,7 +39,8 @@ Window *window{nullptr};
 Device *device{nullptr};
 Graph *graph{nullptr};
 
-Resource targetResource{0};
+Resource color{0};
+Resource reverse{0};
 
 Editor *editor{nullptr};
 
@@ -191,12 +191,12 @@ void OnEditorToggle(void *, bool isActive)
 {
     if (!isActive)
     {
-        graph->Compile(device, targetResource, Graph::GraphGoal::eToTransfer);
+        graph->Compile(device, color, Graph::GraphGoal::eToTransfer);
         window->BindResizeCallback(graph, Graph::OnResizeCallback);
     }
     else
     {
-        graph->Compile(device, targetResource, Graph::GraphGoal::eToDescriptorSet);
+        graph->Compile(device, color, Graph::GraphGoal::eToDescriptorSet);
         window->UnbindResizeCallback(graph);
     }
 }
@@ -239,7 +239,7 @@ bool Initialize()
         colorResourceInfo.clear.color = vk::ClearColorValue{0.1f, 0.1f, 0.1f, 1.0f};
         colorResourceInfo.debugName = "color";
 
-        const Resource color = graph->NewResource(colorResourceInfo);
+        color = graph->NewResource(colorResourceInfo);
 
         PassCreateInfo passCreateInfo{};
         passCreateInfo.writes = {color};
@@ -253,10 +253,10 @@ bool Initialize()
         graph->NewPass(passCreateInfo);
 
         colorResourceInfo.debugName = "reverse color";
-        targetResource = graph->NewResource(colorResourceInfo);
+        reverse = graph->NewResource(colorResourceInfo);
 
         PassCreateInfo postPassCreateInfo{};
-        postPassCreateInfo.writes = {targetResource};
+        postPassCreateInfo.writes = {reverse};
         postPassCreateInfo.reads = {color};
         postPassCreateInfo.vertFile = "postprocess.vert.spv";
         postPassCreateInfo.fragFile = "postprocess.frag.spv";
@@ -264,7 +264,7 @@ bool Initialize()
         postPassCreateInfo.execute = [](vk::CommandBuffer commandBuffer) { commandBuffer.draw(6, 1, 0, 0); };
 
         graph->NewPass(postPassCreateInfo);
-        graph->Compile(device, targetResource, Graph::GraphGoal::eToDescriptorSet);
+        graph->Compile(device, reverse, Graph::GraphGoal::eToDescriptorSet);
 
 #ifndef NDEBUG
         editor = new Editor(window, device, vkInstance);
@@ -293,7 +293,7 @@ void Run()
         glfwPollEvents();
 
         size_t frameIndex = 0;
-        vk::CommandBuffer commandBuffer = window->NextCommandBuffer(&frameIndex);
+        const vk::CommandBuffer commandBuffer = window->NextCommandBuffer(&frameIndex);
 
         GlobalUbo ubo{};
         ubo.a = 0.5;
@@ -349,10 +349,12 @@ void Terminate()
 
         auto func = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(static_cast<VkInstance>(vkInstance),
                                                                                "vkDestroyDebugUtilsMessengerEXT");
+#ifndef NDEBUG
         if (func != nullptr)
         {
             func(static_cast<VkInstance>(vkInstance), debugMessenger, nullptr);
         }
+#endif
 
         TracyVkDestroy(tracyCtx);
         device->Free();

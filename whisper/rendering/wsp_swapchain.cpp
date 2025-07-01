@@ -1,16 +1,18 @@
 #include "wsp_swapchain.h"
-#include "imgui_impl_vulkan.h"
 #include "wsp_device.h"
 #include "wsp_devkit.h"
 #include "wsp_engine.h"
 #include "wsp_window.h"
 
 // lib
+#include <imgui_impl_vulkan.h>
 #include <spdlog/spdlog.h>
-#include <string>
 #include <vulkan/vulkan_core.h>
 #include <vulkan/vulkan_handles.hpp>
 #include <vulkan/vulkan_structs.hpp>
+
+// std
+#include <string>
 
 namespace wsp
 {
@@ -194,7 +196,7 @@ void Swapchain::SubmitCommandBuffer(const Device *device, vk::CommandBuffer comm
     AcquireNextImage(device);
     vk::CommandBuffer commandBuffer = _commandBuffers[_currentFrameIndex];
 
-    vk::CommandBufferBeginInfo beginInfo{};
+    const vk::CommandBufferBeginInfo beginInfo{};
 
     if (const vk::Result result = commandBuffer.begin(&beginInfo); result != vk::Result::eSuccess)
     {
@@ -476,7 +478,7 @@ void Swapchain::CreateSyncObjects(const Device *device, size_t count)
     _inFlightFences.resize(MAX_FRAMES_IN_FLIGHT);
     _imagesInFlight.resize(count, VK_NULL_HANDLE);
 
-    vk::SemaphoreCreateInfo semaphoreInfo = {};
+    const vk::SemaphoreCreateInfo semaphoreInfo = {};
 
     vk::FenceCreateInfo fenceInfo = {};
     fenceInfo.flags = vk::FenceCreateFlagBits::eSignaled;

@@ -77,7 +77,7 @@ void Editor::Render(vk::CommandBuffer commandBuffer, Graph *graph, const Device 
         ImGui::Begin("Scene");
         ImGui::PopStyleVar(3);
 
-        ImVec2 size = ImGui::GetContentRegionAvail();
+        const ImVec2 size = ImGui::GetContentRegionAvail();
         static ImVec2 oldSize = ImVec2(10, 10);
         ImGui::Image((ImTextureID)(graph->GetTargetDescriptorSet().operator VkDescriptorSet()), size);
         if (oldSize.x != size.x && oldSize.y != size.y)
@@ -110,7 +110,7 @@ void Editor::Update(float dt)
         wasActive = _active;
     }
 
-    for (std::function<void()> &func : _deferredQueue)
+    for (const std::function<void()> &func : _deferredQueue)
     {
         func();
     }
@@ -171,8 +171,10 @@ void Editor::InitImGui(const Window *window, const Device *device, vk::Instance 
     pipelineRenderingCreateInfo.pColorAttachmentFormats = &format;
 
     ImGui_ImplVulkan_InitInfo initInfo = {};
+#ifndef NDEBUG
     device->PopulateImGuiInitInfo(&initInfo);
     window->GetSwapchain()->PopulateImGuiInitInfo(&initInfo);
+#endif
     initInfo.Instance = instance;
     initInfo.DescriptorPool = _imguiDescriptorPool.operator VkDescriptorPool();
     initInfo.PipelineRenderingCreateInfo = pipelineRenderingCreateInfo;
