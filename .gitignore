@@ -1,3 +1,5 @@
 build/
 .cache/
 .clangd/
+.external/*
+!.external/CMakeLists
