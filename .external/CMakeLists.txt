@@ -18,7 +18,7 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(Tracy)
 
 # -- tinyxml2: Try to use system tinyxml2 first
-find_package(tinyxml2 REQUIRED)
+find_package(tinyxml2 QUIET)
 if(NOT tinyxml2_FOUND) 
   message(STATUS "System tinyxml2 not found, fetching from GitHub")
   FetchContent_Declare(
@@ -32,7 +32,7 @@ else()
 endif()
 
 # -- tinyobjloader: Try to use system tinyobjloader first
-find_package(tinyobjloader CONFIG REQUIRED)
+find_package(tinyobjloader CONFIG QUIET)
 if(NOT tinyobjloader_FOUND) 
   message(STATUS "System tinyobjloader not found, fetching from GitHub")
   FetchContent_Declare(
@@ -46,7 +46,7 @@ else()
 endif()
 
 # -- Vulkan: Try to use system Vulkan first
-find_package(Vulkan REQUIRED)
+find_package(Vulkan QUIET)
 if(NOT Vulkan_FOUND) 
   message(STATUS "System Vulkan not found, fetching from GitHub")
   FetchContent_Declare(
@@ -99,6 +99,21 @@ else()
   message(STATUS "Found system spdlog")
 endif()
 
+# -- imgui
+find_package(imgui QUIET)
+if(NOT imgui_FOUND)
+  message(STATUS "System imgui not found, fetching from GitHub")
+  FetchContent_Declare(
+    imgui
+    GIT_REPOSITORY https://github.com/ocornut/imgui.git
+    GIT_TAG docking
+    SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/imgui
+  )
+  FetchContent_MakeAvailable(imgui)
+else()
+  message(STATUS "Found system imgui")
+endif()
+
 add_library(imgui STATIC
   imgui/imgui.cpp
   imgui/imgui_draw.cpp
@@ -115,6 +130,20 @@ target_include_directories(imgui PUBLIC
 )
 
 target_link_libraries(imgui PUBLIC glfw Vulkan::Vulkan)
+
+# -- imguizmo
+find_package(imguizmo QUIET)
+if(NOT imguizmo_FOUND)
+  message(STATUS "System imguizmo not found, fetching from GitHub")
+  FetchContent_Declare(
+    imguizmo
+    GIT_REPOSITORY https://github.com/CedricGuillemet/ImGuizmo.git
+    SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/imguizmo
+  )
+  FetchContent_MakeAvailable(imguizmo)
+else()
+  message(STATUS "Found system imguizmo")
+endif()
 
 add_library(imguizmo STATIC
     imguizmo/GraphEditor.cpp

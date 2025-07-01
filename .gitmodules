@@ -1,7 +1,0 @@
-[submodule ".external/imgui"]
-	path = .external/imgui
-	url = https://github.com/ocornut/imgui.git
-	branch = docking
-[submodule ".external/imguizmo"]
-	path = .external/imguizmo
-	url = https://github.com/CedricGuillemet/ImGuizmo.git
