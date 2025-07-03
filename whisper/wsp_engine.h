@@ -1,10 +1,6 @@
 #ifndef WSP_ENGINE
 #define WSP_ENGINE
 
-#include <vulkan/vulkan.hpp>
-//
-#include <tracy/TracyVulkan.hpp>
-
 namespace wsp
 {
 
@@ -16,8 +12,6 @@ namespace engine
 bool Initialize();
 void Run();
 void Terminate();
-
-TracyVkCtx TracyCtx();
 
 } // namespace engine
 

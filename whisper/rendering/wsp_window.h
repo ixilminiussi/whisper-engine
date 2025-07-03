@@ -2,16 +2,15 @@
 #define WSP_WINDOW
 
 // std
-#include "wsp_swapchain.h"
 #include <map>
 #include <string>
-#include <vulkan/vulkan_core.h>
-#include <vulkan/vulkan_handles.hpp>
 
 // lib
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 #include <vulkan/vulkan.hpp>
+#include <vulkan/vulkan_core.h>
+#include <vulkan/vulkan_handles.hpp>
 
 namespace wsp
 {
@@ -45,7 +44,7 @@ class Window
     void SwapchainOpen(vk::CommandBuffer, vk::Image blittedImage = VK_NULL_HANDLE) const;
     void SwapchainFlush(vk::CommandBuffer);
 
-    void BindResizeCallback(void *, void (*)(void *, const wsp::Device *, size_t, size_t));
+    void BindResizeCallback(void *, void (*)(void *, const Device *, size_t, size_t));
     void UnbindResizeCallback(void *);
 
   private:
@@ -65,7 +64,7 @@ class Window
 
     vk::SurfaceKHR _surface;
 
-    std::map<void *, void (*)(void *, const wsp::Device *, size_t, size_t)> _resizeCallbacks;
+    std::map<void *, void (*)(void *, const Device *, size_t, size_t)> _resizeCallbacks;
 
     bool _freed;
 };

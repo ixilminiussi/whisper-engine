@@ -5,7 +5,9 @@
 #include "wsp_devkit.h"
 #include "wsp_engine.h"
 #include "wsp_graph.h"
+#include "wsp_renderer.h"
 #include "wsp_static_utils.h"
+#include "wsp_swapchain.h"
 #include "wsp_window.h"
 
 // lib
@@ -16,10 +18,9 @@
 #include <vulkan/vulkan.hpp>
 #include <vulkan/vulkan_handles.hpp>
 
-namespace wsp
-{
+using namespace wsp;
 
-Editor::Editor(const Window *window, const Device *device, vk::Instance instance) : _freed{false}, _active{false}
+Editor::Editor(Window const *window, Device const *device, vk::Instance instance) : _freed{false}, _active{false}
 {
     check(device);
     check(window);
@@ -35,7 +36,7 @@ Editor::~Editor()
     }
 }
 
-void Editor::Free(const Device *device)
+void Editor::Free(Device const *device)
 {
     check(device);
 
@@ -57,9 +58,9 @@ void Editor::Free(const Device *device)
     _freed = true;
 }
 
-void Editor::Render(vk::CommandBuffer commandBuffer, Graph *graph, const Device *device)
+void Editor::Render(vk::CommandBuffer commandBuffer, Graph *graph, Device const *device)
 {
-    TracyVkZone(wsp::engine::TracyCtx(), commandBuffer, "editor");
+    TracyVkZone(Renderer::GetTracyCtx(), commandBuffer, "editor");
 
     _deferredQueue.clear();
 
@@ -75,7 +76,7 @@ void Editor::Render(vk::CommandBuffer commandBuffer, Graph *graph, const Device 
         ImGui::Begin("Scene");
         ImGui::PopStyleVar(3);
 
-        const ImVec2 size = ImGui::GetContentRegionAvail();
+        ImVec2 const size = ImGui::GetContentRegionAvail();
         static ImVec2 oldSize = ImVec2(10, 10);
         ImGui::Image((ImTextureID)(graph->GetTargetDescriptorSet().operator VkDescriptorSet()), size);
         if (oldSize.x != size.x && oldSize.y != size.y)
@@ -108,7 +109,7 @@ void Editor::Update(float dt)
         wasActive = _active;
     }
 
-    for (const std::function<void()> &func : _deferredQueue)
+    for (std::function<void()> const &func : _deferredQueue)
     {
         func();
     }
@@ -125,19 +126,19 @@ void Editor::UnbindToggle(void *who)
     _toggleDispatchers.erase(who);
 }
 
-bool Editor::isActive() const
+bool Editor::IsActive() const
 {
     return _active;
 }
 
-void Editor::InitImGui(const Window *window, const Device *device, vk::Instance instance)
+void Editor::InitImGui(Window const *window, Device const *device, vk::Instance instance)
 {
     check(device);
     check(window);
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
-    const ImGuiIO &io = ImGui::GetIO();
+    ImGuiIO const &io = ImGui::GetIO();
     (void)io;
     ImGui::StyleColorsDark();
 
@@ -163,7 +164,7 @@ void Editor::InitImGui(const Window *window, const Device *device, vk::Instance 
 
     device->CreateDescriptorPool(poolInfo, &_imguiDescriptorPool, "imgui descriptor pool");
 
-    const vk::Format format = vk::Format::eB8G8R8A8Unorm;
+    vk::Format const format = vk::Format::eB8G8R8A8Unorm;
     vk::PipelineRenderingCreateInfo pipelineRenderingCreateInfo{};
     pipelineRenderingCreateInfo.colorAttachmentCount = 1;
     pipelineRenderingCreateInfo.pColorAttachmentFormats = &format;
@@ -196,19 +197,19 @@ void Editor::ApplyImGuiTheme()
 
     style.FrameRounding = 2;
 
-    const ImVec4 dracula_background{0.157f, 0.165f, 0.212f, 1.f};
-    const ImVec4 dracula_currentLine{0.267f, 0.278f, 0.353f, 1.f};
-    const ImVec4 dracula_foreground{0.973f, 0.973f, 0.949f, 1.f};
-    const ImVec4 dracula_comment{0.384f, 0.447f, 0.643f, 1.f};
-    const ImVec4 dracula_cyan{0.545f, 0.914f, 0.992f, 1.f};
-    const ImVec4 dracula_green{0.314f, 0.98f, 0.482f, 1.f};
-    const ImVec4 dracula_orange{1.f, 0.722f, 0.424f, 1.f};
-    const ImVec4 dracula_pink{1.f, 0.475f, 0.776f, 1.f};
-    const ImVec4 dracula_purple{0.741f, 0.576f, 0.976f, 1.f};
-    const ImVec4 dracula_red{1.f, 0.333f, 0.333f, 1.f};
-    const ImVec4 dracula_yellow{0.945f, 0.98f, 0.549f, 1.f};
-    const ImVec4 transparent{0.f, 0.f, 0.f, 0.f};
-    const ImVec4 dracula_comment_highlight{0.53f, 0.58f, 0.74f, 1.f};
+    ImVec4 const dracula_background{0.157f, 0.165f, 0.212f, 1.f};
+    ImVec4 const dracula_currentLine{0.267f, 0.278f, 0.353f, 1.f};
+    ImVec4 const dracula_foreground{0.973f, 0.973f, 0.949f, 1.f};
+    ImVec4 const dracula_comment{0.384f, 0.447f, 0.643f, 1.f};
+    ImVec4 const dracula_cyan{0.545f, 0.914f, 0.992f, 1.f};
+    ImVec4 const dracula_green{0.314f, 0.98f, 0.482f, 1.f};
+    ImVec4 const dracula_orange{1.f, 0.722f, 0.424f, 1.f};
+    ImVec4 const dracula_pink{1.f, 0.475f, 0.776f, 1.f};
+    ImVec4 const dracula_purple{0.741f, 0.576f, 0.976f, 1.f};
+    ImVec4 const dracula_red{1.f, 0.333f, 0.333f, 1.f};
+    ImVec4 const dracula_yellow{0.945f, 0.98f, 0.549f, 1.f};
+    ImVec4 const transparent{0.f, 0.f, 0.f, 0.f};
+    ImVec4 const dracula_comment_highlight{0.53f, 0.58f, 0.74f, 1.f};
     colors[ImGuiCol_Text] = dracula_foreground;
     colors[ImGuiCol_TextDisabled] = dracula_comment;
     colors[ImGuiCol_WindowBg] = dracula_background;
@@ -276,5 +277,3 @@ void Editor::ApplyImGuiTheme()
     for (int i = 0; i < ImGuiCol_COUNT; ++i)
         style.Colors[i] = decodeSRGB(style.Colors[i]);
 }
-
-} // namespace wsp

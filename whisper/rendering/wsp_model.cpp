@@ -1,7 +1,6 @@
 #include "wsp_model.h"
 
-namespace wsp
-{
+using namespace wsp;
 
 vk::PipelineVertexInputStateCreateInfo Model::Vertex::GetVertexInputInfo()
 {
@@ -27,10 +26,8 @@ vk::PipelineVertexInputStateCreateInfo Model::Vertex::GetVertexInputInfo()
     return vertexInputInfo;
 }
 
-bool Model::Vertex::operator==(const Vertex &other) const
+bool Model::Vertex::operator==(Vertex const &other) const
 {
     return position == other.position && color == other.color && normal == other.normal && uv == other.uv &&
            tangent == other.tangent;
 }
-
-} // namespace wsp

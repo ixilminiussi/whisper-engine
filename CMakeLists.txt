@@ -40,6 +40,18 @@ else()
   message(CHECK_PASS "Found system tinyxml2")
 endif()
 
+# -- glm
+find_package(glm QUIET)
+message(CHECK_START "Find glm")
+if(NOT glm_FOUND)
+  message(STATUS "System glm not found, fetching from GitHub")
+  FetchContent_Declare(
+    glm URL https://github.com/g-truc/glm/archive/refs/tags/1.0.1.zip)
+  FetchContent_MakeAvailable(glm)
+else()
+  message(CHECK_PASS "Found system glm")
+endif()
+
 # -- tinyobjloader: Try to use system tinyobjloader first
 find_package(tinyobjloader CONFIG QUIET)
 message(CHECK_START "Find tinyobjloader")
@@ -148,11 +160,11 @@ include_directories(${CMAKE_SOURCE_DIR})
 add_compile_definitions(_SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING)
 
 # Asset and shader paths
-set(WSP_FILES "${CMAKE_SOURCE_DIR}/assets/")
-set(WSP_EDITOR_FILES "${CMAKE_SOURCE_DIR}/editor/")
+set(WSP_FILES "${CMAKE_CURRENT_SOURCE_DIR}/assets/")
+set(WSP_EDITOR_FILES "${CMAKE_CURRENT_SOURCE_DIR}/editor/")
 add_definitions(-DEDITOR_FILES="${WSP_EDITOR_FILES}")
 
-set(SHADER_FILES "${CMAKE_BINARY_DIR}/shaders/")
+set(SHADER_FILES "${CMAKE_CURRENT_BINARY_DIR}/shaders/")
 add_definitions(-DSHADER_FILES="${SHADER_FILES}")
 
 add_subdirectory(whisper)

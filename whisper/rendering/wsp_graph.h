@@ -25,32 +25,32 @@ class Graph
         eToDescriptorSet = 1
     };
 
-    static const size_t SAMPLER_DEPTH;
-    static const size_t SAMPLER_COLOR_CLAMPED;
-    static const size_t SAMPLER_COLOR_REPEATED;
-    static const size_t MAX_SAMPLER_SETS;
+    static size_t const SAMPLER_DEPTH;
+    static size_t const SAMPLER_COLOR_CLAMPED;
+    static size_t const SAMPLER_COLOR_REPEATED;
+    static size_t const MAX_SAMPLER_SETS;
 
     Graph(const class Device *, size_t width, size_t height);
     ~Graph();
 
-    Graph(const Graph &) = delete;
-    Graph &operator=(const Graph &) = delete;
+    Graph(Graph const &) = delete;
+    Graph &operator=(Graph const &) = delete;
 
     void SetUboSize(size_t uboSize);
     [[nodiscard]] Resource NewResource(const struct ResourceCreateInfo &);
     Pass NewPass(const struct PassCreateInfo &);
 
-    void Compile(const Device *, Resource target, GraphGoal);
-    void FlushUbo(void *ubo, size_t frameIndex, const Device *);
+    void Compile(Device const *, Resource target, GraphGoal);
+    void FlushUbo(void *ubo, size_t frameIndex, Device const *);
     void Render(vk::CommandBuffer);
 
-    void Free(const Device *);
+    void Free(Device const *);
 
     vk::Image GetTargetImage() const;
     vk::DescriptorSet GetTargetDescriptorSet() const;
 
     void ChangeGoal(const class Device *, GraphGoal);
-    void Resize(const Device *, size_t width, size_t height);
+    void Resize(Device const *, size_t width, size_t height);
     static void OnResizeCallback(void *, const class Device *, size_t width, size_t height);
 
   protected:
@@ -62,30 +62,30 @@ class Graph
         vk::Pipeline pipeline;
     };
 
-    bool isSampled(Resource resouce);
+    bool IsSampled(Resource resouce);
 
-    void KhanFindOrder(const std::set<Resource> &, const std::set<Pass> &);
+    void KhanFindOrder(std::set<Resource> const &, std::set<Pass> const &);
 
-    void Build(const Device *, Resource);
-    void Build(const Device *, Pass);
-    void BuildUbo(const Device *);
+    void Build(Device const *, Resource, bool silent = false);
+    void Build(Device const *, Pass, bool silent = false);
+    void BuildUbo(Device const *, bool silent = false);
 
-    void Free(const Device *, Resource);
-    void Free(const Device *, Pass);
+    void Free(Device const *, Resource);
+    void Free(Device const *, Pass);
 
-    void CreatePipeline(const Device *, Pass);
-    void CreateSamplers(const Device *);
-    void CreateDescriptor(const Device *, Resource resource);
+    void CreatePipeline(Device const *, Pass, bool silent = false);
+    void CreateSamplers(Device const *);
+    void CreateDescriptor(Device const *, Resource resource);
 
     bool FindDependencies(std::set<Resource> *validResources, std::set<Pass> *validPasses, Resource pass,
                           std::set<std::variant<Resource, Pass>> &visitingStack);
     bool FindDependencies(std::set<Resource> *validResources, std::set<Pass> *validPasses, Pass pass,
                           std::set<std::variant<Resource, Pass>> &visitingStack);
 
-    void Reset(const Device *);
+    void Reset(Device const *);
 
-    const PassCreateInfo &GetPassInfo(Pass) const;
-    const ResourceCreateInfo &GetResourceInfo(Resource) const;
+    PassCreateInfo const &GetPassInfo(Pass) const;
+    ResourceCreateInfo const &GetResourceInfo(Resource) const;
     vk::RenderPass GetRenderPass(Pass) const;
 
     std::vector<PassCreateInfo> _passInfos;

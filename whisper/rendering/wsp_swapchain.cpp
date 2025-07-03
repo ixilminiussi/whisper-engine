@@ -2,6 +2,7 @@
 #include "wsp_device.h"
 #include "wsp_devkit.h"
 #include "wsp_engine.h"
+#include "wsp_renderer.h"
 #include "wsp_window.h"
 
 // lib
@@ -14,8 +15,7 @@
 // std
 #include <string>
 
-namespace wsp
-{
+using namespace wsp;
 
 Swapchain::Swapchain(const class Window *window, const class Device *device, vk::Extent2D extent2D,
                      vk::SwapchainKHR oldSwapchain)
@@ -24,11 +24,11 @@ Swapchain::Swapchain(const class Window *window, const class Device *device, vk:
 {
     check(device);
 
-    const vk::SurfaceKHR surface = window->GetSurface();
-    const vk::SurfaceFormatKHR surfaceFormat = ChooseSwapSurfaceFormat(device->GetSurfaceFormatsKHR(surface));
-    const vk::PresentModeKHR presentMode = ChooseSwapPresentMode(device->GetSurfacePresentModesKHR(surface));
-    const vk::SurfaceCapabilitiesKHR capabilities = device->GetSurfaceCapabilitiesKHR(surface);
-    const vk::Extent2D extent = ChooseSwapExtent(window->GetExtent(), capabilities);
+    vk::SurfaceKHR const surface = window->GetSurface();
+    vk::SurfaceFormatKHR const surfaceFormat = ChooseSwapSurfaceFormat(device->GetSurfaceFormatsKHR(surface));
+    vk::PresentModeKHR const presentMode = ChooseSwapPresentMode(device->GetSurfacePresentModesKHR(surface));
+    vk::SurfaceCapabilitiesKHR const capabilities = device->GetSurfaceCapabilitiesKHR(surface);
+    vk::Extent2D const extent = ChooseSwapExtent(window->GetExtent(), capabilities);
 
     _minImageCount = capabilities.minImageCount + 1;
     if (capabilities.maxImageCount > 0 && _minImageCount > capabilities.maxImageCount)
@@ -46,7 +46,7 @@ Swapchain::Swapchain(const class Window *window, const class Device *device, vk:
     createInfo.imageArrayLayers = 1;
     createInfo.imageUsage = vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransferDst;
 
-    const QueueFamilyIndices indices = device->FindQueueFamilies(surface);
+    QueueFamilyIndices const indices = device->FindQueueFamilies(surface);
     int queueFamilyIndices[] = {indices.graphicsFamily, indices.presentFamily};
 
     if (indices.graphicsFamily != indices.presentFamily)
@@ -92,7 +92,7 @@ Swapchain::~Swapchain()
     }
 }
 
-void Swapchain::Free(const Device *device, bool silent)
+void Swapchain::Free(Device const *device, bool silent)
 {
     check(device);
 
@@ -106,7 +106,7 @@ void Swapchain::Free(const Device *device, bool silent)
     _imageAvailableSemaphores.clear();
     _inFlightFences.clear();
 
-    for (const vk::Framebuffer &framebuffer : _framebuffers)
+    for (vk::Framebuffer const &framebuffer : _framebuffers)
     {
         device->DestroyFramebuffer(framebuffer);
     }
@@ -130,7 +130,7 @@ void Swapchain::Free(const Device *device, bool silent)
 
     if (!silent)
     {
-        spdlog::info("Swapchain: succesfully freed");
+        spdlog::info("Swapchain: freed");
     }
 }
 
@@ -189,27 +189,27 @@ void Swapchain::SubmitCommandBuffer(const Device *device, vk::CommandBuffer comm
     device->PresentKHR(&presentInfo);
 }
 
-[[nodiscard]] vk::CommandBuffer Swapchain::NextCommandBuffer(const Device *device)
+[[nodiscard]] vk::CommandBuffer Swapchain::NextCommandBuffer(Device const *device)
 {
     check(device);
 
     AcquireNextImage(device);
     vk::CommandBuffer commandBuffer = _commandBuffers[_currentFrameIndex];
 
-    const vk::CommandBufferBeginInfo beginInfo{};
+    vk::CommandBufferBeginInfo const beginInfo{};
 
-    if (const vk::Result result = commandBuffer.begin(&beginInfo); result != vk::Result::eSuccess)
+    if (vk::Result const result = commandBuffer.begin(&beginInfo); result != vk::Result::eSuccess)
     {
         spdlog::critical("ErrorMsg: {}", vk::to_string(static_cast<vk::Result>(result)));
         throw std::runtime_error("Renderer: failed to begin recording command buffer!");
     }
 
-    TracyVkCollect(engine::TracyCtx(), commandBuffer);
+    TracyVkCollect(Renderer::GetTracyCtx(), commandBuffer);
 
     return commandBuffer;
 }
 
-void Swapchain::AcquireNextImage(const Device *device)
+void Swapchain::AcquireNextImage(Device const *device)
 {
     check(device);
 
@@ -245,7 +245,7 @@ void Swapchain::BeginRenderPass(vk::CommandBuffer commandBuffer, bool isCleared)
 
     if (isCleared)
     {
-        TracyVkZone(engine::TracyCtx(), commandBuffer, "clear");
+        TracyVkZone(Renderer::GetTracyCtx(), commandBuffer, "clear");
         vk::ClearAttachment clearAttachment = {};
         clearAttachment.aspectMask = vk::ImageAspectFlagBits::eColor;
         clearAttachment.clearValue.color = vk::ClearColorValue(std::array<float, 4>{0.157f, 0.165f, 0.212f, 1.f});
@@ -276,8 +276,8 @@ void Swapchain::BeginRenderPass(vk::CommandBuffer commandBuffer, bool isCleared)
 
 void Swapchain::BlitImage(vk::CommandBuffer commandBuffer, vk::Image image, vk::Extent2D resolution) const
 {
-    TracyVkZone(engine::TracyCtx(), commandBuffer, "blit");
-    const vk::Image swapchainImage = _images.at(_currentImageIndex);
+    TracyVkZone(Renderer::GetTracyCtx(), commandBuffer, "blit");
+    vk::Image const swapchainImage = _images.at(_currentImageIndex);
 
     commandBuffer.pipelineBarrier(vk::PipelineStageFlagBits::eColorAttachmentOutput,
                                   vk::PipelineStageFlagBits::eTransfer, {}, {}, {},
@@ -313,8 +313,8 @@ void Swapchain::BlitImage(vk::CommandBuffer commandBuffer, vk::Image image, vk::
 
 void Swapchain::SkipBlit(vk::CommandBuffer commandBuffer) const
 {
-    TracyVkZone(engine::TracyCtx(), commandBuffer, "skip blit");
-    const vk::Image swapchainImage = _images.at(_currentImageIndex);
+    TracyVkZone(Renderer::GetTracyCtx(), commandBuffer, "skip blit");
+    vk::Image const swapchainImage = _images.at(_currentImageIndex);
 
     commandBuffer.pipelineBarrier(vk::PipelineStageFlagBits::eColorAttachmentOutput,
                                   vk::PipelineStageFlagBits::eColorAttachmentOutput, {}, {}, {},
@@ -328,9 +328,9 @@ void Swapchain::SkipBlit(vk::CommandBuffer commandBuffer) const
                                                          {vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1}});
 }
 
-vk::SurfaceFormatKHR Swapchain::ChooseSwapSurfaceFormat(const std::vector<vk::SurfaceFormatKHR> &availableFormats)
+vk::SurfaceFormatKHR Swapchain::ChooseSwapSurfaceFormat(std::vector<vk::SurfaceFormatKHR> const &availableFormats)
 {
-    for (const vk::SurfaceFormatKHR &availableFormat : availableFormats)
+    for (vk::SurfaceFormatKHR const &availableFormat : availableFormats)
     {
         if (availableFormat.format == vk::Format::eR8G8B8A8Srgb &&
             availableFormat.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear)
@@ -342,9 +342,9 @@ vk::SurfaceFormatKHR Swapchain::ChooseSwapSurfaceFormat(const std::vector<vk::Su
     return availableFormats[0];
 }
 
-vk::PresentModeKHR Swapchain::ChooseSwapPresentMode(const std::vector<vk::PresentModeKHR> &availablePresentModes)
+vk::PresentModeKHR Swapchain::ChooseSwapPresentMode(std::vector<vk::PresentModeKHR> const &availablePresentModes)
 {
-    for (const vk::PresentModeKHR &availablePresentMode : availablePresentModes)
+    for (vk::PresentModeKHR const &availablePresentMode : availablePresentModes)
     {
         if (availablePresentMode == vk::PresentModeKHR::eMailbox)
         {
@@ -356,7 +356,7 @@ vk::PresentModeKHR Swapchain::ChooseSwapPresentMode(const std::vector<vk::Presen
     return vk::PresentModeKHR::eFifo;
 }
 
-vk::Extent2D Swapchain::ChooseSwapExtent(vk::Extent2D windowExtent, const vk::SurfaceCapabilitiesKHR &capabilities)
+vk::Extent2D Swapchain::ChooseSwapExtent(vk::Extent2D windowExtent, vk::SurfaceCapabilitiesKHR const &capabilities)
 {
     if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max())
     {
@@ -374,7 +374,7 @@ vk::Extent2D Swapchain::ChooseSwapExtent(vk::Extent2D windowExtent, const vk::Su
     }
 }
 
-void Swapchain::CreateImageViews(const Device *device, size_t count)
+void Swapchain::CreateImageViews(Device const *device, size_t count)
 {
     check(device);
     check(_images.size() <= count);
@@ -396,7 +396,7 @@ void Swapchain::CreateImageViews(const Device *device, size_t count)
     }
 }
 
-void Swapchain::CreateRenderPass(const Device *device)
+void Swapchain::CreateRenderPass(Device const *device)
 {
     check(device);
 
@@ -445,7 +445,7 @@ void Swapchain::CreateRenderPass(const Device *device)
     device->CreateRenderPass(renderPassInfo, &_renderPass, "swapchain render pass");
 }
 
-void Swapchain::CreateFramebuffers(const Device *device, size_t count)
+void Swapchain::CreateFramebuffers(Device const *device, size_t count)
 {
     check(device);
     check(_imageViews.size() <= count);
@@ -455,7 +455,7 @@ void Swapchain::CreateFramebuffers(const Device *device, size_t count)
     {
         std::array<vk::ImageView, 1> attachments = {_imageViews[i]};
 
-        const vk::Extent2D swapChainExtent = _extent;
+        vk::Extent2D const swapChainExtent = _extent;
         vk::FramebufferCreateInfo framebufferInfo = {};
         framebufferInfo.renderPass = _renderPass;
         framebufferInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
@@ -468,7 +468,7 @@ void Swapchain::CreateFramebuffers(const Device *device, size_t count)
     }
 }
 
-void Swapchain::CreateSyncObjects(const Device *device, size_t count)
+void Swapchain::CreateSyncObjects(Device const *device, size_t count)
 {
     check(device);
     check(_images.size() <= count);
@@ -478,7 +478,7 @@ void Swapchain::CreateSyncObjects(const Device *device, size_t count)
     _inFlightFences.resize(MAX_FRAMES_IN_FLIGHT);
     _imagesInFlight.resize(count, VK_NULL_HANDLE);
 
-    const vk::SemaphoreCreateInfo semaphoreInfo = {};
+    vk::SemaphoreCreateInfo const semaphoreInfo = {};
 
     vk::FenceCreateInfo fenceInfo = {};
     fenceInfo.flags = vk::FenceCreateFlagBits::eSignaled;
@@ -493,12 +493,10 @@ void Swapchain::CreateSyncObjects(const Device *device, size_t count)
     }
 }
 
-void Swapchain::CreateCommandBuffers(const Device *device)
+void Swapchain::CreateCommandBuffers(Device const *device)
 {
     check(device);
 
     _commandBuffers.resize(MAX_FRAMES_IN_FLIGHT);
     device->AllocateCommandBuffers(&_commandBuffers);
 }
-
-} // namespace wsp

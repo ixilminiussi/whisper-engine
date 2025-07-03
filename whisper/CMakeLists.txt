@@ -24,6 +24,7 @@ target_link_libraries(
           imgui
           tinyobjloader
           spdlog
+          glm::glm
           glfw
           ${Vulkan_LIBRARIES})
 

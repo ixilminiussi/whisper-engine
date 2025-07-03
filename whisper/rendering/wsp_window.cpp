@@ -2,16 +2,17 @@
 #include "wsp_device.h"
 #include "wsp_devkit.h"
 #include "wsp_engine.h"
+#include "wsp_renderer.h"
 #include "wsp_swapchain.h"
 
-// std
-#include <bits/types/wint_t.h>
-#include <spdlog/spdlog.h>
-#include <stdexcept>
+// lib
 #include <vulkan/vulkan_handles.hpp>
 
-namespace wsp
-{
+// std
+#include <spdlog/spdlog.h>
+#include <stdexcept>
+
+using namespace wsp;
 
 Window::Window(vk::Instance instance, size_t width, size_t height, std::string name)
     : _width{width}, _height{height}, _name{name}, _freed{false}, _glfwWindow{}, _swapchain{}, _device{}
@@ -32,7 +33,7 @@ Window::~Window()
     }
 }
 
-void Window::Free(const vk::Instance &instance)
+void Window::Free(vk::Instance const &instance)
 {
     if (_freed)
     {
@@ -50,7 +51,7 @@ void Window::Free(const vk::Instance &instance)
     glfwDestroyWindow(_glfwWindow);
 
     _freed = true;
-    spdlog::info("Window: succesfully freed window \"{0}\"", _name.c_str());
+    spdlog::info("Window: freed window \"{0}\"", _name.c_str());
 }
 
 void Window::FramebufferResizeCallback(GLFWwindow *glfwWindow, int width, int height)
@@ -82,7 +83,7 @@ void Window::Resize(size_t width, size_t height)
 
 void Window::CreateSurface(vk::Instance instance)
 {
-    const VkResult result = glfwCreateWindowSurface(static_cast<VkInstance>(instance), _glfwWindow, nullptr,
+    VkResult const result = glfwCreateWindowSurface(static_cast<VkInstance>(instance), _glfwWindow, nullptr,
                                                     reinterpret_cast<VkSurfaceKHR *>(&_surface));
 
     if (result != VK_SUCCESS)
@@ -92,7 +93,7 @@ void Window::CreateSurface(vk::Instance instance)
     }
 }
 
-void Window::Initialize(const Device *device)
+void Window::Initialize(Device const *device)
 {
     check(device);
 
@@ -135,7 +136,7 @@ vk::CommandBuffer Window::NextCommandBuffer(size_t *frameIndex)
 
 void Window::SwapchainOpen(vk::CommandBuffer commandBuffer, vk::Image blittedImage) const
 {
-    TracyVkZone(engine::TracyCtx(), commandBuffer, "swapchain");
+    TracyVkZone(Renderer::GetTracyCtx(), commandBuffer, "swapchain");
 
     if (blittedImage != VK_NULL_HANDLE)
     {
@@ -167,7 +168,7 @@ bool Window::ShouldClose() const
     return glfwWindowShouldClose(_glfwWindow);
 }
 
-void Window::BindResizeCallback(void *pointer, void (*function)(void *, const wsp::Device *, size_t, size_t))
+void Window::BindResizeCallback(void *pointer, void (*function)(void *, Device const *, size_t, size_t))
 {
     _resizeCallbacks[pointer] = function;
     function(pointer, _device, _width, _height);
@@ -199,5 +200,3 @@ vk::SurfaceKHR Window::GetSurface() const
 {
     return _surface;
 }
-
-} // namespace wsp

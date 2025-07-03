@@ -17,8 +17,8 @@ class Editor
     Editor(const class Window *, const class Device *, vk::Instance);
     ~Editor();
 
-    Editor(const Editor &) = delete;
-    Editor &operator=(const Editor &) = delete;
+    Editor(Editor const &) = delete;
+    Editor &operator=(Editor const &) = delete;
 
     void Free(const class Device *);
     void Render(vk::CommandBuffer, class Graph *, const class Device *);
@@ -26,7 +26,7 @@ class Editor
 
     void BindToggle(void *, void (*)(void *, bool));
     void UnbindToggle(void *);
-    bool isActive() const;
+    bool IsActive() const;
 
   protected:
     void InitImGui(const class Window *, const class Device *, vk::Instance);
