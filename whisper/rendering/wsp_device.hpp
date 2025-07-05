@@ -2,7 +2,7 @@
 #define WSP_DEVICE
 
 // lib
-#include "wsp_devkit.h"
+#include "wsp_devkit.hpp"
 #include <vulkan/vulkan.hpp>
 #include <vulkan/vulkan_enums.hpp>
 #include <vulkan/vulkan_handles.hpp>
@@ -31,10 +31,10 @@ class Device
     Device();
     ~Device();
 
-    Device(const Device &) = delete;
-    Device &operator=(const Device &) = delete;
+    Device(Device const &) = delete;
+    Device &operator=(Device const &) = delete;
 
-    void Initialize(const std::vector<const char *> requiredExtensions, vk::Instance, vk::SurfaceKHR);
+    void Initialize(std::vector<char const *> const requiredExtensions, vk::Instance, vk::SurfaceKHR);
     void Free();
 
 #ifndef NDEBUG
@@ -54,37 +54,37 @@ class Device
 
     QueueFamilyIndices FindQueueFamilies(vk::SurfaceKHR) const;
 
-    void ResetFences(const std::vector<vk::Fence> &) const;
-    void WaitForFences(const std::vector<vk::Fence> &, bool waitAll = true, uint64_t timer = UINT64_MAX) const;
+    void ResetFences(std::vector<vk::Fence> const &) const;
+    void WaitForFences(std::vector<vk::Fence> const &, bool waitAll = true, uint64_t timer = UINT64_MAX) const;
 
-    void SubmitToGraphicsQueue(const std::vector<vk::SubmitInfo *> &, vk::Fence) const;
-    void PresentKHR(const vk::PresentInfoKHR *) const;
+    void SubmitToGraphicsQueue(std::vector<vk::SubmitInfo *> const &, vk::Fence) const;
+    void PresentKHR(vk::PresentInfoKHR const *) const;
 
-    void CreateSemaphore(const vk::SemaphoreCreateInfo &, vk::Semaphore *, const std::string &name) const;
-    void CreateFence(const vk::FenceCreateInfo &, vk::Fence *, const std::string &name) const;
-    void CreateFramebuffer(const vk::FramebufferCreateInfo &, vk::Framebuffer *, const std::string &name) const;
-    void CreateRenderPass(const vk::RenderPassCreateInfo &, vk::RenderPass *, const std::string &name) const;
-    void CreateImageAndBindMemory(const vk::ImageCreateInfo &, vk::Image *, vk::DeviceMemory *,
-                                  const std::string &name) const;
-    void CreateBufferAndBindMemory(const vk::BufferCreateInfo &, vk::Buffer *, vk::DeviceMemory *,
-                                   const std::string &name) const;
+    void CreateSemaphore(vk::SemaphoreCreateInfo const &, vk::Semaphore *, std::string const &name) const;
+    void CreateFence(vk::FenceCreateInfo const &, vk::Fence *, std::string const &name) const;
+    void CreateFramebuffer(vk::FramebufferCreateInfo const &, vk::Framebuffer *, std::string const &name) const;
+    void CreateRenderPass(vk::RenderPassCreateInfo const &, vk::RenderPass *, std::string const &name) const;
+    void CreateImageAndBindMemory(vk::ImageCreateInfo const &, vk::Image *, vk::DeviceMemory *,
+                                  std::string const &name) const;
+    void CreateBufferAndBindMemory(vk::BufferCreateInfo const &, vk::Buffer *, vk::DeviceMemory *,
+                                   std::string const &name) const;
     void MapMemory(vk::DeviceMemory, void **mappedMemory) const;
-    void FlushMappedMemoryRange(const vk::MappedMemoryRange &mappedMemoryRange) const;
-    void CreateImageView(const vk::ImageViewCreateInfo &, vk::ImageView *, const std::string &name) const;
-    vk::Sampler CreateSampler(const vk::SamplerCreateInfo &, const std::string &name) const;
-    void AllocateDescriptorSet(const vk::DescriptorSetAllocateInfo &, vk::DescriptorSet *,
-                               const std::string &name) const;
-    void UpdateDescriptorSet(const vk::WriteDescriptorSet &) const;
+    void FlushMappedMemoryRange(vk::MappedMemoryRange const &mappedMemoryRange) const;
+    void CreateImageView(vk::ImageViewCreateInfo const &, vk::ImageView *, std::string const &name) const;
+    vk::Sampler CreateSampler(vk::SamplerCreateInfo const &, std::string const &name) const;
+    void AllocateDescriptorSet(vk::DescriptorSetAllocateInfo const &, vk::DescriptorSet *,
+                               std::string const &name) const;
+    void UpdateDescriptorSet(vk::WriteDescriptorSet const &) const;
     void FreeDescriptorSets(vk::DescriptorPool, std::vector<vk::DescriptorSet>) const;
-    void CreateSwapchainKHR(const vk::SwapchainCreateInfoKHR &, vk::SwapchainKHR *, const std::string &name) const;
-    void CreateDescriptorPool(const vk::DescriptorPoolCreateInfo &, vk::DescriptorPool *,
-                              const std::string &name) const;
-    void CreateDescriptorSetLayout(const vk::DescriptorSetLayoutCreateInfo &, vk::DescriptorSetLayout *,
-                                   const std::string &name) const;
-    void CreateShaderModule(const std::vector<char> &code, vk::ShaderModule *, const std::string &name) const;
-    void CreatePipelineLayout(const vk::PipelineLayoutCreateInfo &, vk::PipelineLayout *,
-                              const std::string &name) const;
-    void CreateGraphicsPipeline(const vk::GraphicsPipelineCreateInfo &, vk::Pipeline *, const std::string &name) const;
+    void CreateSwapchainKHR(vk::SwapchainCreateInfoKHR const &, vk::SwapchainKHR *, std::string const &name) const;
+    void CreateDescriptorPool(vk::DescriptorPoolCreateInfo const &, vk::DescriptorPool *,
+                              std::string const &name) const;
+    void CreateDescriptorSetLayout(vk::DescriptorSetLayoutCreateInfo const &, vk::DescriptorSetLayout *,
+                                   std::string const &name) const;
+    void CreateShaderModule(std::vector<char> const &code, vk::ShaderModule *, std::string const &name) const;
+    void CreatePipelineLayout(vk::PipelineLayoutCreateInfo const &, vk::PipelineLayout *,
+                              std::string const &name) const;
+    void CreateGraphicsPipeline(vk::GraphicsPipelineCreateInfo const &, vk::Pipeline *, std::string const &name) const;
 
     void AllocateCommandBuffers(std::vector<vk::CommandBuffer> *) const;
     void FreeCommandBuffers(std::vector<vk::CommandBuffer> *) const;
@@ -116,16 +116,16 @@ class Device
 
   protected:
     static QueueFamilyIndices FindQueueFamilies(vk::PhysicalDevice, vk::SurfaceKHR);
-    void PickPhysicalDevice(const std::vector<const char *> &requiredExtensions, vk::Instance, vk::SurfaceKHR);
+    void PickPhysicalDevice(std::vector<char const *> const &requiredExtensions, vk::Instance, vk::SurfaceKHR);
     vk::PhysicalDevice _physicalDevice;
 
-    void CreateLogicalDevice(const std::vector<const char *> &requiredExtensions, vk::PhysicalDevice, vk::SurfaceKHR,
-                             const std::string &name);
+    void CreateLogicalDevice(std::vector<char const *> const &requiredExtensions, vk::PhysicalDevice, vk::SurfaceKHR,
+                             std::string const &name);
     vk::Device _device;
     vk::Queue _graphicsQueue;
     vk::Queue _presentQueue;
 
-    void CreateCommandPool(vk::PhysicalDevice, vk::SurfaceKHR, const std::string &name);
+    void CreateCommandPool(vk::PhysicalDevice, vk::SurfaceKHR, std::string const &name);
     vk::CommandPool _commandPool;
 
     vk::DispatchLoaderDynamic _debugDispatch;
@@ -134,13 +134,13 @@ class Device
 };
 
 template <typename T>
-inline void Device::DebugNameObject(const T &object, vk::ObjectType objectType, const std::string &name) const
+inline void Device::DebugNameObject(T const &object, vk::ObjectType objectType, std::string const &name) const
 {
     check(_device);
 
     uint64_t handle = reinterpret_cast<uint64_t>(static_cast<typename T::CType>(object));
 
-    const vk::DebugUtilsObjectNameInfoEXT nameInfo{objectType, handle, name.c_str()};
+    vk::DebugUtilsObjectNameInfoEXT const nameInfo{objectType, handle, name.c_str()};
 
     _device.setDebugUtilsObjectNameEXT(nameInfo, _debugDispatch);
 }

@@ -21,11 +21,9 @@ class Editor
     Editor &operator=(Editor const &) = delete;
 
     void Free(const class Device *);
-    void Render(vk::CommandBuffer, class Graph *, const class Device *);
+    void Render(vk::CommandBuffer, class Camera *, class Graph *, const class Device *);
     void Update(float dt);
 
-    void BindToggle(void *, void (*)(void *, bool));
-    void UnbindToggle(void *);
     bool IsActive() const;
 
   protected:
@@ -33,8 +31,6 @@ class Editor
     vk::DescriptorPool _imguiDescriptorPool;
 
     static void ApplyImGuiTheme();
-
-    std::map<void *, void (*)(void *, bool)> _toggleDispatchers;
 
     bool _active;
     bool _freed;

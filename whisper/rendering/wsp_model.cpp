@@ -1,4 +1,4 @@
-#include "wsp_model.h"
+#include "wsp_model.hpp"
 
 using namespace wsp;
 

@@ -1,14 +1,15 @@
-#include "wsp_editor.h"
+#include "wsp_editor.hpp"
 
 // wsp
-#include "wsp_device.h"
-#include "wsp_devkit.h"
-#include "wsp_engine.h"
-#include "wsp_graph.h"
-#include "wsp_renderer.h"
-#include "wsp_static_utils.h"
-#include "wsp_swapchain.h"
-#include "wsp_window.h"
+#include "wsp_camera.hpp"
+#include "wsp_device.hpp"
+#include "wsp_devkit.hpp"
+#include "wsp_engine.hpp"
+#include "wsp_graph.hpp"
+#include "wsp_renderer.hpp"
+#include "wsp_static_utils.hpp"
+#include "wsp_swapchain.hpp"
+#include "wsp_window.hpp"
 
 // lib
 #include <imgui.h>
@@ -58,7 +59,7 @@ void Editor::Free(Device const *device)
     _freed = true;
 }
 
-void Editor::Render(vk::CommandBuffer commandBuffer, Graph *graph, Device const *device)
+void Editor::Render(vk::CommandBuffer commandBuffer, Camera *camera, Graph *graph, Device const *device)
 {
     TracyVkZone(Renderer::GetTracyCtx(), commandBuffer, "editor");
 
@@ -81,7 +82,12 @@ void Editor::Render(vk::CommandBuffer commandBuffer, Graph *graph, Device const 
         ImGui::Image((ImTextureID)(graph->GetTargetDescriptorSet().operator VkDescriptorSet()), size);
         if (oldSize.x != size.x && oldSize.y != size.y)
         {
-            _deferredQueue.push_back([=]() { graph->Resize(device, (size_t)size.x, (size_t)size.y); });
+            _deferredQueue.push_back([=]() {
+                check(graph);
+                graph->Resize(device, (size_t)size.x, (size_t)size.y);
+                check(camera);
+                camera->SetAspectRatio((float)size.x / (float)size.y);
+            });
             oldSize = size;
         }
         ImGui::End();
@@ -98,32 +104,10 @@ void Editor::Render(vk::CommandBuffer commandBuffer, Graph *graph, Device const 
 
 void Editor::Update(float dt)
 {
-    static bool wasActive = _active;
-    if (wasActive != _active)
-    {
-        for (auto &[who, func] : _toggleDispatchers)
-        {
-            func(who, _active);
-        }
-
-        wasActive = _active;
-    }
-
     for (std::function<void()> const &func : _deferredQueue)
     {
         func();
     }
-}
-
-void Editor::BindToggle(void *who, void (*func)(void *, bool))
-{
-    _toggleDispatchers[who] = func;
-    func(who, _active);
-}
-
-void Editor::UnbindToggle(void *who)
-{
-    _toggleDispatchers.erase(who);
 }
 
 bool Editor::IsActive() const

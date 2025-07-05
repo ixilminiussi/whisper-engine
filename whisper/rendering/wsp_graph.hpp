@@ -2,7 +2,7 @@
 #define WSP_GRAPH
 
 // flow
-#include "wsp_handles.h"
+#include "wsp_handles.hpp"
 
 // lib
 #include <variant>

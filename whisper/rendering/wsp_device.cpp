@@ -1,7 +1,7 @@
-#include "wsp_device.h"
+#include "wsp_device.hpp"
 
 // wsp
-#include "wsp_devkit.h"
+#include "wsp_devkit.hpp"
 
 // std
 #include <cassert>

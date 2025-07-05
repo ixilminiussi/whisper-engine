@@ -23,10 +23,10 @@ class Window
     Window(vk::Instance, size_t width, size_t height, std::string name);
     ~Window();
 
-    Window(const Window &) = delete;
-    Window &operator=(const Window &) = delete;
+    Window(Window const &) = delete;
+    Window &operator=(Window const &) = delete;
 
-    void Free(const vk::Instance &);
+    void Free(vk::Instance const &);
 
     bool ShouldClose() const;
 
@@ -44,7 +44,7 @@ class Window
     void SwapchainOpen(vk::CommandBuffer, vk::Image blittedImage = VK_NULL_HANDLE) const;
     void SwapchainFlush(vk::CommandBuffer);
 
-    void BindResizeCallback(void *, void (*)(void *, const Device *, size_t, size_t));
+    void BindResizeCallback(void *, void (*)(void *, Device const *, size_t, size_t));
     void UnbindResizeCallback(void *);
 
   private:
@@ -64,7 +64,7 @@ class Window
 
     vk::SurfaceKHR _surface;
 
-    std::map<void *, void (*)(void *, const Device *, size_t, size_t)> _resizeCallbacks;
+    std::map<void *, void (*)(void *, Device const *, size_t, size_t)> _resizeCallbacks;
 
     bool _freed;
 };

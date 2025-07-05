@@ -3,8 +3,8 @@
 
 #include <vulkan/vulkan.h>
 
-#include <wsp_engine.h>
-#include <wsp_graph.h>
+#include <wsp_engine.hpp>
+#include <wsp_graph.hpp>
 
 // lib
 #include <spdlog/spdlog.h>

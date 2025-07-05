@@ -1,6 +1,6 @@
-#include "wsp_camera.h"
+#include "wsp_camera.hpp"
 
-#include "wsp_devkit.h"
+#include "wsp_devkit.hpp"
 #include <glm/ext/matrix_clip_space.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -8,6 +8,22 @@ using namespace wsp;
 
 Camera::Camera() : _mode{ePerspective}, _aspectRatio{1.0}, _fov{80.f}
 {
+}
+
+void Camera::UpdateProjection()
+{
+    switch (_mode)
+    {
+    case eOrthographic:
+        _projectionMatrix = glm::ortho(_left, _right, _bottom, _top, _near, _far);
+        break;
+    case ePerspective:
+        check(glm::abs(_aspectRatio - std::numeric_limits<float>::epsilon()) > 0.0f);
+
+        _projectionMatrix = glm::perspective(glm::radians(_fov), _aspectRatio, _near, _far);
+        _projectionMatrix[1][1] *= -1.0f;
+        break;
+    }
 }
 
 glm::mat4 const &Camera::GetProjection() const
@@ -45,6 +61,33 @@ glm::vec3 Camera::GetPosition() const
     return glm::vec3(glm::inverse(_viewMatrix)[3]);
 }
 
+glm::vec3 Camera::GetUp() const
+{
+    return glm::vec3(glm::inverse(_viewMatrix)[1]);
+}
+
+glm::vec3 Camera::GetForward() const
+{
+    return glm::vec3(glm::inverse(_viewMatrix)[2]);
+}
+
+glm::vec3 Camera::GetRight() const
+{
+    return glm::vec3(glm::inverse(_viewMatrix)[0]);
+}
+
+float Camera::GetPitch() const
+{
+    return glm::asin(GetForward().y);
+}
+
+float Camera::GetYaw() const
+{
+    glm::vec3 forward = GetForward();
+    glm::vec3 forwardXZ = glm::normalize(glm::vec3(forward.x, 0.0f, forward.z));
+    return glm::atan(forwardXZ.x, forwardXZ.z);
+}
+
 void Camera::SetOrthographicProjection(float left, float right, float top, float bottom, float near, float far)
 {
     _left = left;
@@ -55,7 +98,7 @@ void Camera::SetOrthographicProjection(float left, float right, float top, float
     _far = far;
     _mode = eOrthographic;
 
-    updateProjection();
+    UpdateProjection();
 }
 
 void Camera::SetPerspectiveProjection(float fov, float aspectRatio, float near, float far)
@@ -66,7 +109,7 @@ void Camera::SetPerspectiveProjection(float fov, float aspectRatio, float near, 
     _fov = fov;
     _mode = ePerspective;
 
-    updateProjection();
+    UpdateProjection();
 }
 
 void Camera::LookTowards(glm::vec3 position, glm::vec3 direction, glm::vec3 up)
@@ -105,6 +148,12 @@ void Camera::LookXYZ(glm::vec3 position, glm::vec3 rotation)
     _viewMatrix[3][2] = -glm::dot(w, position);
 }
 
+void Camera::OnResizeCallback(void *camera, class Device const *, size_t width, size_t height)
+{
+    check(camera);
+    reinterpret_cast<Camera *>(camera)->SetAspectRatio((float)width / (float)height);
+}
+
 void Camera::SetAspectRatio(float aspectRatio)
 {
     if (aspectRatio != _aspectRatio)
@@ -112,7 +161,7 @@ void Camera::SetAspectRatio(float aspectRatio)
         _aspectRatio = aspectRatio;
     }
 
-    updateProjection();
+    UpdateProjection();
 }
 
 void Camera::SetNearPlane(float nearPlane)
@@ -123,20 +172,4 @@ void Camera::SetNearPlane(float nearPlane)
 void Camera::SetFarPlane(float farPlane)
 {
     _far = farPlane;
-}
-
-void Camera::updateProjection()
-{
-    switch (_mode)
-    {
-    case eOrthographic:
-        _projectionMatrix = glm::ortho(_left, _right, _bottom, _top, _near, _far);
-        break;
-    case ePerspective:
-        check(glm::abs(_aspectRatio - std::numeric_limits<float>::epsilon()) > 0.0f);
-
-        _projectionMatrix = glm::perspective(_fov, _aspectRatio, _near, _far);
-        _projectionMatrix[1][1] *= -1.0f;
-        break;
-    }
 }

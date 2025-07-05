@@ -1,6 +1,6 @@
-#include "wsp_engine.h"
+#include "wsp_engine.hpp"
 
-#include "wsp_renderer.h"
+#include "wsp_renderer.hpp"
 
 // lib
 #include <GLFW/glfw3.h>
@@ -42,12 +42,14 @@ bool Initialize()
     {
         renderer = new Renderer();
         renderer->NewWindow();
+        initialized = true;
     }
     catch (std::exception const &exception)
     {
         spdlog::critical("{0}", exception.what());
         return false;
     }
+
     return true;
 }
 

@@ -1,12 +1,13 @@
-#include "wsp_renderer.h"
-#include "wsp_device.h"
-#include "wsp_devkit.h"
-#include "wsp_editor.h"
-#include "wsp_engine.h"
-#include "wsp_global_ubo.h"
-#include "wsp_graph.h"
-#include "wsp_static_utils.h"
-#include "wsp_window.h"
+#include "wsp_renderer.hpp"
+#include "wsp_camera.hpp"
+#include "wsp_device.hpp"
+#include "wsp_devkit.hpp"
+#include "wsp_editor.hpp"
+#include "wsp_engine.hpp"
+#include "wsp_global_ubo.hpp"
+#include "wsp_graph.hpp"
+#include "wsp_static_utils.hpp"
+#include "wsp_window.hpp"
 
 // lib
 #include <GLFW/glfw3.h>
@@ -100,6 +101,7 @@ void Renderer::Run()
             Window *window = _windows[ID];
             Graph *graph = _graphs[ID];
             Editor *editor = _editors[ID];
+            Camera *camera = _camera[ID];
 
             check(window);
             check(graph);
@@ -120,7 +122,9 @@ void Renderer::Run()
             vk::CommandBuffer const commandBuffer = window->NextCommandBuffer(&frameIndex);
 
             GlobalUbo ubo{};
-            ubo.a = 0.5;
+            ubo.camera.view = camera->GetView();
+            ubo.camera.projection = camera->GetProjection();
+            ubo.camera.position = camera->GetPosition();
 
             graph->FlushUbo(&ubo, frameIndex, _device);
 
@@ -134,7 +138,7 @@ void Renderer::Run()
             {
                 window->SwapchainOpen(commandBuffer, graph->GetTargetImage());
             }
-            editor->Render(commandBuffer, graph, _device);
+            editor->Render(commandBuffer, camera, graph, _device);
 
             window->SwapchainFlush(commandBuffer);
             editor->Update(0.f);
@@ -144,13 +148,17 @@ void Renderer::Run()
             {
                 WasActive = editor->IsActive();
 
-                if (WasActive)
+                if (editor->IsActive())
                 {
                     window->UnbindResizeCallback(graph);
+                    window->UnbindResizeCallback(camera);
+                    graph->ChangeGoal(_device, Graph::eToDescriptorSet);
                 }
                 else
                 {
                     window->BindResizeCallback(graph, Graph::OnResizeCallback);
+                    window->BindResizeCallback(camera, Camera::OnResizeCallback);
+                    graph->ChangeGoal(_device, Graph::eToTransfer);
                 }
             }
 
@@ -160,7 +168,7 @@ void Renderer::Run()
     }
 }
 
-void Renderer::NewWindow()
+size_t Renderer::NewWindow()
 {
     _windows.emplace_back(new Window(_vkInstance, 1024, 1024, "test"));
     size_t ID = _windows.size() - 1;
@@ -203,7 +211,13 @@ void Renderer::NewWindow()
 
     _editors.emplace_back(new Editor(_windows[ID], _device, _vkInstance));
 
+    Camera *camera = new Camera();
+    camera->SetPerspectiveProjection(50.f, 1., 0.01f, 1000.f);
+    _camera.emplace_back(camera);
+
     spdlog::info("Engine: new window initialized");
+
+    return ID;
 }
 
 void Renderer::FreeWindow(Device const *device, size_t ID)

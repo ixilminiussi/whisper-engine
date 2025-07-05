@@ -1,7 +1,7 @@
 #ifndef WSP_RENDERER
 #define WSP_RENDERER
 
-#include "wsp_handles.h"
+#include "wsp_handles.hpp"
 #include <vulkan/vulkan.hpp>
 //
 #include <tracy/TracyVulkan.hpp>
@@ -21,7 +21,7 @@ class Renderer
     Renderer(Renderer const &) = delete;
     Renderer &operator=(Renderer const &) = delete;
 
-    void NewWindow();
+    size_t NewWindow();
     void Free();
     void Run();
 
@@ -45,6 +45,7 @@ class Renderer
     std::vector<class Window *> _windows;
     std::vector<class Editor *> _editors;
     std::vector<std::vector<Resource>> _resources;
+    std::vector<class Camera *> _camera;
 
     static class Device *_device;
     static vk::Instance _vkInstance;

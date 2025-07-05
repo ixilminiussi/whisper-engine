@@ -1,11 +1,11 @@
-#include "wsp_graph.h"
-#include "wsp_device.h"
-#include "wsp_devkit.h"
-#include "wsp_engine.h"
-#include "wsp_handles.h"
-#include "wsp_renderer.h"
-#include "wsp_static_utils.h"
-#include "wsp_swapchain.h"
+#include "wsp_graph.hpp"
+#include "wsp_device.hpp"
+#include "wsp_devkit.hpp"
+#include "wsp_engine.hpp"
+#include "wsp_handles.hpp"
+#include "wsp_renderer.hpp"
+#include "wsp_static_utils.hpp"
+#include "wsp_swapchain.hpp"
 
 // lib
 #include <client/TracyScoped.hpp>
