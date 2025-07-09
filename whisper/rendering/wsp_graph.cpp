@@ -525,6 +525,12 @@ void Graph::Render(vk::CommandBuffer commandBuffer)
         commandBuffer.setViewport(0, 1, &viewport);
         commandBuffer.setScissor(0, 1, &scissor);
 
+        if (passInfo.readsUniform)
+        {
+            commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, _pipelines.at(pass).pipelineLayout, 0, 1,
+                                             &_uboDescriptorSets[_currentFrameIndex], 0, nullptr);
+        }
+
         if (passInfo.reads.size() > 0)
         {
             std::vector<vk::DescriptorSet> descriptorSets;
@@ -535,15 +541,16 @@ void Graph::Render(vk::CommandBuffer commandBuffer)
                 descriptorSets.push_back(_descriptorSets.at(resource));
             }
 
-            commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, _pipelines.at(pass).pipelineLayout, 0,
-                                             descriptorSets.size(), descriptorSets.data(), 0, nullptr);
-        }
-
-        if (passInfo.readsUniform)
-        {
-            commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, _pipelines.at(pass).pipelineLayout,
-                                             passInfo.reads.size(), 1, &_uboDescriptorSets[_currentFrameIndex], 0,
-                                             nullptr);
+            if (passInfo.readsUniform)
+            {
+                commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, _pipelines.at(pass).pipelineLayout,
+                                                 1, 1, &_uboDescriptorSets[_currentFrameIndex], 0, nullptr);
+            }
+            if (passInfo.readsUniform)
+            {
+                commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, _pipelines.at(pass).pipelineLayout,
+                                                 0, 1, &_uboDescriptorSets[_currentFrameIndex], 0, nullptr);
+            }
         }
 
         commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, _pipelines.at(pass).pipeline);
