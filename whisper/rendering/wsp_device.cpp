@@ -473,7 +473,9 @@ void Device::CreateImageAndBindMemory(vk::ImageCreateInfo const &createInfo, vk:
 }
 
 void Device::CreateBufferAndBindMemory(vk::BufferCreateInfo const &createInfo, vk::Buffer *buffer,
-                                       vk::DeviceMemory *bufferMemory, std::string const &name) const
+                                       vk::DeviceMemory *bufferMemory,
+                                       vk::MemoryPropertyFlags const &memoryPropertyFlags,
+                                       std::string const &name) const
 {
     check(_device);
 
@@ -487,8 +489,7 @@ void Device::CreateBufferAndBindMemory(vk::BufferCreateInfo const &createInfo, v
 
     vk::MemoryAllocateInfo allocInfo{};
     allocInfo.allocationSize = memRequirements.size;
-    allocInfo.memoryTypeIndex =
-        FindMemoryType(memRequirements.memoryTypeBits, {vk::MemoryPropertyFlagBits::eHostVisible});
+    allocInfo.memoryTypeIndex = FindMemoryType(memRequirements.memoryTypeBits, memoryPropertyFlags);
 
     if (vk::Result const result = _device.allocateMemory(&allocInfo, nullptr, bufferMemory);
         result != vk::Result::eSuccess)
@@ -501,6 +502,19 @@ void Device::CreateBufferAndBindMemory(vk::BufferCreateInfo const &createInfo, v
 
     DebugNameObject(*buffer, vk::ObjectType::eBuffer, name);
     DebugNameObject(*bufferMemory, vk::ObjectType::eDeviceMemory, name + " device memory");
+}
+
+void Device::CopyBuffer(vk::Buffer source, vk::Buffer *destination, size_t size) const
+{
+    vk::CommandBuffer commandBuffer = BeginSingleTimeCommand();
+
+    vk::BufferCopy copyRegion{};
+    copyRegion.srcOffset = 0; // Optional
+    copyRegion.dstOffset = 0; // Optional
+    copyRegion.size = size;
+    commandBuffer.copyBuffer(source, *destination, 1, &copyRegion);
+
+    EndSingleTimeCommand(commandBuffer);
 }
 
 void Device::MapMemory(vk::DeviceMemory deviceMemory, void **mappedMemory) const

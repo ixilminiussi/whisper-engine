@@ -31,8 +31,7 @@ TracyVkCtx Renderer::GetTracyCtx()
 
 Renderer::Renderer()
     : _freed{false}, _validationLayers{"VK_LAYER_KHRONOS_validation"},
-      _deviceExtensions{vk::KHRSwapchainExtensionName, vk::KHRMaintenance2ExtensionName}, _graphs{}, _windows{},
-      _editors{}
+      _deviceExtensions{vk::KHRSwapchainExtensionName, vk::KHRMaintenance2ExtensionName}
 {
     spdlog::info("Engine: began initialization");
 
@@ -60,14 +59,14 @@ void Renderer::Free()
 
     spdlog::info("Renderer: began termination");
 
-    while (_windows.size() > 0)
-    {
-        FreeWindow(_device, 0);
-    }
+    _editor->Free(_device);
+    delete _editor;
 
-    _editors.clear();
-    _graphs.clear();
-    _windows.clear();
+    _graph->Free(_device);
+    delete _graph;
+
+    _window->Free(_vkInstance);
+    delete _window;
 
     auto func = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(static_cast<VkInstance>(_vkInstance),
                                                                            "vkDestroyDebugUtilsMessengerEXT");
@@ -94,98 +93,83 @@ void Renderer::Run()
 {
     check(_device);
 
-    while (_windows.size() > 0)
+    while (!_window->ShouldClose())
     {
-        for (size_t ID = 0; ID < _windows.size();)
+        check(_window);
+        check(_graph);
+        check(_editor);
+
+        FrameMarkStart("frame");
+
+        glfwPollEvents();
+
+        size_t frameIndex = 0;
+        vk::CommandBuffer const commandBuffer = _window->NextCommandBuffer(&frameIndex);
+
+        GlobalUbo ubo{};
+        ubo.camera.view = _camera->GetView();
+        ubo.camera.projection = _camera->GetProjection();
+        ubo.camera.position = _camera->GetPosition();
+
+        _graph->FlushUbo(&ubo, frameIndex, _device);
+
+        _graph->Render(commandBuffer);
+
+        if (_editor->IsActive())
         {
-            Window *window = _windows[ID];
-            Graph *graph = _graphs[ID];
-            Editor *editor = _editors[ID];
-            Camera *camera = _camera[ID];
+            _window->SwapchainOpen(commandBuffer);
+        }
+        else
+        {
+            _window->SwapchainOpen(commandBuffer, _graph->GetTargetImage());
+        }
+        _editor->Render(commandBuffer, _camera, _graph, _device);
 
-            check(window);
-            check(graph);
-            check(editor);
+        _window->SwapchainFlush(commandBuffer);
+        _editor->Update(0.f);
 
-            if (window->ShouldClose())
+        static bool WasActive = !_editor->IsActive();
+        if (WasActive != _editor->IsActive())
+        {
+            WasActive = _editor->IsActive();
+
+            if (_editor->IsActive())
             {
-                FreeWindow(_device, ID);
-                continue;
-            }
-
-            std::string frameName = "frame" + std::to_string(ID);
-            FrameMarkStart(frameName.c_str());
-
-            glfwPollEvents();
-
-            size_t frameIndex = 0;
-            vk::CommandBuffer const commandBuffer = window->NextCommandBuffer(&frameIndex);
-
-            GlobalUbo ubo{};
-            ubo.camera.view = camera->GetView();
-            ubo.camera.projection = camera->GetProjection();
-            ubo.camera.position = camera->GetPosition();
-
-            graph->FlushUbo(&ubo, frameIndex, _device);
-
-            graph->Render(commandBuffer);
-
-            if (editor->IsActive())
-            {
-                window->SwapchainOpen(commandBuffer);
+                _window->UnbindResizeCallback(_graph);
+                _window->UnbindResizeCallback(_camera);
+                _graph->ChangeGoal(_device, Graph::eToDescriptorSet);
             }
             else
             {
-                window->SwapchainOpen(commandBuffer, graph->GetTargetImage());
+                _window->BindResizeCallback(_graph, Graph::OnResizeCallback);
+                _window->BindResizeCallback(_camera, Camera::OnResizeCallback);
+                _graph->ChangeGoal(_device, Graph::eToTransfer);
             }
-            editor->Render(commandBuffer, camera, graph, _device);
-
-            window->SwapchainFlush(commandBuffer);
-            editor->Update(0.f);
-
-            static bool WasActive = !editor->IsActive();
-            if (WasActive != editor->IsActive())
-            {
-                WasActive = editor->IsActive();
-
-                if (editor->IsActive())
-                {
-                    window->UnbindResizeCallback(graph);
-                    window->UnbindResizeCallback(camera);
-                    graph->ChangeGoal(_device, Graph::eToDescriptorSet);
-                }
-                else
-                {
-                    window->BindResizeCallback(graph, Graph::OnResizeCallback);
-                    window->BindResizeCallback(camera, Camera::OnResizeCallback);
-                    graph->ChangeGoal(_device, Graph::eToTransfer);
-                }
-            }
-
-            FrameMarkEnd(frameName.c_str());
-            ID++;
         }
+
+        FrameMarkEnd("frame");
     }
 }
 
-size_t Renderer::NewWindow()
+void Renderer::Initialize()
 {
-    _windows.emplace_back(new Window(_vkInstance, 1024, 1024, "test"));
-    size_t ID = _windows.size() - 1;
-
-    if (!_device)
+    if (_device)
     {
-        _device = new Device();
-        _device->Initialize(_deviceExtensions, _vkInstance, _windows[ID]->GetSurface());
-        _device->CreateTracyContext(&tracyCtx);
+        spdlog::error("Engine: already initialized");
     }
 
-    _windows[ID]->Initialize(_device);
+    _window = new Window(_vkInstance, 1024, 1024, "test");
+
+    _device = new Device();
+    _device->Initialize(_deviceExtensions, _vkInstance, _window->GetSurface());
+    _device->CreateTracyContext(&tracyCtx);
+
+    _window->Initialize(_device);
 
     check(_device);
 
-    _graphs.emplace_back(new Graph(_device, _windows[ID]->GetExtent().width, _windows[ID]->GetExtent().height));
-    _graphs[ID]->SetUboSize(sizeof(GlobalUbo));
+    _graph = new Graph(_device, _window->GetExtent().width, _window->GetExtent().height);
+    _graph->SetUboSize(sizeof(GlobalUbo));
 
     ResourceCreateInfo resourceInfo{};
     resourceInfo.role = ResourceRole::eColor;
@@ -193,7 +177,7 @@ size_t Renderer::NewWindow()
     resourceInfo.clear.color = vk::ClearColorValue{0.1f, 0.1f, 0.1f, 1.0f};
     resourceInfo.debugName = "final";
 
-    Resource final = _graphs[ID]->NewResource(resourceInfo);
+    Resource final = _graph->NewResource(resourceInfo);
 
     PassCreateInfo passCreateInfo{};
     passCreateInfo.writes = {final};
@@ -204,37 +188,17 @@ size_t Renderer::NewWindow()
     passCreateInfo.debugName = "triangle render";
     passCreateInfo.execute = [](vk::CommandBuffer commandBuffer) { commandBuffer.draw(3, 1, 0, 0); };
 
-    _graphs[ID]->NewPass(passCreateInfo);
-    _graphs[ID]->Compile(_device, final, Graph::eToTransfer);
+    _graph->NewPass(passCreateInfo);
+    _graph->Compile(_device, final, Graph::eToDescriptorSet);
 
     _resources.push_back({final});
 
-    _editors.emplace_back(new Editor(_windows[ID], _device, _vkInstance));
+    _editor = new Editor(_window, _device, _vkInstance);
 
-    Camera *camera = new Camera();
-    camera->SetPerspectiveProjection(50.f, 1., 0.01f, 1000.f);
-    _camera.emplace_back(camera);
+    _camera = new Camera();
+    _camera->SetPerspectiveProjection(50.f, 1., 0.01f, 1000.f);
 
     spdlog::info("Engine: new window initialized");
-
-    return ID;
-}
-
-void Renderer::FreeWindow(Device const *device, size_t ID)
-{
-    check(ID < _windows.size());
-
-    _editors[ID]->Free(device);
-    delete _editors[ID];
-    _editors.erase(_editors.begin() + ID);
-
-    _graphs[ID]->Free(device);
-    delete _graphs[ID];
-    _graphs.erase(_graphs.begin() + ID);
-
-    _windows[ID]->Free(_vkInstance);
-    delete _windows[ID];
-    _windows.erase(_windows.begin() + ID);
 }
 
 void Renderer::CreateInstance()

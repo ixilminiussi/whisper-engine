@@ -6,7 +6,6 @@
 
 // std
 #include <functional>
-#include <map>
 
 namespace wsp
 {
@@ -14,21 +13,26 @@ namespace wsp
 class Editor
 {
   public:
-    Editor(const class Window *, const class Device *, vk::Instance);
+    Editor(class Window const *, class Device const *, vk::Instance);
     ~Editor();
 
     Editor(Editor const &) = delete;
     Editor &operator=(Editor const &) = delete;
 
-    void Free(const class Device *);
-    void Render(vk::CommandBuffer, class Camera *, class Graph *, const class Device *);
+    void Free(class Device const *);
+    void Render(vk::CommandBuffer, class Camera *, class Graph *, class Device const *);
     void Update(float dt);
 
     bool IsActive() const;
 
   protected:
-    void InitImGui(const class Window *, const class Device *, vk::Instance);
+    void InitImGui(class Window const *, class Device const *, vk::Instance);
     vk::DescriptorPool _imguiDescriptorPool;
+
+    void InitDockspace(unsigned int dockspaceID);
+
+    void RenderDockspace();
+    void RenderViewport(class Device const *, class Camera *, class Graph *);
 
     static void ApplyImGuiTheme();
 

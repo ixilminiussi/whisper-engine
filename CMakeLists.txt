@@ -129,6 +129,9 @@ add_library(
   ${imgui_SOURCE_DIR}/backends/imgui_impl_glfw.cpp
   ${imgui_SOURCE_DIR}/backends/imgui_impl_vulkan.cpp)
 
+target_compile_definitions(imgui PUBLIC IMGUI_ENABLE_DOCKING
+                                        IMGUI_ENABLE_VIEWPORTS)
+
 target_include_directories(imgui PUBLIC ${imgui_SOURCE_DIR}
                                         ${imgui_SOURCE_DIR}/backends)
 

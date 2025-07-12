@@ -19,21 +19,21 @@ class Swapchain
   public:
     static constexpr int MAX_FRAMES_IN_FLIGHT = 2;
 
-    Swapchain(const class Window *, const class Device *, vk::Extent2D, vk::SwapchainKHR oldSwapchain = VK_NULL_HANDLE);
+    Swapchain(class Window const *, class Device const *, vk::Extent2D, vk::SwapchainKHR oldSwapchain = VK_NULL_HANDLE);
     ~Swapchain();
 
-    Swapchain(const Swapchain &) = delete;
-    Swapchain &operator=(const Swapchain &) = delete;
+    Swapchain(Swapchain const &) = delete;
+    Swapchain &operator=(Swapchain const &) = delete;
 
-    void Free(const class Device *, bool silent = false);
+    void Free(class Device const *, bool silent = false);
 
 #ifndef NDEBUG
     void PopulateImGuiInitInfo(ImGui_ImplVulkan_InitInfo *initInfo) const;
 #endif
 
-    void SubmitCommandBuffer(const class Device *, vk::CommandBuffer commandBuffer);
+    void SubmitCommandBuffer(class Device const *, vk::CommandBuffer commandBuffer);
 
-    [[nodiscard]] vk::CommandBuffer NextCommandBuffer(const class Device *);
+    [[nodiscard]] vk::CommandBuffer NextCommandBuffer(class Device const *);
 
     vk::SwapchainKHR GetHandle() const;
     size_t GetCurrentFrameIndeex() const;
@@ -43,22 +43,22 @@ class Swapchain
     void SkipBlit(vk::CommandBuffer) const;
 
   protected:
-    void AcquireNextImage(const class Device *);
+    void AcquireNextImage(class Device const *);
 
-    static vk::SurfaceFormatKHR ChooseSwapSurfaceFormat(const std::vector<vk::SurfaceFormatKHR> &);
-    static vk::PresentModeKHR ChooseSwapPresentMode(const std::vector<vk::PresentModeKHR> &);
-    static vk::Extent2D ChooseSwapExtent(vk::Extent2D, const vk::SurfaceCapabilitiesKHR &);
+    static vk::SurfaceFormatKHR ChooseSwapSurfaceFormat(std::vector<vk::SurfaceFormatKHR> const &);
+    static vk::PresentModeKHR ChooseSwapPresentMode(std::vector<vk::PresentModeKHR> const &);
+    static vk::Extent2D ChooseSwapExtent(vk::Extent2D, vk::SurfaceCapabilitiesKHR const &);
 
-    void CreateImageViews(const class Device *, size_t count);
+    void CreateImageViews(class Device const *, size_t count);
     std::vector<vk::ImageView> _imageViews;
 
-    void CreateRenderPass(const class Device *);
+    void CreateRenderPass(class Device const *);
     vk::RenderPass _renderPass;
 
-    void CreateFramebuffers(const class Device *, size_t count);
+    void CreateFramebuffers(class Device const *, size_t count);
     std::vector<vk::Framebuffer> _framebuffers;
 
-    void CreateSyncObjects(const class Device *, size_t count);
+    void CreateSyncObjects(class Device const *, size_t count);
     std::vector<vk::Semaphore> _imageAvailableSemaphores;
     std::vector<vk::Semaphore> _renderFinishedSemaphores;
     std::vector<vk::Fence> _inFlightFences;
@@ -70,7 +70,7 @@ class Swapchain
     vk::Extent2D _extent;
     uint32_t _minImageCount;
 
-    void CreateCommandBuffers(const class Device *);
+    void CreateCommandBuffers(class Device const *);
     std::vector<vk::CommandBuffer> _commandBuffers;
 
     uint32_t _currentImageIndex;

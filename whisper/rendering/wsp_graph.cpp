@@ -965,7 +965,9 @@ void Graph::BuildUbo(Device const *device, bool silent)
         createInfo.size = _uboSize;
         createInfo.usage = vk::BufferUsageFlagBits::eUniformBuffer;
 
-        device->CreateBufferAndBindMemory(createInfo, &uboBuffer, &uboDeviceMemory, "ubo buffer " + std::to_string(i));
+        device->CreateBufferAndBindMemory(createInfo, &uboBuffer, &uboDeviceMemory,
+                                          {vk::MemoryPropertyFlagBits::eHostVisible},
+                                          "ubo buffer " + std::to_string(i));
 
         _uboBuffers.push_back(uboBuffer);
         _uboDeviceMemories.push_back(uboDeviceMemory);

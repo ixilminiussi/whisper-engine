@@ -38,7 +38,7 @@ class Window
 
     vk::SurfaceKHR GetSurface() const;
 
-    void Initialize(const class Device *);
+    void Initialize(class Device const *);
 
     vk::CommandBuffer NextCommandBuffer(size_t *frameIndex);
     void SwapchainOpen(vk::CommandBuffer, vk::Image blittedImage = VK_NULL_HANDLE) const;
@@ -60,7 +60,7 @@ class Window
     GLFWwindow *_glfwWindow;
 
     class Swapchain *_swapchain;
-    const class Device *_device;
+    class Device const *_device;
 
     vk::SurfaceKHR _surface;
 

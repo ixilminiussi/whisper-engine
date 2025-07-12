@@ -28,28 +28,33 @@ class Model
         bool operator==(Vertex const &other) const;
     };
 
+    Model(class Device const *, std::vector<Vertex> const &, std::vector<uint32_t> const &);
     Model(class Device const *, std::string const &filepath);
     ~Model();
 
     Model(Model const &) = delete;
     Model &operator=(Model const &) = delete;
 
-    void Free();
+    void Free(class Device const *);
 
     void Bind(vk::CommandBuffer commandBuffer);
     void Draw(vk::CommandBuffer commandBuffer);
 
   private:
-    static void loadFromFile(std::string const &filepath, std::vector<Vertex> *vertices,
-                             std::vector<uint32_t> *indices);
+    static void LoadFromFile(std::string const &filepath, std::vector<Vertex> *, std::vector<uint32_t> *);
+
+    void CreateVertexBuffers(Device const *, std::vector<Vertex> const &);
+    void CreateIndexBuffers(Device const *, std::vector<uint32_t> const &);
 
     std::string _filepath;
 
     vk::Buffer _vertexBuffer;
+    vk::DeviceMemory _vertexDeviceMemory;
     uint32_t _vertexCount;
 
     bool _hasIndexBuffer;
     vk::Buffer _indexBuffer;
+    vk::DeviceMemory _indexDeviceMemory;
     uint32_t _indexCount;
 
     bool _freed;

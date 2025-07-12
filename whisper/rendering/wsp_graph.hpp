@@ -30,7 +30,7 @@ class Graph
     static size_t const SAMPLER_COLOR_REPEATED;
     static size_t const MAX_SAMPLER_SETS;
 
-    Graph(const class Device *, size_t width, size_t height);
+    Graph(class Device const *, size_t width, size_t height);
     ~Graph();
 
     Graph(Graph const &) = delete;
@@ -49,9 +49,9 @@ class Graph
     vk::Image GetTargetImage() const;
     vk::DescriptorSet GetTargetDescriptorSet() const;
 
-    void ChangeGoal(const class Device *, GraphGoal);
+    void ChangeGoal(class Device const *, GraphGoal);
     void Resize(Device const *, size_t width, size_t height);
-    static void OnResizeCallback(void *, const class Device *, size_t width, size_t height);
+    static void OnResizeCallback(void *, class Device const *, size_t width, size_t height);
 
   protected:
     struct PipelineHolder

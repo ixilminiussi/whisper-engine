@@ -67,7 +67,8 @@ class Device
     void CreateImageAndBindMemory(vk::ImageCreateInfo const &, vk::Image *, vk::DeviceMemory *,
                                   std::string const &name) const;
     void CreateBufferAndBindMemory(vk::BufferCreateInfo const &, vk::Buffer *, vk::DeviceMemory *,
-                                   std::string const &name) const;
+                                   vk::MemoryPropertyFlags const &, std::string const &name) const;
+    void CopyBuffer(vk::Buffer source, vk::Buffer *destination, size_t size) const;
     void MapMemory(vk::DeviceMemory, void **mappedMemory) const;
     void FlushMappedMemoryRange(vk::MappedMemoryRange const &mappedMemoryRange) const;
     void CreateImageView(vk::ImageViewCreateInfo const &, vk::ImageView *, std::string const &name) const;

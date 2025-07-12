@@ -2,7 +2,8 @@
 #define WSP_STATIC_UTILS
 
 // lib
-#include <imgui.h>
+#include "imgui.h"
+#include <GLFW/glfw3.h>
 #include <spdlog/spdlog.h>
 #include <vulkan/vulkan.h>
 #include <vulkan/vulkan.hpp>
@@ -24,7 +25,7 @@ inline float decodeSRGB(float c)
         return powf((c + 0.055f) / 1.055f, 2.4f);
 }
 
-inline ImVec4 decodeSRGB(const ImVec4 &srgb)
+inline ImVec4 decodeSRGB(ImVec4 const &srgb)
 {
     return ImVec4(decodeSRGB(srgb.x), decodeSRGB(srgb.y), decodeSRGB(srgb.z), srgb.w);
 }
@@ -35,7 +36,7 @@ static vk::DebugUtilsMessengerEXT debugMessenger{nullptr};
 
 inline VKAPI_ATTR vk::Bool32 VKAPI_CALL DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
                                                       VkDebugUtilsMessageTypeFlagsEXT messageType,
-                                                      const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData,
+                                                      VkDebugUtilsMessengerCallbackDataEXT const *pCallbackData,
                                                       void *pUserData)
 {
     switch (messageSeverity)
@@ -57,10 +58,10 @@ inline VKAPI_ATTR vk::Bool32 VKAPI_CALL DebugCallback(VkDebugUtilsMessageSeverit
     return VK_FALSE;
 }
 
-inline vk::Result CreateDebugUtilsMessengerEXT(const vk::Instance instance,
-                                               const vk::DebugUtilsMessengerCreateInfoEXT *pCreateInfo,
-                                               const vk::AllocationCallbacks *pAllocator,
-                                               const vk::DebugUtilsMessengerEXT *pDebugMessenger)
+inline vk::Result CreateDebugUtilsMessengerEXT(vk::Instance const instance,
+                                               vk::DebugUtilsMessengerCreateInfoEXT const *pCreateInfo,
+                                               vk::AllocationCallbacks const *pAllocator,
+                                               vk::DebugUtilsMessengerEXT const *pDebugMessenger)
 {
     auto func = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
     if (func != nullptr)
@@ -76,7 +77,7 @@ inline vk::Result CreateDebugUtilsMessengerEXT(const vk::Instance instance,
 }
 
 inline void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger,
-                                          const VkAllocationCallbacks *pAllocator)
+                                          VkAllocationCallbacks const *pAllocator)
 {
     auto func = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
     if (func != nullptr)
@@ -86,7 +87,7 @@ inline void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMesse
 }
 #endif
 
-inline std::vector<char> ReadShaderFile(const std::string &filepath)
+inline std::vector<char> ReadShaderFile(std::string const &filepath)
 {
     std::ifstream file{std::string(SHADER_FILES) + filepath, std::ios::ate | std::ios::binary};
     if (!file.is_open())
@@ -94,7 +95,7 @@ inline std::vector<char> ReadShaderFile(const std::string &filepath)
         throw std::runtime_error("failed to open file: " + filepath);
     }
 
-    const size_t fileSize = static_cast<size_t>(file.tellg());
+    size_t const fileSize = static_cast<size_t>(file.tellg());
     std::vector<char> buffer(fileSize);
 
     file.seekg(0);

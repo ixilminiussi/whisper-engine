@@ -21,14 +21,14 @@ class Renderer
     Renderer(Renderer const &) = delete;
     Renderer &operator=(Renderer const &) = delete;
 
-    size_t NewWindow();
+    void Initialize();
     void Free();
     void Run();
 
     static TracyVkCtx GetTracyCtx();
 
   private:
-    void FreeWindow(const class Device *, size_t ID);
+    void Free(class Device const *);
 
     void CreateInstance();
     std::vector<char const *> GetRequiredExtensions();
@@ -41,11 +41,11 @@ class Renderer
     std::vector<char const *> const _validationLayers;
     std::vector<char const *> const _deviceExtensions;
 
-    std::vector<class Graph *> _graphs;
-    std::vector<class Window *> _windows;
-    std::vector<class Editor *> _editors;
-    std::vector<std::vector<Resource>> _resources;
-    std::vector<class Camera *> _camera;
+    class Graph *_graph;
+    class Window *_window;
+    class Editor *_editor;
+    std::vector<Resource> _resources;
+    class Camera *_camera;
 
     static class Device *_device;
     static vk::Instance _vkInstance;

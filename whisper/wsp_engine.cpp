@@ -41,7 +41,7 @@ bool Initialize()
     try
     {
         renderer = new Renderer();
-        renderer->NewWindow();
+        renderer->Initialize();
         initialized = true;
     }
     catch (std::exception const &exception)

@@ -1,15 +1,57 @@
 #include "wsp_model.hpp"
 
+#include "wsp_device.hpp"
+#include "wsp_devkit.hpp"
+
 // lib
 #include <spdlog/spdlog.h>
+#include <stdexcept>
+#include <vulkan/vulkan_enums.hpp>
+#include <vulkan/vulkan_handles.hpp>
 #define TINYOBJLOADER_IMPLEMENTATION
 #include <tiny_obj_loader.h>
 
 using namespace wsp;
 
-Model::Model(Device const *device, std::string const &filepath)
+Model::Model(Device const *device, std::vector<Vertex> const &vertices, std::vector<uint32_t> const &indices)
 {
-    loadFromFile(filepath);
+    CreateVertexBuffers(device, vertices);
+    CreateIndexBuffers(device, indices);
+}
+
+Model::Model(Device const *device, std::string const &filepath) : _freed{false}
+{
+    std::vector<Vertex> vertices{};
+    std::vector<uint32_t> indices{};
+    LoadFromFile(filepath, &vertices, &indices);
+    CreateVertexBuffers(device, vertices);
+    CreateIndexBuffers(device, indices);
+}
+
+Model::~Model()
+{
+    if (!_freed)
+    {
+        spdlog::critical("Model: forgot to Free before deletion");
+    }
+}
+
+void Model::Free(Device const *device)
+{
+    if (_freed)
+    {
+        spdlog::error("Model: already freed model");
+        return;
+    }
+    _freed = true;
+
+    device->DestroyBuffer(_vertexBuffer);
+    device->FreeDeviceMemory(_vertexDeviceMemory);
+
+    device->DestroyBuffer(_indexBuffer);
+    device->FreeDeviceMemory(_indexDeviceMemory);
+
+    spdlog::info("Model: freed");
 }
 
 vk::PipelineVertexInputStateCreateInfo Model::Vertex::GetVertexInputInfo()
@@ -59,7 +101,7 @@ bool Model::Vertex::operator==(Vertex const &other) const
            material == other.material;
 }
 
-void Model::loadFromFile(std::string const &filepath, std::vector<Vertex> *vertices, std::vector<uint32_t> *indices)
+void Model::LoadFromFile(std::string const &filepath, std::vector<Vertex> *vertices, std::vector<uint32_t> *indices)
 {
     tinyobj::attrib_t attrib;
     std::vector<tinyobj::shape_t> shapes;
@@ -159,6 +201,86 @@ void Model::loadFromFile(std::string const &filepath, std::vector<Vertex> *verti
             index_offset += fv;
         }
     }
+}
+
+void Model::CreateVertexBuffers(Device const *device, std::vector<Vertex> const &vertices)
+{
+    check(device);
+
+    _vertexCount = static_cast<uint32_t>(vertices.size());
+    if (_vertexCount < 3)
+    {
+        throw std::invalid_argument("Model: model must have at least 3 vertices");
+    }
+
+    size_t const bufferSize = _vertexCount * sizeof(Vertex);
+
+    vk::Buffer stagingBuffer;
+    vk::DeviceMemory stagingDeviceMemory;
+
+    vk::BufferCreateInfo stagingBufferInfo{};
+    stagingBufferInfo.size = bufferSize;
+    stagingBufferInfo.usage = vk::BufferUsageFlagBits::eTransferSrc;
+
+    device->CreateBufferAndBindMemory(
+        stagingBufferInfo, &stagingBuffer, &stagingDeviceMemory,
+        {vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent},
+        "model vertex staging buffer");
+
+    void *mappedMemory;
+    device->MapMemory(stagingDeviceMemory, &mappedMemory);
+    memcpy(mappedMemory, vertices.data(), bufferSize);
+
+    vk::BufferCreateInfo bufferInfo{};
+    bufferInfo.size = bufferSize;
+    bufferInfo.usage = {vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst};
+
+    device->CreateBufferAndBindMemory(bufferInfo, &_vertexBuffer, &_vertexDeviceMemory,
+                                      {vk::MemoryPropertyFlagBits::eDeviceLocal}, "model vertex buffer");
+
+    device->CopyBuffer(stagingBuffer, &_vertexBuffer, bufferSize);
+    device->DestroyBuffer(stagingBuffer);
+    device->FreeDeviceMemory(stagingDeviceMemory);
+}
+
+void Model::CreateIndexBuffers(Device const *device, std::vector<uint32_t> const &indices)
+{
+    if (!device)
+        return;
+
+    _indexCount = static_cast<uint32_t>(indices.size());
+    _hasIndexBuffer = _indexCount > 0;
+
+    if (!_hasIndexBuffer)
+        return;
+
+    size_t const bufferSize = sizeof(uint32_t) * _indexCount;
+
+    vk::Buffer stagingBuffer;
+    vk::DeviceMemory stagingDeviceMemory;
+
+    vk::BufferCreateInfo stagingBufferInfo{};
+    stagingBufferInfo.size = bufferSize;
+    stagingBufferInfo.usage = vk::BufferUsageFlagBits::eTransferSrc;
+
+    device->CreateBufferAndBindMemory(
+        stagingBufferInfo, &stagingBuffer, &stagingDeviceMemory,
+        {vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent}, "model staging buffer");
+
+    void *mappedMemory;
+    device->MapMemory(stagingDeviceMemory, &mappedMemory);
+    memcpy(mappedMemory, indices.data(), bufferSize);
+
+    vk::BufferCreateInfo bufferInfo{};
+    bufferInfo.size = bufferSize;
+    bufferInfo.usage = {vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eTransferDst};
+
+    device->CreateBufferAndBindMemory(bufferInfo, &_indexBuffer, &_indexDeviceMemory,
+                                      {vk::MemoryPropertyFlagBits::eDeviceLocal}, "model buffer");
+
+    device->CopyBuffer(stagingBuffer, &_indexBuffer, bufferSize);
+    device->DestroyBuffer(stagingBuffer);
+    device->FreeDeviceMemory(stagingDeviceMemory);
 }
 
 void Model::Bind(vk::CommandBuffer commandBuffer)

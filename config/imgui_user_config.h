@@ -1,0 +1,7 @@
+#ifndef IMGUI_CONFIG_H
+#define IMGUI_CONFIG_H
+
+#define IMGUI_ENABLE_DOCKING 1
+#define IMGUI_ENABLE_VIEWPORTS 1
+
+#endif

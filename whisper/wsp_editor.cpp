@@ -15,13 +15,14 @@
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_vulkan.h>
+#include <imgui_internal.h>
 #include <spdlog/spdlog.h>
 #include <vulkan/vulkan.hpp>
 #include <vulkan/vulkan_handles.hpp>
 
 using namespace wsp;
 
-Editor::Editor(Window const *window, Device const *device, vk::Instance instance) : _freed{false}, _active{false}
+Editor::Editor(Window const *window, Device const *device, vk::Instance instance) : _freed{false}, _active{true}
 {
     check(device);
     check(window);
@@ -71,26 +72,8 @@ void Editor::Render(vk::CommandBuffer commandBuffer, Camera *camera, Graph *grap
 
     if (_active)
     {
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
-        ImGui::Begin("Scene");
-        ImGui::PopStyleVar(3);
-
-        ImVec2 const size = ImGui::GetContentRegionAvail();
-        static ImVec2 oldSize = ImVec2(10, 10);
-        ImGui::Image((ImTextureID)(graph->GetTargetDescriptorSet().operator VkDescriptorSet()), size);
-        if (oldSize.x != size.x && oldSize.y != size.y)
-        {
-            _deferredQueue.push_back([=]() {
-                check(graph);
-                graph->Resize(device, (size_t)size.x, (size_t)size.y);
-                check(camera);
-                camera->SetAspectRatio((float)size.x / (float)size.y);
-            });
-            oldSize = size;
-        }
-        ImGui::End();
+        RenderDockspace();
+        RenderViewport(device, camera, graph);
     }
 
     ImGui::Begin("Controls");
@@ -100,6 +83,9 @@ void Editor::Render(vk::CommandBuffer commandBuffer, Camera *camera, Graph *grap
     ImGui::EndFrame();
     ImGui::Render();
     ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), commandBuffer);
+
+    ImGui::UpdatePlatformWindows();
+    ImGui::RenderPlatformWindowsDefault(nullptr, (void *)commandBuffer);
 }
 
 void Editor::Update(float dt)
@@ -115,6 +101,14 @@ bool Editor::IsActive() const
     return _active;
 }
 
+static int ImGui_CreateVkSurface(ImGuiViewport *viewport, ImU64 vk_instance, void const *vk_allocator,
+                                 ImU64 *out_surface)
+{
+    return (int)glfwCreateWindowSurface(
+        reinterpret_cast<VkInstance>(vk_instance), static_cast<GLFWwindow *>(viewport->PlatformHandle),
+        reinterpret_cast<VkAllocationCallbacks const *>(vk_allocator), reinterpret_cast<VkSurfaceKHR *>(out_surface));
+}
+
 void Editor::InitImGui(Window const *window, Device const *device, vk::Instance instance)
 {
     check(device);
@@ -122,7 +116,9 @@ void Editor::InitImGui(Window const *window, Device const *device, vk::Instance 
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
-    ImGuiIO const &io = ImGui::GetIO();
+    ImGuiIO &io = ImGui::GetIO();
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+    io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
     (void)io;
     ImGui::StyleColorsDark();
 
@@ -153,6 +149,9 @@ void Editor::InitImGui(Window const *window, Device const *device, vk::Instance 
     pipelineRenderingCreateInfo.colorAttachmentCount = 1;
     pipelineRenderingCreateInfo.pColorAttachmentFormats = &format;
 
+    ImGuiPlatformIO &platform_io = ImGui::GetPlatformIO();
+    platform_io.Platform_CreateVkSurface = &ImGui_CreateVkSurface;
+
     ImGui_ImplVulkan_InitInfo initInfo = {};
 #ifndef NDEBUG
     device->PopulateImGuiInitInfo(&initInfo);
@@ -169,6 +168,87 @@ void Editor::InitImGui(Window const *window, Device const *device, vk::Instance 
                                  16.0f);
 
     ApplyImGuiTheme();
+}
+
+void Editor::InitDockspace(unsigned int dockspaceID)
+{
+    ImGuiViewport *viewport = ImGui::GetMainViewport();
+
+    ImGui::DockBuilderRemoveNode(dockspaceID);
+    ImGui::DockBuilderAddNode(dockspaceID, ImGuiDockNodeFlags_DockSpace);
+    ImGui::DockBuilderSetNodeSize(dockspaceID, viewport->Size);
+
+    ImGuiID dock_mainID = dockspaceID;
+    ImGuiID leftID = ImGui::DockBuilderSplitNode(dock_mainID, ImGuiDir_Left, 0.2f, nullptr, &dock_mainID);
+    ImGuiID left_bottomID = ImGui::DockBuilderSplitNode(leftID, ImGuiDir_Down, 0.2f, nullptr, &leftID);
+    ImGuiID rightID = ImGui::DockBuilderSplitNode(dock_mainID, ImGuiDir_Right, 0.2f, nullptr, &dock_mainID);
+    ImGuiID bottomID = ImGui::DockBuilderSplitNode(dock_mainID, ImGuiDir_Down, 0.3f, nullptr, &dock_mainID);
+
+    // ImGui::DockBuilderDockWindow("Graphics Manager", left_bottomID);
+    // ImGui::DockBuilderDockWindow("World Manager", left_bottomID);
+    // ImGui::DockBuilderDockWindow("Inspector", rightID);
+    // ImGui::DockBuilderDockWindow("Logger", bottomID);
+    ImGui::DockBuilderDockWindow("Viewport", dock_mainID);
+    ImGui::DockBuilderDockWindow("Controls", leftID);
+
+    ImGui::DockBuilderFinish(dockspaceID);
+}
+
+void Editor::RenderDockspace()
+{
+    ImGuiViewport *viewport = ImGui::GetMainViewport();
+    ImGui::SetNextWindowPos(viewport->Pos);
+    ImGui::SetNextWindowSize(viewport->Size);
+    ImGui::SetNextWindowViewport(viewport->ID);
+
+    ImGuiWindowFlags window_flags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoTitleBar |
+                                    ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
+                                    ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
+
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+
+    ImGui::SetNextWindowPos(ImVec2(0, 0));
+    ImGui::Begin("DockSpace", nullptr, window_flags);
+    ImGui::PopStyleVar(3);
+
+    ImGuiID dockspaceID = ImGui::GetID("GlobalDockspace");
+    ImGui::DockSpace(dockspaceID, ImVec2(0, 0));
+
+    static bool firstCall{true};
+    if (firstCall)
+    {
+        InitDockspace(dockspaceID);
+        firstCall = false;
+    }
+
+    ImGui::End();
+}
+
+void Editor::RenderViewport(Device const *device, Camera *camera, Graph *graph)
+{
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+    ImGui::Begin("Viewport");
+    ImGui::PopStyleVar(3);
+
+    ImVec2 const size = ImGui::GetContentRegionAvail();
+    static ImVec2 oldSize = ImVec2(10, 10);
+    ImGui::Image((ImTextureID)(graph->GetTargetDescriptorSet().operator VkDescriptorSet()), size);
+    if (oldSize.x != size.x && oldSize.y != size.y)
+    {
+        _deferredQueue.push_back([=]() {
+            check(graph);
+            graph->Resize(device, (size_t)size.x, (size_t)size.y);
+            check(camera);
+            camera->SetAspectRatio((float)size.x / (float)size.y);
+        });
+        oldSize = size;
+    }
+
+    ImGui::End();
 }
 
 void Editor::ApplyImGuiTheme()

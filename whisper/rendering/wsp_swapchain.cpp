@@ -17,8 +17,7 @@
 
 using namespace wsp;
 
-Swapchain::Swapchain(const class Window *window, const class Device *device, vk::Extent2D extent2D,
-                     vk::SwapchainKHR oldSwapchain)
+Swapchain::Swapchain(Window const *window, Device const *device, vk::Extent2D extent2D, vk::SwapchainKHR oldSwapchain)
     : _freed{false}, _imageAvailableSemaphores{}, _renderFinishedSemaphores{}, _inFlightFences{}, _imagesInFlight{},
       _images{}, _currentImageIndex{0}, _currentFrameIndex{0}
 {
