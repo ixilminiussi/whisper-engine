@@ -6,12 +6,14 @@
 #include "wsp_engine.hpp"
 #include "wsp_global_ubo.hpp"
 #include "wsp_graph.hpp"
+#include "wsp_model.hpp"
 #include "wsp_static_utils.hpp"
 #include "wsp_window.hpp"
 
 // lib
 #include <GLFW/glfw3.h>
 #include <spdlog/spdlog.h>
+#include <tracy/Tracy.hpp>
 #include <vulkan/vulkan.hpp>
 
 // std
@@ -107,9 +109,7 @@ void Renderer::Run()
         vk::CommandBuffer const commandBuffer = _window->NextCommandBuffer(&frameIndex);
 
         GlobalUbo ubo{};
-        ubo.camera.view = _camera->GetView();
-        ubo.camera.projection = _camera->GetProjection();
-        ubo.camera.position = _camera->GetPosition();
+        ubo.camera.viewProjection = _camera->GetProjection() * _camera->GetView();
 
         _graph->FlushUbo(&ubo, frameIndex, _device);
 
@@ -153,6 +153,8 @@ void Renderer::Run()
 
 void Renderer::Initialize()
 {
+    ZoneScopedN("initialize");
+
     if (_device)
     {
         spdlog::error("Engine: already initialized");
@@ -171,39 +173,53 @@ void Renderer::Initialize()
     _graph = new Graph(_device, _window->GetExtent().width, _window->GetExtent().height);
     _graph->SetUboSize(sizeof(GlobalUbo));
 
-    ResourceCreateInfo resourceInfo{};
-    resourceInfo.role = ResourceRole::eColor;
-    resourceInfo.format = vk::Format::eR8G8B8A8Unorm;
-    resourceInfo.clear.color = vk::ClearColorValue{0.1f, 0.1f, 0.1f, 1.0f};
-    resourceInfo.debugName = "final";
+    ResourceCreateInfo colorInfo{};
+    colorInfo.role = ResourceRole::eColor;
+    colorInfo.format = vk::Format::eR8G8B8A8Unorm;
+    colorInfo.clear.color = vk::ClearColorValue{0.1f, 0.1f, 0.1f, 1.0f};
+    colorInfo.debugName = "color";
 
-    Resource final = _graph->NewResource(resourceInfo);
+    ResourceCreateInfo depthInfo{};
+    depthInfo.role = ResourceRole::eDepth;
+    depthInfo.format = vk::Format::eD16Unorm;
+    depthInfo.clear.depthStencil = vk::ClearDepthStencilValue{1.};
+    depthInfo.debugName = "depth";
+
+    Resource color = _graph->NewResource(colorInfo);
+    Resource depth = _graph->NewResource(depthInfo);
+
+    Model *model = new Model(_device, "assets/bunny.obj");
 
     PassCreateInfo passCreateInfo{};
-    passCreateInfo.writes = {final};
+    passCreateInfo.writes = {color, depth};
     passCreateInfo.reads = {};
     passCreateInfo.readsUniform = true;
-    passCreateInfo.vertFile = "triangle.vert.spv";
-    passCreateInfo.fragFile = "triangle.frag.spv";
+    passCreateInfo.vertexInputInfo = Model::Vertex::GetVertexInputInfo();
+    passCreateInfo.vertFile = "model.vert.spv";
+    passCreateInfo.fragFile = "model.frag.spv";
     passCreateInfo.debugName = "triangle render";
-    passCreateInfo.execute = [](vk::CommandBuffer commandBuffer) { commandBuffer.draw(3, 1, 0, 0); };
+    passCreateInfo.execute = [model](vk::CommandBuffer commandBuffer) {
+        model->Bind(commandBuffer);
+        model->Draw(commandBuffer);
+    };
 
     _graph->NewPass(passCreateInfo);
-    _graph->Compile(_device, final, Graph::eToDescriptorSet);
+    _graph->Compile(_device, color, Graph::eToDescriptorSet);
 
-    _resources.push_back({final});
+    _resources.push_back({color});
 
     _editor = new Editor(_window, _device, _vkInstance);
 
     _camera = new Camera();
-    _camera->SetPerspectiveProjection(50.f, 1., 0.01f, 1000.f);
+    _camera->SetPerspectiveProjection(40.f, 1., 0.01f, 1000.f);
+    _camera->LookAt({-0.5f, 0.f, -0.5f}, {0.f, 0.f, 0.f});
 
     spdlog::info("Engine: new window initialized");
 }
 
 void Renderer::CreateInstance()
 {
-    ZoneScopedN("CreateInstance");
+    ZoneScopedN("create vulkan instance");
 
 #ifndef NDEBUG
     if (!CheckValidationLayerSupport())

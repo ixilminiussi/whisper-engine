@@ -4,8 +4,10 @@
 #include "wsp_devkit.hpp"
 
 // lib
+#include <glm/geometric.hpp>
 #include <spdlog/spdlog.h>
 #include <stdexcept>
+#include <tracy/Tracy.hpp>
 #include <vulkan/vulkan_enums.hpp>
 #include <vulkan/vulkan_handles.hpp>
 #define TINYOBJLOADER_IMPLEMENTATION
@@ -56,12 +58,13 @@ void Model::Free(Device const *device)
 
 vk::PipelineVertexInputStateCreateInfo Model::Vertex::GetVertexInputInfo()
 {
-    std::vector<vk::VertexInputBindingDescription> bindingDescriptions(1);
+    static std::vector<vk::VertexInputBindingDescription> bindingDescriptions(1);
+
     bindingDescriptions[0].binding = 0;
     bindingDescriptions[0].stride = sizeof(Vertex);
     bindingDescriptions[0].inputRate = vk::VertexInputRate::eVertex;
 
-    std::vector<vk::VertexInputAttributeDescription> attributeDescriptions{};
+    static std::vector<vk::VertexInputAttributeDescription> attributeDescriptions{};
 
     attributeDescriptions.push_back({0, 0, vk::Format::eR32G32B32Sfloat, offsetof(Vertex, position)});
     attributeDescriptions.push_back({1, 0, vk::Format::eR32G32B32Sfloat, offsetof(Vertex, normal)});
@@ -78,22 +81,26 @@ vk::PipelineVertexInputStateCreateInfo Model::Vertex::GetVertexInputInfo()
     return vertexInputInfo;
 }
 
-template <> struct std::hash<wsp::Model::Vertex>
+struct IndexKey
 {
-    std::size_t operator()(wsp::Model::Vertex const &vertex) const noexcept
+    int v, n, t, m;
+    bool operator==(IndexKey const &o) const
     {
-        size_t h1 = std::hash<float>{}(vertex.position.x) ^ (std::hash<float>{}(vertex.position.y) << 1) ^
-                    (std::hash<float>{}(vertex.position.z) << 2);
-        size_t h2 = std::hash<float>{}(vertex.normal.x) ^ (std::hash<float>{}(vertex.normal.y) << 1) ^
-                    (std::hash<float>{}(vertex.normal.z) << 2);
-        size_t h3 = std::hash<float>{}(vertex.tangent.x) ^ (std::hash<float>{}(vertex.tangent.y) << 1) ^
-                    (std::hash<float>{}(vertex.tangent.z) << 2);
-        size_t h4 = std::hash<float>{}(vertex.uv.x) ^ (std::hash<float>{}(vertex.uv.y) << 1);
-        size_t h5 = std::hash<int>{}(vertex.material);
-
-        return (((((h1 ^ (h2 << 1)) >> 1) ^ h3) << 1) ^ h4) ^ (h5 << 1);
+        return v == o.v && n == o.n && t == o.t && m == o.m;
     }
 };
+
+namespace std
+{
+template <> struct hash<IndexKey>
+{
+    size_t operator()(IndexKey const &k) const noexcept
+    {
+        size_t h = (uint64_t(k.v) << 32) ^ (uint64_t(k.n) << 16) ^ (uint64_t(k.t) << 4) ^ uint64_t(k.m & 0xF);
+        return h;
+    }
+};
+} // namespace std
 
 bool Model::Vertex::operator==(Vertex const &other) const
 {
@@ -103,6 +110,7 @@ bool Model::Vertex::operator==(Vertex const &other) const
 
 void Model::LoadFromFile(std::string const &filepath, std::vector<Vertex> *vertices, std::vector<uint32_t> *indices)
 {
+    ZoneScopedN("load model");
     tinyobj::attrib_t attrib;
     std::vector<tinyobj::shape_t> shapes;
     std::vector<tinyobj::material_t> materials;
@@ -116,7 +124,10 @@ void Model::LoadFromFile(std::string const &filepath, std::vector<Vertex> *verti
     vertices->clear();
     indices->clear();
 
-    std::unordered_map<Vertex, uint32_t> uniqueVertices{};
+    std::unordered_map<IndexKey, uint32_t> uniqueVertices{};
+    vertices->reserve(attrib.vertices.size() / 3);
+    indices->reserve(shapes[0].mesh.indices.size());
+
     for (tinyobj::shape_t const &shape : shapes)
     {
         size_t index_offset = 0;
@@ -126,49 +137,71 @@ void Model::LoadFromFile(std::string const &filepath, std::vector<Vertex> *verti
             int fv = shape.mesh.num_face_vertices[f];     // usually 3
             int material_id = shape.mesh.material_ids[f]; // -1 means no material
 
-            std::vector<Vertex> face(fv);
+            std::vector<uint32_t> faceIndices(fv);
             for (int v = 0; v < fv; v++)
             {
                 tinyobj::index_t const &index = shape.mesh.indices[index_offset + v];
                 Vertex vertex{};
 
-                if (index.vertex_index >= 0)
+                IndexKey key{index.vertex_index, index.normal_index, index.texcoord_index, material_id};
+
+                auto it = uniqueVertices.find(key);
+                if (it == uniqueVertices.end())
                 {
-                    vertex.position = {
-                        attrib.vertices[3 * index.vertex_index + 0],
-                        attrib.vertices[3 * index.vertex_index + 1],
-                        attrib.vertices[3 * index.vertex_index + 2],
-                    };
+                    if (index.vertex_index >= 0)
+                    {
+                        vertex.position = {
+                            attrib.vertices[3 * index.vertex_index + 0],
+                            attrib.vertices[3 * index.vertex_index + 1],
+                            attrib.vertices[3 * index.vertex_index + 2],
+                        };
+                    }
+
+                    if (index.normal_index >= 0)
+                    {
+                        vertex.normal = {
+                            attrib.normals[3 * index.normal_index + 0],
+                            attrib.normals[3 * index.normal_index + 1],
+                            attrib.normals[3 * index.normal_index + 2],
+                        };
+                    }
+                    else
+                    {
+                        vertex.normal = glm::vec3(0.0f, 1.0f, 0.0f);
+                    }
+
+                    if (index.texcoord_index >= 0)
+                    {
+                        vertex.uv = {
+                            attrib.texcoords[2 * index.texcoord_index + 0],
+                            attrib.texcoords[2 * index.texcoord_index + 1],
+                        };
+                    }
+                    else
+                    {
+                        vertex.uv = glm::vec2(0.0f);
+                    }
+
+                    vertex.material = material_id;
+
+                    uint32_t newIndex = static_cast<uint32_t>(vertices->size());
+                    vertices->push_back(vertex);
+                    uniqueVertices[key] = newIndex;
+                    indices->push_back(newIndex);
+                }
+                else
+                {
+                    indices->push_back(it->second);
                 }
 
-                if (index.normal_index >= 0)
-                {
-                    vertex.normal = {
-                        attrib.normals[3 * index.normal_index + 0],
-                        attrib.normals[3 * index.normal_index + 1],
-                        attrib.normals[3 * index.normal_index + 2],
-                    };
-                }
-
-                if (index.texcoord_index >= 0)
-                {
-                    vertex.uv = {
-                        attrib.texcoords[2 * index.texcoord_index + 0],
-                        attrib.texcoords[2 * index.texcoord_index + 1],
-                    };
-                }
-
-                vertex.material = material_id;
-
-                face[v] = vertex;
+                faceIndices[v] = vertices->size() - 1; // used for tangents
             }
-
             // triangle via fan
             for (int v = 1; v < fv - 1; ++v)
             {
-                Vertex v0 = face[0];
-                Vertex v1 = face[v];
-                Vertex v2 = face[v + 1];
+                Vertex &v0 = vertices->at(faceIndices[v - 1]);
+                Vertex &v1 = vertices->at(faceIndices[v]);
+                Vertex &v2 = vertices->at(faceIndices[v + 1]);
 
                 // Tangent calculation
                 glm::vec3 edge1 = v1.position - v0.position;
@@ -179,28 +212,16 @@ void Model::LoadFromFile(std::string const &filepath, std::vector<Vertex> *verti
                 float f = 1.0f / (deltaUV1.x * deltaUV2.y - deltaUV2.x * deltaUV1.y);
                 glm::vec3 tangent = f * (edge1 * deltaUV2.y - edge2 * deltaUV1.y);
 
-                std::array<Vertex, 3> triVerts = {v0, v1, v2};
-                for (auto &vtx : triVerts)
-                {
-                    if (uniqueVertices.count(vtx) == 0)
-                    {
-                        vtx.tangent = tangent;
-                        uniqueVertices[vtx] = static_cast<uint32_t>(vertices->size());
-                        vertices->push_back(vtx);
-                    }
-                    else
-                    {
-                        uint32_t idx = uniqueVertices[vtx];
-                        vertices->at(idx).tangent += tangent;
-                    }
-
-                    indices->push_back(uniqueVertices[vtx]);
-                }
+                v0.tangent = glm::normalize(tangent);
+                v1.tangent = glm::normalize(tangent);
+                v2.tangent = glm::normalize(tangent);
             }
 
             index_offset += fv;
         }
     }
+
+    spdlog::info("Model: Loaded model with {} vertices, {} indices", vertices->size(), indices->size());
 }
 
 void Model::CreateVertexBuffers(Device const *device, std::vector<Vertex> const &vertices)

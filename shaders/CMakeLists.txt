@@ -1,25 +1,30 @@
-# shaders/CMakeLists.txt
+# shaders/CMakeLists.txt shaders/CMakeLists.txt
+cmake_minimum_required(VERSION 3.10)
+
+# Where your .vert/.frag live:
 set(SHADER_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
+# Where you want the .spv to end up:
 set(SHADER_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}")
 
-set(SHADER_FILES triangle.vert triangle.frag postprocess.vert postprocess.frag)
+# 1) Glob all .vert/.frag under SOURCE_DIR
+file(GLOB SHADER_FILES "${SHADER_SOURCE_DIR}/*.vert"
+     "${SHADER_SOURCE_DIR}/*.frag")
 
 set(COMPILED_SHADERS)
 
-foreach(SHADER ${SHADER_FILES})
-  set(INPUT_FILE "${SHADER_SOURCE_DIR}/${SHADER}")
-  set(OUTPUT_FILE "${SHADER_OUTPUT_DIR}/${SHADER}.spv")
+foreach(SHADER_PATH IN LISTS SHADER_FILES)
+  get_filename_component(SHADER_NAME ${SHADER_PATH} NAME)
+
+  set(OUTPUT_PATH "${SHADER_OUTPUT_DIR}/${SHADER_NAME}.spv")
+
   add_custom_command(
-    OUTPUT ${OUTPUT_FILE}
-    COMMAND glslc "${INPUT_FILE}" -o "${OUTPUT_FILE}"
-    DEPENDS ${INPUT_FILE}
-    COMMENT "Compiling shader ${SHADER}"
+    OUTPUT "${OUTPUT_PATH}"
+    COMMAND glslc -I "${SHADER_SOURCE_DIR}" "${SHADER_PATH}" -o "${OUTPUT_PATH}"
+    DEPENDS "${SHADER_PATH}"
+    COMMENT "Compiling shader ${SHADER_NAME}"
     VERBATIM)
-  list(APPEND COMPILED_SHADERS ${OUTPUT_FILE})
+
+  list(APPEND COMPILED_SHADERS "${OUTPUT_PATH}")
 endforeach()
 
 add_custom_target(CompileShaders ALL DEPENDS ${COMPILED_SHADERS})
-
-add_dependencies(whisper CompileShaders)
-
-add_definitions(-DSHADER_FILES="${SHADER_OUTPUT_DIR}"})
