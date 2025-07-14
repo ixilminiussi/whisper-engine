@@ -15,8 +15,6 @@ target_include_directories(whisper PUBLIC ${Tracy_SOURCE_DIR}/public)
 target_compile_definitions(whisper PRIVATE VULKAN_HPP_TYPESAFE_CONVERSION)
 target_compile_definitions(whisper PRIVATE TRACY_ENABLE)
 
-add_subdirectory(rendering)
-
 target_link_libraries(
   whisper
   PRIVATE TracyClient

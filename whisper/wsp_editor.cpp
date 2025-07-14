@@ -4,7 +4,9 @@
 #include "wsp_camera.hpp"
 #include "wsp_device.hpp"
 #include "wsp_devkit.hpp"
+#include "wsp_editor_camera.hpp"
 #include "wsp_engine.hpp"
+#include "wsp_global_ubo.hpp"
 #include "wsp_graph.hpp"
 #include "wsp_renderer.hpp"
 #include "wsp_static_utils.hpp"
@@ -26,6 +28,11 @@ Editor::Editor(Window const *window, Device const *device, vk::Instance instance
 {
     check(device);
     check(window);
+
+    // _camera = new EditorCamera();
+    _camera = new EditorCamera();
+    // _camera->SetPerspectiveProjection(40.f, 1., 0.01f, 1000.f);
+    // _camera->LookAt({-0.5f, 0.f, -0.5f}, {0.f, 0.f, 0.f});
 
     InitImGui(window, device, instance);
 }
@@ -60,8 +67,12 @@ void Editor::Free(Device const *device)
     _freed = true;
 }
 
-void Editor::Render(vk::CommandBuffer commandBuffer, Camera *camera, Graph *graph, Device const *device)
+void Editor::Render(vk::CommandBuffer commandBuffer, Graph *graph, Window *window, Device const *device)
 {
+    check(window);
+    check(graph);
+    check(device);
+
     TracyVkZone(Renderer::GetTracyCtx(), commandBuffer, "editor");
 
     _deferredQueue.clear();
@@ -73,11 +84,21 @@ void Editor::Render(vk::CommandBuffer commandBuffer, Camera *camera, Graph *grap
     if (_active)
     {
         RenderDockspace();
-        RenderViewport(device, camera, graph);
+        RenderViewport(device, graph);
     }
 
     ImGui::Begin("Controls");
-    ImGui::Checkbox("editor mode", &_active);
+    if (ImGui::Checkbox("editor mode", &_active))
+    {
+        if (_active)
+        {
+            window->UnbindResizeCallback(_camera);
+        }
+        else
+        {
+            window->BindResizeCallback(_camera, EditorCamera::OnResizeCallback);
+        }
+    }
     ImGui::End();
 
     ImGui::EndFrame();
@@ -88,17 +109,24 @@ void Editor::Render(vk::CommandBuffer commandBuffer, Camera *camera, Graph *grap
     ImGui::RenderPlatformWindowsDefault(nullptr, (void *)commandBuffer);
 }
 
-void Editor::Update(float dt)
+void Editor::Update(double dt)
 {
     for (std::function<void()> const &func : _deferredQueue)
     {
         func();
     }
+
+    _camera->OrbitYaw(1.f * dt);
 }
 
 bool Editor::IsActive() const
 {
     return _active;
+}
+
+void Editor::PopulateUbo(GlobalUbo *ubo)
+{
+    ubo->camera.viewProjection = _camera->GetCamera()->GetProjection() * _camera->GetCamera()->GetView();
 }
 
 static int ImGui_CreateVkSurface(ImGuiViewport *viewport, ImU64 vk_instance, void const *vk_allocator,
@@ -226,7 +254,7 @@ void Editor::RenderDockspace()
     ImGui::End();
 }
 
-void Editor::RenderViewport(Device const *device, Camera *camera, Graph *graph)
+void Editor::RenderViewport(Device const *device, Graph *graph)
 {
     ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
@@ -242,8 +270,8 @@ void Editor::RenderViewport(Device const *device, Camera *camera, Graph *graph)
         _deferredQueue.push_back([=]() {
             check(graph);
             graph->Resize(device, (size_t)size.x, (size_t)size.y);
-            check(camera);
-            camera->SetAspectRatio((float)size.x / (float)size.y);
+            check(_camera);
+            _camera->SetAspectRatio((float)size.x / (float)size.y);
         });
         oldSize = size;
     }

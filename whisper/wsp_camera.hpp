@@ -11,7 +11,7 @@ class Camera
 {
   public:
     Camera();
-    ~Camera();
+    ~Camera() = default;
 
     glm::mat4 const &GetProjection() const;
     glm::mat4 const &GetView() const;
@@ -29,7 +29,7 @@ class Camera
     float GetYaw() const;
 
     void SetOrthographicProjection(float left, float right, float top, float bottom, float near, float far);
-    void SetPerspectiveProjection(float fov, float aspect, float near, float far);
+    void SetPerspectiveProjection(float fov, float aspect, float nearPlane, float farPlane);
 
     void LookTowards(glm::vec3 position, glm::vec3 direction, glm::vec3 up = glm::vec3{0.f, -1.f, 0.f});
     void LookAt(glm::vec3 position, glm::vec3 target, glm::vec3 up = glm::vec3{0.f, -1.f, 0.f});
@@ -56,7 +56,7 @@ class Camera
 
     Mode _mode;
 
-    float _aspectRatio, _fov; // for perspective
+    float _aspectRatio, _fov, _nearPlane, _farPlane; // for perspective
 
     float _left, _right, _top, _bottom, _near, _far; // for orthographic
 };

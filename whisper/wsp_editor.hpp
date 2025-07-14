@@ -20,10 +20,12 @@ class Editor
     Editor &operator=(Editor const &) = delete;
 
     void Free(class Device const *);
-    void Render(vk::CommandBuffer, class Camera *, class Graph *, class Device const *);
-    void Update(float dt);
+    void Render(vk::CommandBuffer, class Graph *, class Window *, class Device const *);
+    void Update(double dt);
 
     bool IsActive() const;
+
+    void PopulateUbo(class GlobalUbo *);
 
   protected:
     void InitImGui(class Window const *, class Device const *, vk::Instance);
@@ -32,12 +34,14 @@ class Editor
     void InitDockspace(unsigned int dockspaceID);
 
     void RenderDockspace();
-    void RenderViewport(class Device const *, class Camera *, class Graph *);
+    void RenderViewport(class Device const *, class Graph *);
 
     static void ApplyImGuiTheme();
 
     bool _active;
     bool _freed;
+
+    class EditorCamera *_camera;
 
     std::vector<std::function<void()>> _deferredQueue;
 };

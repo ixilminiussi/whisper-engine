@@ -45,7 +45,6 @@ class Renderer
     class Window *_window;
     class Editor *_editor;
     std::vector<Resource> _resources;
-    class Camera *_camera;
 
     static class Device *_device;
     static vk::Instance _vkInstance;

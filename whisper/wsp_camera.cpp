@@ -20,7 +20,7 @@ void Camera::UpdateProjection()
     case ePerspective:
         check(glm::abs(_aspectRatio - std::numeric_limits<float>::epsilon()) > 0.0f);
 
-        _projectionMatrix = glm::perspective(glm::radians(_fov), _aspectRatio, _near, _far);
+        _projectionMatrix = glm::perspective(glm::radians(_fov), _aspectRatio, _nearPlane, _farPlane);
         _projectionMatrix[1][1] *= -1.0f;
         break;
     }
@@ -39,11 +39,6 @@ glm::mat4 const &Camera::GetView() const
 float Camera::GetFOV() const
 {
     return _fov;
-}
-
-void Camera::SetFOV(float FOV)
-{
-    _fov = FOV;
 }
 
 float Camera::GetNearPlane() const
@@ -101,11 +96,11 @@ void Camera::SetOrthographicProjection(float left, float right, float top, float
     UpdateProjection();
 }
 
-void Camera::SetPerspectiveProjection(float fov, float aspectRatio, float near, float far)
+void Camera::SetPerspectiveProjection(float fov, float aspectRatio, float nearPlane, float farPlane)
 {
     _aspectRatio = aspectRatio;
-    _near = near;
-    _far = far;
+    _nearPlane = nearPlane;
+    _farPlane = farPlane;
     _fov = fov;
     _mode = ePerspective;
 
@@ -166,10 +161,21 @@ void Camera::SetAspectRatio(float aspectRatio)
 
 void Camera::SetNearPlane(float nearPlane)
 {
-    _near = nearPlane;
+    _nearPlane = nearPlane;
+
+    UpdateProjection();
 }
 
 void Camera::SetFarPlane(float farPlane)
 {
-    _far = farPlane;
+    _farPlane = farPlane;
+
+    UpdateProjection();
+}
+
+void Camera::SetFOV(float FOV)
+{
+    _fov = FOV;
+
+    UpdateProjection();
 }
