@@ -23,9 +23,12 @@ class Renderer
 
     void Initialize();
     void Free();
-    void Run();
+    void Render() const;
+    void Update(double dt);
 
     static TracyVkCtx GetTracyCtx();
+
+    bool ShouldClose();
 
   private:
     void Free(class Device const *);

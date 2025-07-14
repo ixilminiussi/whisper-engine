@@ -31,6 +31,13 @@ TracyVkCtx Renderer::GetTracyCtx()
     return tracyCtx;
 }
 
+bool Renderer::ShouldClose()
+{
+    check(_window);
+
+    return _window->ShouldClose();
+}
+
 Renderer::Renderer()
     : _freed{false}, _validationLayers{"VK_LAYER_KHRONOS_validation"},
       _deviceExtensions{vk::KHRSwapchainExtensionName, vk::KHRMaintenance2ExtensionName}
@@ -91,71 +98,64 @@ void Renderer::Free()
     _freed = true;
 }
 
-void Renderer::Run()
+void Renderer::Render() const
 {
     check(_device);
+    check(_window);
+    check(_graph);
+    check(_editor);
 
-    auto start = std::chrono::system_clock::now();
-    while (!_window->ShouldClose())
+    FrameMarkStart("frame render");
+
+    glfwPollEvents();
+
+    size_t frameIndex = 0;
+    vk::CommandBuffer const commandBuffer = _window->NextCommandBuffer(&frameIndex);
+
+    GlobalUbo ubo{};
+
+    if (_editor->IsActive())
     {
-        auto end = std::chrono::system_clock::now();
-        std::chrono::duration<double> elapsedSeconds = end - start;
-        double dt = std::min(0.2, elapsedSeconds.count());
-        start = end;
+        _editor->PopulateUbo(&ubo);
+    }
 
-        check(_window);
-        check(_graph);
-        check(_editor);
+    _graph->FlushUbo(&ubo, frameIndex, _device);
 
-        FrameMarkStart("frame");
+    _graph->Render(commandBuffer);
 
-        glfwPollEvents();
+    if (_editor->IsActive())
+    {
+        _window->SwapchainOpen(commandBuffer);
+    }
+    else
+    {
+        _window->SwapchainOpen(commandBuffer, _graph->GetTargetImage());
+    }
+    _editor->Render(commandBuffer, _graph, _window, _device);
 
-        size_t frameIndex = 0;
-        vk::CommandBuffer const commandBuffer = _window->NextCommandBuffer(&frameIndex);
+    _window->SwapchainFlush(commandBuffer);
+    FrameMarkEnd("frame render");
+}
 
-        GlobalUbo ubo{};
+void Renderer::Update(double dt)
+{
+    _editor->Update(dt);
+
+    static bool WasActive = !_editor->IsActive();
+    if (WasActive != _editor->IsActive())
+    {
+        WasActive = _editor->IsActive();
 
         if (_editor->IsActive())
         {
-            _editor->PopulateUbo(&ubo);
-        }
-
-        _graph->FlushUbo(&ubo, frameIndex, _device);
-
-        _graph->Render(commandBuffer);
-
-        if (_editor->IsActive())
-        {
-            _window->SwapchainOpen(commandBuffer);
+            _window->UnbindResizeCallback(_graph);
+            _graph->ChangeGoal(_device, Graph::eToDescriptorSet);
         }
         else
         {
-            _window->SwapchainOpen(commandBuffer, _graph->GetTargetImage());
+            _window->BindResizeCallback(_graph, Graph::OnResizeCallback);
+            _graph->ChangeGoal(_device, Graph::eToTransfer);
         }
-        _editor->Render(commandBuffer, _graph, _window, _device);
-
-        _window->SwapchainFlush(commandBuffer);
-        _editor->Update(dt);
-
-        static bool WasActive = !_editor->IsActive();
-        if (WasActive != _editor->IsActive())
-        {
-            WasActive = _editor->IsActive();
-
-            if (_editor->IsActive())
-            {
-                _window->UnbindResizeCallback(_graph);
-                _graph->ChangeGoal(_device, Graph::eToDescriptorSet);
-            }
-            else
-            {
-                _window->BindResizeCallback(_graph, Graph::OnResizeCallback);
-                _graph->ChangeGoal(_device, Graph::eToTransfer);
-            }
-        }
-
-        FrameMarkEnd("frame");
     }
 }
 

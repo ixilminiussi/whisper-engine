@@ -1,5 +1,6 @@
 #include "wsp_engine.hpp"
 
+#include "wsp_devkit.hpp"
 #include "wsp_renderer.hpp"
 
 // lib
@@ -53,11 +54,30 @@ bool Initialize()
     return true;
 }
 
+double GetDeltaTime()
+{
+    static auto start = std::chrono::system_clock::now();
+    auto end = std::chrono::system_clock::now();
+    std::chrono::duration<double> elapsedSeconds = end - start;
+    double dt = std::min(0.2, elapsedSeconds.count());
+    start = end;
+
+    return dt;
+}
+
 void Run()
 {
     try
     {
-        renderer->Run();
+        check(renderer);
+        while (!renderer->ShouldClose())
+        {
+            renderer->Render();
+
+            double dt = GetDeltaTime();
+
+            renderer->Update(dt);
+        }
     }
     catch (std::exception const &exception)
     {
