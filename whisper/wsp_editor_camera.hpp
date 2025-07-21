@@ -1,16 +1,22 @@
 #ifndef WSP_EDITOR_CAMERA
 #define WSP_EDITOR_CAMERA
 
-#include "wsp_camera.hpp"
+#include <.generated/wsp_editor_camera.generated.hpp>
+
+#include <wsp_camera.hpp>
+#include <wsp_devkit.hpp>
 
 #include <glm/vec3.hpp>
 
 namespace wsp
 {
 
+FROST()
 class EditorCamera
 {
   public:
+    FROST_BODY$EditorCamera
+
     EditorCamera();
     ~EditorCamera() = default;
 
@@ -40,5 +46,7 @@ class EditorCamera
 };
 
 } // namespace wsp
+
+FROST_DATA$EditorCamera
 
 #endif

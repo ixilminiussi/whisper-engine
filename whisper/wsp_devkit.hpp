@@ -23,6 +23,7 @@
 #define check(expr) static_cast<void>(0)
 #endif
 
-#define PROPERTY(...) [[clang::annotate("GROUP_PROPERTY")]]
+#define PROPERTY(...) /* PROPERTY */
+#define FROST(...)    /* FROST */
 
 #endif

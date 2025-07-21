@@ -1,7 +1,7 @@
-#include "wsp_model.hpp"
+#include <wsp_model.hpp>
 
-#include "wsp_device.hpp"
-#include "wsp_devkit.hpp"
+#include <wsp_device.hpp>
+#include <wsp_devkit.hpp>
 
 // lib
 #include <glm/geometric.hpp>
@@ -17,12 +17,16 @@ using namespace wsp;
 
 Model::Model(Device const *device, std::vector<Vertex> const &vertices, std::vector<uint32_t> const &indices)
 {
+    check(device);
+
     CreateVertexBuffers(device, vertices);
     CreateIndexBuffers(device, indices);
 }
 
 Model::Model(Device const *device, std::string const &filepath) : _freed{false}
 {
+    check(device);
+
     std::vector<Vertex> vertices{};
     std::vector<uint32_t> indices{};
     LoadFromFile(filepath, &vertices, &indices);
@@ -46,6 +50,8 @@ void Model::Free(Device const *device)
         return;
     }
     _freed = true;
+
+    check(device);
 
     device->DestroyBuffer(_vertexBuffer);
     device->FreeDeviceMemory(_vertexDeviceMemory);
@@ -110,6 +116,9 @@ bool Model::Vertex::operator==(Vertex const &other) const
 
 void Model::LoadFromFile(std::string const &filepath, std::vector<Vertex> *vertices, std::vector<uint32_t> *indices)
 {
+    check(vertices);
+    check(indices);
+
     ZoneScopedN("load model");
     tinyobj::attrib_t attrib;
     std::vector<tinyobj::shape_t> shapes;

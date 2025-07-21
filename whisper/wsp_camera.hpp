@@ -1,15 +1,23 @@
 #ifndef WSP_CAMERA
 #define WSP_CAMERA
 
+#include <.generated/wsp_camera.generated.hpp>
+
 #include <glm/mat4x4.hpp>
 #include <glm/vec3.hpp>
+#include <wsp_devkit.hpp>
+
+template <typename T> struct Meta;
 
 namespace wsp
 {
 
+FROST()
 class Camera
 {
   public:
+    FROST_BODY$Camera
+
     Camera();
     ~Camera() = default;
 
@@ -56,11 +64,19 @@ class Camera
 
     Mode _mode;
 
-    float _aspectRatio, _fov, _nearPlane, _farPlane; // for perspective
+    float _aspectRatio; // for perspective
+    PROPERTY()
+    float _fov;
+    PROPERTY()
+    float _nearPlane;
+    PROPERTY()
+    float _farPlane;
 
     float _left, _right, _top, _bottom, _near, _far; // for orthographic
 };
 
 } // namespace wsp
+
+FROST_DATA$Camera
 
 #endif

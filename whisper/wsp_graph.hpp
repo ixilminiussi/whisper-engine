@@ -1,17 +1,14 @@
 #ifndef WSP_GRAPH
 #define WSP_GRAPH
 
-// flow
-#include "wsp_handles.hpp"
+#include <wsp_handles.hpp>
 
-// lib
-#include <variant>
 #include <vulkan/vulkan.hpp>
+#include <vulkan/vulkan_handles.hpp>
 
-// set
 #include <map>
 #include <set>
-#include <vulkan/vulkan_handles.hpp>
+#include <variant>
 
 namespace wsp
 {

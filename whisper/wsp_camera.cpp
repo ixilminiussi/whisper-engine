@@ -1,6 +1,7 @@
-#include "wsp_camera.hpp"
+#include <wsp_camera.hpp>
 
-#include "wsp_devkit.hpp"
+#include <wsp_devkit.hpp>
+
 #include <glm/ext/matrix_clip_space.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 

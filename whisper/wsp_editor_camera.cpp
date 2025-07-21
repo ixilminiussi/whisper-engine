@@ -1,9 +1,10 @@
-#include "wsp_editor_camera.hpp"
-#include "wsp_devkit.hpp"
+#include <wsp_devkit.hpp>
+#include <wsp_editor_camera.hpp>
 
 #include <glm/ext/quaternion_geometric.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <glm/mat4x4.hpp>
+
 #include <spdlog/spdlog.h>
 
 using namespace wsp;

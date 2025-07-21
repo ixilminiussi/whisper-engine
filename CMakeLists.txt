@@ -4,8 +4,6 @@ project(Whisper CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-add_subdirectory(tooling)
-
 include(FetchContent)
 
 add_compile_definitions(VULKAN_HPP_TYPESAFE_CONVERSION)
@@ -17,6 +15,8 @@ set(TRACY_ENABLE ON)
 set(TRACY_NO_CONTEXT_SWITCH ON)
 set(TRACY_ON_DEMAND ON)
 set(TRACY_NO_SAMPLING ON)
+
+find_package(Python3 REQUIRED COMPONENTS Interpreter)
 
 find_package(Tracy QUIET)
 message(CHECK_START "Find Tracy")
