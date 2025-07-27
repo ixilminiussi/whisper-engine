@@ -41,7 +41,7 @@ class Editor
     bool _active;
     bool _freed;
 
-    class EditorCamera *_camera;
+    class ViewportCamera *_viewportCamera;
 
     std::vector<std::function<void()>> _deferredQueue;
 };

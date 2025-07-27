@@ -3,14 +3,16 @@
 #include <wsp_camera.hpp>
 #include <wsp_device.hpp>
 #include <wsp_devkit.hpp>
-#include <wsp_editor_camera.hpp>
 #include <wsp_engine.hpp>
 #include <wsp_global_ubo.hpp>
 #include <wsp_graph.hpp>
 #include <wsp_renderer.hpp>
 #include <wsp_static_utils.hpp>
 #include <wsp_swapchain.hpp>
+#include <wsp_viewport_camera.hpp>
 #include <wsp_window.hpp>
+
+#include <frost.hpp>
 
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
@@ -29,10 +31,7 @@ Editor::Editor(Window const *window, Device const *device, vk::Instance instance
     check(device);
     check(window);
 
-    // _camera = new EditorCamera();
-    _camera = new EditorCamera();
-    // _camera->SetPerspectiveProjection(40.f, 1., 0.01f, 1000.f);
-    // _camera->LookAt({-0.5f, 0.f, -0.5f}, {0.f, 0.f, 0.f});
+    _viewportCamera = new ViewportCamera(glm::vec3{0.f}, 10.f, glm::vec2{20.f, 0.f});
 
     InitImGui(window, device, instance);
 }
@@ -85,6 +84,13 @@ void Editor::Render(vk::CommandBuffer commandBuffer, Graph *graph, Window *windo
     {
         RenderDockspace();
         RenderViewport(device, graph);
+
+        if (_viewportCamera)
+        {
+            ImGui::Begin("Camera");
+            frost::RenderEditor(frost::Meta<ViewportCamera>{}, _viewportCamera);
+            ImGui::End();
+        }
     }
 
     ImGui::Begin("Controls");
@@ -92,11 +98,11 @@ void Editor::Render(vk::CommandBuffer commandBuffer, Graph *graph, Window *windo
     {
         if (_active)
         {
-            window->UnbindResizeCallback(_camera);
+            window->UnbindResizeCallback(_viewportCamera);
         }
         else
         {
-            window->BindResizeCallback(_camera, EditorCamera::OnResizeCallback);
+            window->BindResizeCallback(_viewportCamera, ViewportCamera::OnResizeCallback);
         }
     }
     ImGui::End();
@@ -115,8 +121,6 @@ void Editor::Update(double dt)
     {
         func();
     }
-
-    _camera->OrbitYaw(1.f * dt);
 }
 
 bool Editor::IsActive() const
@@ -126,7 +130,8 @@ bool Editor::IsActive() const
 
 void Editor::PopulateUbo(GlobalUbo *ubo)
 {
-    ubo->camera.viewProjection = _camera->GetCamera()->GetProjection() * _camera->GetCamera()->GetView();
+    ubo->camera.viewProjection =
+        _viewportCamera->GetCamera()->GetProjection() * _viewportCamera->GetCamera()->GetView();
 }
 
 static int ImGui_CreateVkSurface(ImGuiViewport *viewport, ImU64 vk_instance, void const *vk_allocator,
@@ -270,8 +275,8 @@ void Editor::RenderViewport(Device const *device, Graph *graph)
         _deferredQueue.push_back([=]() {
             check(graph);
             graph->Resize(device, (size_t)size.x, (size_t)size.y);
-            check(_camera);
-            _camera->SetAspectRatio((float)size.x / (float)size.y);
+            check(_viewportCamera);
+            _viewportCamera->SetAspectRatio((float)size.x / (float)size.y);
         });
         oldSize = size;
     }

@@ -25,5 +25,6 @@
 
 #define PROPERTY(...) /* PROPERTY */
 #define FROST(...)    /* FROST */
+#define REFRESH(...)  /* REFRESH */
 
 #endif
