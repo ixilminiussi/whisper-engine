@@ -242,7 +242,7 @@ void Graph::Compile(Device const *device, Resource target, GraphGoal goal)
 
     KhanFindOrder(_validResources, _validPasses);
 
-    bool requestsUniform = false;
+    _requestsUniform = false;
 
     for (Pass const pass : _validPasses)
     {
@@ -253,10 +253,10 @@ void Graph::Compile(Device const *device, Resource target, GraphGoal goal)
                 throw std::runtime_error("Graph: Pass {0} reads uniform, but no uniform buffer size was set");
             }
 
-            requestsUniform = true;
+            _requestsUniform = true;
         }
     }
-    if (requestsUniform)
+    if (_requestsUniform)
     {
         BuildUbo(device);
     }
@@ -462,6 +462,11 @@ void Graph::CreatePipeline(Device const *device, Pass pass, bool silent)
 
 void Graph::FlushUbo(void *ubo, size_t frameIndex, Device const *device)
 {
+    if (!_requestsUniform)
+    {
+        return;
+    }
+
     if (_uboSize == 0)
     {
         spdlog::warn("Graph: flushing ubo in a graph which doesn't include one");

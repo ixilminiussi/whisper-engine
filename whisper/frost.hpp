@@ -7,9 +7,7 @@
 #include <imgui.h>
 
 #include <spdlog/spdlog.h>
-#include <stdexcept>
 #include <tuple>
-#include <vector>
 
 namespace frost
 {

@@ -54,19 +54,13 @@ else()
   message(CHECK_PASS "Found system glm")
 endif()
 
-# -- tinyobjloader: Try to use system tinyobjloader first
-find_package(tinyobjloader CONFIG QUIET)
-message(CHECK_START "Find tinyobjloader")
-if(NOT tinyobjloader_FOUND)
-  message(STATUS "System tinyobjloader not found, fetching from GitHub")
-  FetchContent_Declare(
-    tinyobjloader
-    URL https://github.com/tinyobjloader/tinyobjloader/archive/refs/tags/v1.0.6.zip
-  )
-  FetchContent_MakeAvailable(tinyobjloader)
-else()
-  message(CHECK_PASS "Found system tinyobjloader")
-endif()
+# -- cgltf: Try to use system cgltf first
+FetchContent_Declare(
+  cgltf URL https://github.com/jkuhlmann/cgltf/archive/refs/tags/v1.15.zip)
+FetchContent_MakeAvailable(cgltf)
+
+add_library(cgltf INTERFACE)
+target_include_directories(cgltf INTERFACE ${cgltf_SOURCE_DIR})
 
 # -- Vulkan: Try to use system Vulkan first
 find_package(Vulkan QUIET)
@@ -165,9 +159,10 @@ include_directories(${CMAKE_SOURCE_DIR})
 add_compile_definitions(_SILENCE_STDEXT_ARR_ITERS_DEPRECATION_WARNING)
 
 # Asset and shader paths
-set(WSP_FILES "${CMAKE_CURRENT_SOURCE_DIR}/assets/")
-set(WSP_EDITOR_FILES "${CMAKE_CURRENT_SOURCE_DIR}/editor/")
-add_definitions(-DEDITOR_FILES="${WSP_EDITOR_FILES}")
+set(WSP_ASSETS "${CMAKE_CURRENT_SOURCE_DIR}/assets/")
+set(WSP_EDITOR_ASSETS "${CMAKE_CURRENT_SOURCE_DIR}/editor/")
+add_definitions(-DWSP_EDITOR_ASSETS="${WSP_EDITOR_ASSETS}")
+add_definitions(-DWSP_ASSETS="${WSP_ASSETS}")
 
 set(SHADER_FILES "${CMAKE_CURRENT_BINARY_DIR}/shaders/")
 add_definitions(-DSHADER_FILES="${SHADER_FILES}")
@@ -175,9 +170,5 @@ add_definitions(-DSHADER_FILES="${SHADER_FILES}")
 add_subdirectory(whisper)
 add_subdirectory(${GAME})
 add_subdirectory(shaders)
-
-# Copy assets file(GLOB WSP_ASSETS "${WSP_FILES}/*") file(COPY ${WSP_ASSETS}
-# DESTINATION "${GAME_DIR}/.wsp_assets") file(MAKE_DIRECTORY
-# "${GAME_DIR}/.editor")
 
 message(STATUS "Copied whisper assets into game directory")

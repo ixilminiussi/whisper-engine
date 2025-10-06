@@ -2,6 +2,7 @@
 #define WSP_EDITOR
 
 // lib
+#include <memory>
 #include <vulkan/vulkan.hpp>
 
 // std
@@ -31,9 +32,9 @@ class Editor
     void InitImGui(class Window const *, class Device const *, vk::Instance);
     vk::DescriptorPool _imguiDescriptorPool;
 
-    void InitDockspace(unsigned int dockspaceID);
+    static void InitDockspace(unsigned int dockspaceID);
 
-    void RenderDockspace();
+    static void RenderDockspace();
     void RenderViewport(class Device const *, class Graph *);
 
     static void ApplyImGuiTheme();
@@ -41,7 +42,7 @@ class Editor
     bool _active;
     bool _freed;
 
-    class ViewportCamera *_viewportCamera;
+    std::unique_ptr<class ViewportCamera> _viewportCamera;
 
     std::vector<std::function<void()>> _deferredQueue;
 };

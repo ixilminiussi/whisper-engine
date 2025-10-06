@@ -1,4 +1,5 @@
 #ifndef WSP_GRAPH
+#include <sstream>
 #define WSP_GRAPH
 
 #include <wsp_handles.hpp>
@@ -104,6 +105,7 @@ class Graph
     vk::DescriptorSetLayout _descriptorSetLayout;
     std::map<Resource, vk::DescriptorSet> _descriptorSets;
 
+    bool _requestsUniform;
     size_t _uboSize;
     std::vector<vk::Buffer> _uboBuffers;
     std::vector<vk::DeviceMemory> _uboDeviceMemories;

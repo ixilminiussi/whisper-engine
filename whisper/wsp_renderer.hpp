@@ -34,8 +34,8 @@ class Renderer
     void Free(class Device const *);
 
     void CreateInstance();
-    std::vector<char const *> GetRequiredExtensions();
-    void ExtensionsCompatibilityTest();
+    static std::vector<char const *> GetRequiredExtensions();
+    static void ExtensionsCompatibilityTest();
 
 #ifndef NDEBUG
     bool CheckValidationLayerSupport();
@@ -44,12 +44,12 @@ class Renderer
     std::vector<char const *> const _validationLayers;
     std::vector<char const *> const _deviceExtensions;
 
-    class Graph *_graph;
-    class Window *_window;
-    class Editor *_editor;
+    std::unique_ptr<class Graph> _graph;
+    std::unique_ptr<class Window> _window;
+    std::unique_ptr<class Editor> _editor;
     std::vector<Resource> _resources;
 
-    static class Device *_device;
+    static std::unique_ptr<class Device> _device;
     static vk::Instance _vkInstance;
 
     static TracyVkCtx tracyCtx;

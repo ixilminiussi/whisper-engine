@@ -31,7 +31,7 @@ Editor::Editor(Window const *window, Device const *device, vk::Instance instance
     check(device);
     check(window);
 
-    _viewportCamera = new ViewportCamera(glm::vec3{0.f}, 10.f, glm::vec2{20.f, 0.f});
+    _viewportCamera = std::make_unique<ViewportCamera>(glm::vec3{0.f}, 10.f, glm::vec2{20.f, 0.f});
 
     InitImGui(window, device, instance);
 }
@@ -88,7 +88,7 @@ void Editor::Render(vk::CommandBuffer commandBuffer, Graph *graph, Window *windo
         if (_viewportCamera)
         {
             ImGui::Begin("Camera");
-            frost::RenderEditor(frost::Meta<ViewportCamera>{}, _viewportCamera);
+            frost::RenderEditor(frost::Meta<ViewportCamera>{}, _viewportCamera.get());
             ImGui::End();
         }
     }
@@ -98,11 +98,11 @@ void Editor::Render(vk::CommandBuffer commandBuffer, Graph *graph, Window *windo
     {
         if (_active)
         {
-            window->UnbindResizeCallback(_viewportCamera);
+            window->UnbindResizeCallback(_viewportCamera.get());
         }
         else
         {
-            window->BindResizeCallback(_viewportCamera, ViewportCamera::OnResizeCallback);
+            window->BindResizeCallback(_viewportCamera.get(), ViewportCamera::OnResizeCallback);
         }
     }
     ImGui::End();
@@ -196,8 +196,8 @@ void Editor::InitImGui(Window const *window, Device const *device, vk::Instance 
 
     ImGui_ImplVulkan_Init(&initInfo);
 
-    spdlog::info("EDITOR FILES at : {0}", EDITOR_FILES);
-    io.Fonts->AddFontFromFileTTF((std::string(EDITOR_FILES) + std::string("JetBrainsMonoNL-Regular.ttf")).c_str(),
+    spdlog::info("EDITOR FILES at : {0}", WSP_EDITOR_ASSETS);
+    io.Fonts->AddFontFromFileTTF((std::string(WSP_EDITOR_ASSETS) + std::string("JetBrainsMonoNL-Regular.ttf")).c_str(),
                                  16.0f);
 
     ApplyImGuiTheme();
@@ -213,9 +213,9 @@ void Editor::InitDockspace(unsigned int dockspaceID)
 
     ImGuiID dock_mainID = dockspaceID;
     ImGuiID leftID = ImGui::DockBuilderSplitNode(dock_mainID, ImGuiDir_Left, 0.2f, nullptr, &dock_mainID);
-    ImGuiID left_bottomID = ImGui::DockBuilderSplitNode(leftID, ImGuiDir_Down, 0.2f, nullptr, &leftID);
-    ImGuiID rightID = ImGui::DockBuilderSplitNode(dock_mainID, ImGuiDir_Right, 0.2f, nullptr, &dock_mainID);
-    ImGuiID bottomID = ImGui::DockBuilderSplitNode(dock_mainID, ImGuiDir_Down, 0.3f, nullptr, &dock_mainID);
+    ImGuiID const left_bottomID = ImGui::DockBuilderSplitNode(leftID, ImGuiDir_Down, 0.2f, nullptr, &leftID);
+    ImGuiID const rightID = ImGui::DockBuilderSplitNode(dock_mainID, ImGuiDir_Right, 0.2f, nullptr, &dock_mainID);
+    ImGuiID const bottomID = ImGui::DockBuilderSplitNode(dock_mainID, ImGuiDir_Down, 0.3f, nullptr, &dock_mainID);
 
     // ImGui::DockBuilderDockWindow("Graphics Manager", left_bottomID);
     // ImGui::DockBuilderDockWindow("World Manager", left_bottomID);
@@ -234,9 +234,10 @@ void Editor::RenderDockspace()
     ImGui::SetNextWindowSize(viewport->Size);
     ImGui::SetNextWindowViewport(viewport->ID);
 
-    ImGuiWindowFlags window_flags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoTitleBar |
-                                    ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove |
-                                    ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
+    ImGuiWindowFlags const window_flags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoTitleBar |
+                                          ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize |
+                                          ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBringToFrontOnFocus |
+                                          ImGuiWindowFlags_NoNavFocus;
 
     ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
@@ -246,7 +247,7 @@ void Editor::RenderDockspace()
     ImGui::Begin("DockSpace", nullptr, window_flags);
     ImGui::PopStyleVar(3);
 
-    ImGuiID dockspaceID = ImGui::GetID("GlobalDockspace");
+    ImGuiID const dockspaceID = ImGui::GetID("GlobalDockspace");
     ImGui::DockSpace(dockspaceID, ImVec2(0, 0));
 
     static bool firstCall{true};

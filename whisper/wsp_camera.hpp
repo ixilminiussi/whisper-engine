@@ -54,9 +54,10 @@ class Camera
     REFRESH()
     void Refresh();
 
-  FROST_BODY$Camera
+    FROST_BODY$Camera;
 
-      protected : enum Mode
+  protected:
+    enum Mode
     {
         ePerspective,
         eOrthographic

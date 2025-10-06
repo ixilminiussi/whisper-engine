@@ -79,8 +79,8 @@ float Camera::GetPitch() const
 
 float Camera::GetYaw() const
 {
-    glm::vec3 forward = GetForward();
-    glm::vec3 forwardXZ = glm::normalize(glm::vec3(forward.x, 0.0f, forward.z));
+    glm::vec3 const forward = GetForward();
+    glm::vec3 const forwardXZ = glm::normalize(glm::vec3(forward.x, 0.0f, forward.z));
     return glm::atan(forwardXZ.x, forwardXZ.z);
 }
 
@@ -202,7 +202,7 @@ void Camera::UpdateProjection()
         _projectionMatrix = glm::ortho(_left, _right, _bottom, _top, _near, _far);
         break;
     case ePerspective:
-        assert(glm::abs(_aspectRatio - std::numeric_limits<float>::epsilon()) > 0.0f);
+        check(glm::abs(_aspectRatio - std::numeric_limits<float>::epsilon()) > 0.0f);
 
         _projectionMatrix = glm::perspective(glm::radians(_fov), _aspectRatio, _nearPlane, _farPlane);
         _projectionMatrix[1][1] *= -1.0f;

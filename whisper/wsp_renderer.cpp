@@ -1,12 +1,13 @@
 #include <wsp_renderer.hpp>
 
+#include <wsp_assets_manager.hpp>
 #include <wsp_device.hpp>
 #include <wsp_devkit.hpp>
 #include <wsp_editor.hpp>
 #include <wsp_engine.hpp>
 #include <wsp_global_ubo.hpp>
 #include <wsp_graph.hpp>
-#include <wsp_model.hpp>
+#include <wsp_mesh.hpp>
 #include <wsp_static_utils.hpp>
 #include <wsp_window.hpp>
 
@@ -23,7 +24,7 @@
 
 using namespace wsp;
 
-Device *Renderer::_device{nullptr};
+std::unique_ptr<Device> Renderer::_device{};
 vk::Instance Renderer::_vkInstance{};
 TracyVkCtx Renderer::tracyCtx{};
 
@@ -69,14 +70,14 @@ void Renderer::Free()
 
     spdlog::info("Renderer: began termination");
 
-    _editor->Free(_device);
-    delete _editor;
+    _editor->Free(_device.get());
+    _editor.release();
 
-    _graph->Free(_device);
-    delete _graph;
+    _graph->Free(_device.get());
+    _graph.release();
 
     _window->Free(_vkInstance);
-    delete _window;
+    _window.release();
 
     auto func = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(static_cast<VkInstance>(_vkInstance),
                                                                            "vkDestroyDebugUtilsMessengerEXT");
@@ -89,7 +90,7 @@ void Renderer::Free()
 
     TracyVkDestroy(tracyCtx);
     _device->Free();
-    delete _device;
+    _device.release();
 
     _vkInstance.destroy();
 
@@ -120,7 +121,7 @@ void Renderer::Render() const
         _editor->PopulateUbo(&ubo);
     }
 
-    _graph->FlushUbo(&ubo, frameIndex, _device);
+    _graph->FlushUbo(&ubo, frameIndex, _device.get());
 
     _graph->Render(commandBuffer);
 
@@ -132,7 +133,7 @@ void Renderer::Render() const
     {
         _window->SwapchainOpen(commandBuffer, _graph->GetTargetImage());
     }
-    _editor->Render(commandBuffer, _graph, _window, _device);
+    _editor->Render(commandBuffer, _graph.get(), _window.get(), _device.get());
 
     _window->SwapchainFlush(commandBuffer);
     FrameMarkEnd("frame render");
@@ -149,13 +150,13 @@ void Renderer::Update(double dt)
 
         if (_editor->IsActive())
         {
-            _window->UnbindResizeCallback(_graph);
-            _graph->ChangeGoal(_device, Graph::eToDescriptorSet);
+            _window->UnbindResizeCallback(_graph.get());
+            _graph->ChangeGoal(_device.get(), Graph::eToDescriptorSet);
         }
         else
         {
-            _window->BindResizeCallback(_graph, Graph::OnResizeCallback);
-            _graph->ChangeGoal(_device, Graph::eToTransfer);
+            _window->BindResizeCallback(_graph.get(), Graph::OnResizeCallback);
+            _graph->ChangeGoal(_device.get(), Graph::eToTransfer);
         }
     }
 }
@@ -164,22 +165,22 @@ void Renderer::Initialize()
 {
     ZoneScopedN("initialize");
 
-    if (_device)
+    if (_device.get())
     {
         spdlog::error("Engine: already initialized");
     }
 
-    _window = new Window(_vkInstance, 1024, 1024, "test");
+    _window = std::make_unique<Window>(_vkInstance, 1024, 1024, "test");
 
-    _device = new Device();
+    _device = std::make_unique<Device>();
     _device->Initialize(_deviceExtensions, _vkInstance, _window->GetSurface());
     _device->CreateTracyContext(&tracyCtx);
 
-    _window->Initialize(_device);
+    _window->Initialize(_device.get());
 
-    check(_device);
+    check(_device.get());
 
-    _graph = new Graph(_device, _window->GetExtent().width, _window->GetExtent().height);
+    _graph = std::make_unique<Graph>(_device.get(), _window->GetExtent().width, _window->GetExtent().height);
     _graph->SetUboSize(sizeof(GlobalUbo));
 
     ResourceCreateInfo colorInfo{};
@@ -194,30 +195,30 @@ void Renderer::Initialize()
     depthInfo.clear.depthStencil = vk::ClearDepthStencilValue{1.};
     depthInfo.debugName = "depth";
 
-    Resource color = _graph->NewResource(colorInfo);
-    Resource depth = _graph->NewResource(depthInfo);
+    Resource const color = _graph->NewResource(colorInfo);
+    Resource const depth = _graph->NewResource(depthInfo);
 
-    Model *model = new Model(_device, "assets/bunny.obj");
+    Mesh *mesh = AssetsManager::ImportMeshTmp(_device.get(), std::string(WSP_ASSETS) + "Avocado.gltf");
 
     PassCreateInfo passCreateInfo{};
     passCreateInfo.writes = {color, depth};
     passCreateInfo.reads = {};
     passCreateInfo.readsUniform = true;
-    passCreateInfo.vertexInputInfo = Model::Vertex::GetVertexInputInfo();
-    passCreateInfo.vertFile = "model.vert.spv";
-    passCreateInfo.fragFile = "model.frag.spv";
-    passCreateInfo.debugName = "triangle render";
-    passCreateInfo.execute = [model](vk::CommandBuffer commandBuffer) {
-        model->Bind(commandBuffer);
-        model->Draw(commandBuffer);
+    passCreateInfo.vertexInputInfo = Mesh::Vertex::GetVertexInputInfo();
+    passCreateInfo.vertFile = "mesh.vert.spv";
+    passCreateInfo.fragFile = "mesh.frag.spv";
+    passCreateInfo.debugName = "avocado render";
+    passCreateInfo.execute = [mesh](vk::CommandBuffer commandBuffer) {
+        check(mesh);
+        mesh->BindAndDraw(commandBuffer);
     };
 
     _graph->NewPass(passCreateInfo);
-    _graph->Compile(_device, color, Graph::eToDescriptorSet);
+    _graph->Compile(_device.get(), color, Graph::eToDescriptorSet);
 
     _resources.push_back({color});
 
-    _editor = new Editor(_window, _device, _vkInstance);
+    _editor = std::make_unique<Editor>(_window.get(), _device.get(), _vkInstance);
 
     spdlog::info("Engine: new window initialized");
 }

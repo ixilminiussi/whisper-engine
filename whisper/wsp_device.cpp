@@ -14,7 +14,6 @@
 #include <vulkan/vulkan_handles.hpp>
 #include <vulkan/vulkan_structs.hpp>
 
-#include <cassert>
 #include <set>
 #include <stdexcept>
 

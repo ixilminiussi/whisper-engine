@@ -20,7 +20,7 @@ target_link_libraries(
   PRIVATE TracyClient
           tinyxml2
           imgui
-          tinyobjloader
+          cgltf
           spdlog
           glm::glm
           glfw

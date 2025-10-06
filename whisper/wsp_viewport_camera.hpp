@@ -66,7 +66,7 @@ class ViewportCamera
     glm::vec3 _orbitTarget;
     float _orbitLerp;
 
-    PROPERTY(Edit::eSlider, 0.1f, 10.f, 0.01f)
+    PROPERTY(Edit::eSlider, 0.01f, 10.f, 0.01f)
     float _orbitDistance;
 
     PROPERTY(Edit::eDrag)

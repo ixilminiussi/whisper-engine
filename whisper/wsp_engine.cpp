@@ -17,7 +17,7 @@
 namespace wsp
 {
 
-Renderer *renderer;
+std::unique_ptr<Renderer> renderer;
 
 namespace engine
 {
@@ -42,7 +42,7 @@ bool Initialize()
 
     try
     {
-        renderer = new Renderer();
+        renderer = std::make_unique<Renderer>();
         renderer->Initialize();
         initialized = true;
     }
@@ -59,8 +59,8 @@ double GetDeltaTime()
 {
     static auto start = std::chrono::system_clock::now();
     auto end = std::chrono::system_clock::now();
-    std::chrono::duration<double> elapsedSeconds = end - start;
-    double dt = std::min(0.2, elapsedSeconds.count());
+    std::chrono::duration<double> const elapsedSeconds = end - start;
+    double const dt = std::min(0.2, elapsedSeconds.count());
     start = end;
 
     return dt;
@@ -75,7 +75,7 @@ void Run()
         {
             renderer->Render();
 
-            double dt = GetDeltaTime();
+            double const dt = GetDeltaTime();
 
             renderer->Update(dt);
         }
@@ -102,7 +102,7 @@ void Terminate()
     try
     {
         renderer->Free();
-        delete renderer;
+        renderer.release();
     }
     catch (std::exception const &exception)
     {
