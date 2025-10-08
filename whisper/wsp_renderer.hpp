@@ -21,7 +21,7 @@ class Renderer
     Renderer(Renderer const &) = delete;
     Renderer &operator=(Renderer const &) = delete;
 
-    void Initialize();
+    void Initialize(std::vector<class Drawable const *> const *);
     void Free();
     void Render() const;
     void Update(double dt);
@@ -49,7 +49,6 @@ class Renderer
     std::unique_ptr<class Editor> _editor;
     std::vector<Resource> _resources;
 
-    static std::unique_ptr<class Device> _device;
     static vk::Instance _vkInstance;
 
     static TracyVkCtx tracyCtx;

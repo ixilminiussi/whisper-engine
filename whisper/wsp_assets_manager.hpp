@@ -13,12 +13,16 @@ class AssetsManager
     AssetsManager();
     ~AssetsManager();
 
-    void ImportMeshes(class Device *, std::string const &filepath, size_t *count);
-    // temp
-    static class Mesh *ImportMeshTmp(class Device *, std::string const &filepath);
+    void ImportTextures(std::string const &filepath);
+    void ImportMeshes(std::string const &filepath);
+
+    void Free();
+
+    class Drawable const *GetDrawable();
 
   protected:
     std::vector<std::unique_ptr<class Mesh>> _meshes;
+    class Drawable *_drawable;
 };
 
 } // namespace wsp

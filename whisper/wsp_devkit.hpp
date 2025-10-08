@@ -38,8 +38,8 @@
         if (!_ens_once)                                                                                                \
         {                                                                                                              \
             _ens_once = true;                                                                                          \
-            spdlog::critical("ensure failed at {}:{}: condition ({}) not met!", __FILE__, __LINE__, #expr)             \
-                DEBUG_BREAK();                                                                                         \
+            spdlog::critical("ensure failed at {}:{}: condition ({}) not met!", __FILE__, __LINE__, #expr);            \
+            DEBUG_BREAK();                                                                                             \
         }                                                                                                              \
         return false;                                                                                                  \
     }())

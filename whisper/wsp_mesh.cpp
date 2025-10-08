@@ -107,7 +107,6 @@ Mesh::Mesh(Device const *device, cgltf_mesh const *mesh) : _freed{false}
         {
             cgltf_size index = cgltf_accessor_read_index(primitive->indices, j);
             indices.emplace_back(static_cast<uint32_t>(index));
-            spdlog::critical("{},", index);
         }
 
         indexOffset += indexCount;
@@ -255,24 +254,19 @@ bool Mesh::Vertex::operator==(Vertex const &other) const
            tangent == other.tangent;
 }
 
-void Mesh::BindAndDraw(vk::CommandBuffer commandBuffer)
+void Mesh::Bind(vk::CommandBuffer commandBuffer) const
 {
     vk::Buffer buffers[] = {_vertexBuffer};
     vk::DeviceSize offsets[] = {0};
 
     commandBuffer.bindVertexBuffers(0, 1, buffers, offsets);
+}
 
+void Mesh::Draw(vk::CommandBuffer commandBuffer) const
+{
     for (Primitive const &primitive : _primitives)
     {
         commandBuffer.bindIndexBuffer(_indexBuffer, 0, vk::IndexType::eUint32);
-        static bool first = true;
-        if (first)
-        {
-            spdlog::critical(
-                "index count : {}, instance count : {}, index offset : {}, vertex offset {}, first instance : {}, ",
-                primitive.indexCount, 1, primitive.indexOffset, primitive.vertexOffset, 0);
-            first = false;
-        }
         commandBuffer.drawIndexed(primitive.indexCount, 1, primitive.indexOffset, primitive.vertexOffset, 0);
     }
 }

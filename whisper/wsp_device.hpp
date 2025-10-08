@@ -28,9 +28,17 @@ struct QueueFamilyIndices
 class Device
 {
   public:
-    Device();
     ~Device();
 
+  protected:
+    friend class DeviceAccessor;
+
+    static Device *Get();
+    Device();
+
+    static Device *_instance;
+
+  public:
     Device(Device const &) = delete;
     Device &operator=(Device const &) = delete;
 
@@ -145,6 +153,15 @@ inline void Device::DebugNameObject(T const &object, vk::ObjectType objectType, 
 
     _device.setDebugUtilsObjectNameEXT(nameInfo, _debugDispatch);
 }
+
+class DeviceAccessor
+{
+  protected:
+    static Device *Get();
+
+    friend class Renderer;
+    friend class AssetsManager;
+};
 
 } // namespace wsp
 

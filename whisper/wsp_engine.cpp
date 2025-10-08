@@ -1,3 +1,5 @@
+#include "wsp_assets_manager.hpp"
+#include <memory>
 #include <wsp_engine.hpp>
 
 #include <wsp_devkit.hpp>
@@ -18,6 +20,9 @@ namespace wsp
 {
 
 std::unique_ptr<Renderer> renderer;
+std::unique_ptr<AssetsManager> assetsManager;
+
+std::vector<Drawable const *> drawList{};
 
 namespace engine
 {
@@ -42,8 +47,14 @@ bool Initialize()
 
     try
     {
+        assetsManager = std::make_unique<AssetsManager>();
         renderer = std::make_unique<Renderer>();
-        renderer->Initialize();
+
+        assetsManager->ImportMeshes(std::string(WSP_ASSETS) + "Avocado.gltf");
+
+        drawList.push_back(assetsManager->GetDrawable());
+
+        renderer->Initialize(&drawList);
         initialized = true;
     }
     catch (std::exception const &exception)
@@ -101,6 +112,7 @@ void Terminate()
 
     try
     {
+        assetsManager->Free();
         renderer->Free();
         renderer.release();
     }

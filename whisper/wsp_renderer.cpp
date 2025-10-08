@@ -1,3 +1,4 @@
+#include "wsp_drawable.hpp"
 #include <wsp_renderer.hpp>
 
 #include <wsp_assets_manager.hpp>
@@ -24,7 +25,6 @@
 
 using namespace wsp;
 
-std::unique_ptr<Device> Renderer::_device{};
 vk::Instance Renderer::_vkInstance{};
 TracyVkCtx Renderer::tracyCtx{};
 
@@ -44,6 +44,7 @@ Renderer::Renderer()
     : _freed{false}, _validationLayers{"VK_LAYER_KHRONOS_validation"},
       _deviceExtensions{vk::KHRSwapchainExtensionName, vk::KHRMaintenance2ExtensionName}
 {
+    ZoneScopedN("initialize");
     spdlog::info("Engine: began initialization");
 
     if (!glfwInit())
@@ -52,6 +53,21 @@ Renderer::Renderer()
     }
 
     CreateInstance();
+
+    if (_vkInstance)
+    {
+        spdlog::error("Engine: already initialized");
+    }
+
+    _window = std::make_unique<Window>(_vkInstance, 1024, 1024, "test");
+
+    Device *device = DeviceAccessor::Get();
+    check(device);
+
+    device->Initialize(_deviceExtensions, _vkInstance, _window->GetSurface());
+    device->CreateTracyContext(&tracyCtx);
+
+    _window->Initialize(device);
 }
 
 Renderer::~Renderer()
@@ -64,16 +80,17 @@ Renderer::~Renderer()
 
 void Renderer::Free()
 {
-    check(_device);
+    Device *device = DeviceAccessor::Get();
+    check(device);
 
-    _device->WaitIdle();
+    device->WaitIdle();
 
     spdlog::info("Renderer: began termination");
 
-    _editor->Free(_device.get());
+    _editor->Free(device);
     _editor.release();
 
-    _graph->Free(_device.get());
+    _graph->Free(device);
     _graph.release();
 
     _window->Free(_vkInstance);
@@ -89,8 +106,7 @@ void Renderer::Free()
 #endif
 
     TracyVkDestroy(tracyCtx);
-    _device->Free();
-    _device.release();
+    device->Free();
 
     _vkInstance.destroy();
 
@@ -102,7 +118,9 @@ void Renderer::Free()
 
 void Renderer::Render() const
 {
-    check(_device);
+    Device *device = DeviceAccessor::Get();
+
+    check(device);
     check(_window);
     check(_graph);
     check(_editor);
@@ -121,7 +139,7 @@ void Renderer::Render() const
         _editor->PopulateUbo(&ubo);
     }
 
-    _graph->FlushUbo(&ubo, frameIndex, _device.get());
+    _graph->FlushUbo(&ubo, frameIndex, device);
 
     _graph->Render(commandBuffer);
 
@@ -133,7 +151,7 @@ void Renderer::Render() const
     {
         _window->SwapchainOpen(commandBuffer, _graph->GetTargetImage());
     }
-    _editor->Render(commandBuffer, _graph.get(), _window.get(), _device.get());
+    _editor->Render(commandBuffer, _graph.get(), _window.get(), device);
 
     _window->SwapchainFlush(commandBuffer);
     FrameMarkEnd("frame render");
@@ -151,36 +169,24 @@ void Renderer::Update(double dt)
         if (_editor->IsActive())
         {
             _window->UnbindResizeCallback(_graph.get());
-            _graph->ChangeGoal(_device.get(), Graph::eToDescriptorSet);
+            _graph->ChangeUsage(DeviceAccessor::Get(), Graph::eToDescriptorSet);
         }
         else
         {
             _window->BindResizeCallback(_graph.get(), Graph::OnResizeCallback);
-            _graph->ChangeGoal(_device.get(), Graph::eToTransfer);
+            _graph->ChangeUsage(DeviceAccessor::Get(), Graph::eToTransfer);
         }
     }
 }
 
-void Renderer::Initialize()
+void Renderer::Initialize(std::vector<Drawable const *> const *drawList)
 {
-    ZoneScopedN("initialize");
+    ZoneScopedN("initialize (graph generate + compile)");
 
-    if (_device.get())
-    {
-        spdlog::error("Engine: already initialized");
-    }
+    Device *device = DeviceAccessor::Get();
+    check(device);
 
-    _window = std::make_unique<Window>(_vkInstance, 1024, 1024, "test");
-
-    _device = std::make_unique<Device>();
-    _device->Initialize(_deviceExtensions, _vkInstance, _window->GetSurface());
-    _device->CreateTracyContext(&tracyCtx);
-
-    _window->Initialize(_device.get());
-
-    check(_device.get());
-
-    _graph = std::make_unique<Graph>(_device.get(), _window->GetExtent().width, _window->GetExtent().height);
+    _graph = std::make_unique<Graph>(device, _window->GetExtent().width, _window->GetExtent().height);
     _graph->SetUboSize(sizeof(GlobalUbo));
 
     ResourceCreateInfo colorInfo{};
@@ -198,8 +204,6 @@ void Renderer::Initialize()
     Resource const color = _graph->NewResource(colorInfo);
     Resource const depth = _graph->NewResource(depthInfo);
 
-    Mesh *mesh = AssetsManager::ImportMeshTmp(_device.get(), std::string(WSP_ASSETS) + "Avocado.gltf");
-
     PassCreateInfo passCreateInfo{};
     passCreateInfo.writes = {color, depth};
     passCreateInfo.reads = {};
@@ -207,18 +211,25 @@ void Renderer::Initialize()
     passCreateInfo.vertexInputInfo = Mesh::Vertex::GetVertexInputInfo();
     passCreateInfo.vertFile = "mesh.vert.spv";
     passCreateInfo.fragFile = "mesh.frag.spv";
-    passCreateInfo.debugName = "avocado render";
-    passCreateInfo.execute = [mesh](vk::CommandBuffer commandBuffer) {
-        check(mesh);
-        mesh->BindAndDraw(commandBuffer);
+    passCreateInfo.debugName = "mesh render";
+    passCreateInfo.execute = [drawList](vk::CommandBuffer commandBuffer) {
+        check(drawList);
+
+        for (Drawable const *drawable : *drawList)
+        {
+            if (ensure(drawable))
+            {
+                drawable->BindAndDraw(commandBuffer);
+            }
+        }
     };
 
     _graph->NewPass(passCreateInfo);
-    _graph->Compile(_device.get(), color, Graph::eToDescriptorSet);
+    _graph->Compile(device, color, Graph::eToDescriptorSet);
 
     _resources.push_back({color});
 
-    _editor = std::make_unique<Editor>(_window.get(), _device.get(), _vkInstance);
+    _editor = std::make_unique<Editor>(_window.get(), device, _vkInstance);
 
     spdlog::info("Engine: new window initialized");
 }
@@ -278,16 +289,16 @@ void Renderer::CreateInstance()
     if (const vk::Result result = vk::createInstance(&createInfo, nullptr, &_vkInstance);
         result != vk::Result::eSuccess)
     {
-        spdlog::critical("Error: {}", vk::to_string(static_cast<vk::Result>(result)));
-        throw std::runtime_error("Engine: failed to create _vkInstance!");
+        throw std::runtime_error(
+            fmt::format("Engine: failed to create _vkInstance : {}", vk::to_string(static_cast<vk::Result>(result))));
     }
 
 #ifndef NDEBUG
     if (const vk::Result result = CreateDebugUtilsMessengerEXT(_vkInstance, &debugCreateInfo, nullptr, &debugMessenger);
         result != vk::Result::eSuccess)
     {
-        spdlog::critical("Error: {}", vk::to_string(static_cast<vk::Result>(result)));
-        throw std::runtime_error("Engine: failed to set up debug messenger.");
+        throw std::runtime_error(fmt::format("Engine: failed to set up debug messenger : {}",
+                                             vk::to_string(static_cast<vk::Result>(result))));
     }
 #endif
 

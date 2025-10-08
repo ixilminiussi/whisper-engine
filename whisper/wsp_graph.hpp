@@ -17,7 +17,7 @@ namespace wsp
 class Graph
 {
   public:
-    enum GraphGoal
+    enum GraphUsage
     {
         eToTransfer = 0,
         eToDescriptorSet = 1
@@ -38,7 +38,7 @@ class Graph
     [[nodiscard]] Resource NewResource(const struct ResourceCreateInfo &);
     Pass NewPass(const struct PassCreateInfo &);
 
-    void Compile(Device const *, Resource target, GraphGoal);
+    void Compile(Device const *, Resource target, GraphUsage);
     void FlushUbo(void *ubo, size_t frameIndex, Device const *);
     void Render(vk::CommandBuffer);
 
@@ -47,7 +47,7 @@ class Graph
     vk::Image GetTargetImage() const;
     vk::DescriptorSet GetTargetDescriptorSet() const;
 
-    void ChangeGoal(class Device const *, GraphGoal);
+    void ChangeUsage(class Device const *, GraphUsage);
     void Resize(Device const *, size_t width, size_t height);
     static void OnResizeCallback(void *, class Device const *, size_t width, size_t height);
 
@@ -89,7 +89,7 @@ class Graph
     std::vector<PassCreateInfo> _passInfos;
     std::vector<ResourceCreateInfo> _resourceInfos;
     Resource _target;
-    GraphGoal _goal;
+    GraphUsage _usage;
 
     std::map<Resource, vk::Image> _images;
     std::map<Resource, vk::DeviceMemory> _deviceMemories;

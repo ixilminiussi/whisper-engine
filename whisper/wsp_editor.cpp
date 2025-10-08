@@ -213,14 +213,14 @@ void Editor::InitDockspace(unsigned int dockspaceID)
 
     ImGuiID dock_mainID = dockspaceID;
     ImGuiID leftID = ImGui::DockBuilderSplitNode(dock_mainID, ImGuiDir_Left, 0.2f, nullptr, &dock_mainID);
-    ImGuiID const left_bottomID = ImGui::DockBuilderSplitNode(leftID, ImGuiDir_Down, 0.2f, nullptr, &leftID);
-    ImGuiID const rightID = ImGui::DockBuilderSplitNode(dock_mainID, ImGuiDir_Right, 0.2f, nullptr, &dock_mainID);
-    ImGuiID const bottomID = ImGui::DockBuilderSplitNode(dock_mainID, ImGuiDir_Down, 0.3f, nullptr, &dock_mainID);
+    ImGuiID rightID = ImGui::DockBuilderSplitNode(dock_mainID, ImGuiDir_Right, 0.2f, nullptr, &dock_mainID);
+    ImGuiID bottomID = ImGui::DockBuilderSplitNode(dock_mainID, ImGuiDir_Down, 0.3f, nullptr, &dock_mainID);
 
     // ImGui::DockBuilderDockWindow("Graphics Manager", left_bottomID);
     // ImGui::DockBuilderDockWindow("World Manager", left_bottomID);
     // ImGui::DockBuilderDockWindow("Inspector", rightID);
-    // ImGui::DockBuilderDockWindow("Logger", bottomID);
+    ImGui::DockBuilderDockWindow("Assets", bottomID);
+    ImGui::DockBuilderDockWindow("Camera", rightID);
     ImGui::DockBuilderDockWindow("Viewport", dock_mainID);
     ImGui::DockBuilderDockWindow("Controls", leftID);
 

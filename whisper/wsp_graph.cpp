@@ -183,12 +183,12 @@ bool Graph::FindDependencies(std::set<Resource> *validResources, std::set<Pass> 
     return false;
 }
 
-void Graph::Compile(Device const *device, Resource target, GraphGoal goal)
+void Graph::Compile(Device const *device, Resource target, GraphUsage usage)
 {
     check(device);
 
     _target = target;
-    _goal = goal;
+    _usage = usage;
 
     Reset(device);
 
@@ -278,25 +278,25 @@ void Graph::Compile(Device const *device, Resource target, GraphGoal goal)
 
 vk::Image Graph::GetTargetImage() const
 {
-    if (_goal != GraphGoal::eToTransfer)
+    if (_usage != GraphUsage::eToTransfer)
     {
-        throw std::runtime_error("Graph: goal must be eToTransfer in order to get target image");
+        throw std::runtime_error("Graph: usage must be eToTransfer in order to get target image");
     }
     return _images.at(_target);
 }
 
 vk::DescriptorSet Graph::GetTargetDescriptorSet() const
 {
-    if (_goal != GraphGoal::eToDescriptorSet)
+    if (_usage != GraphUsage::eToDescriptorSet)
     {
-        throw std::runtime_error("Graph: goal must be eToDescriptorSet in order to get target descriptor set");
+        throw std::runtime_error("Graph: usage must be eToDescriptorSet in order to get target descriptor set");
     }
     return _descriptorSets.at(_target);
 }
 
-void Graph::ChangeGoal(Device const *device, GraphGoal goal)
+void Graph::ChangeUsage(Device const *device, GraphUsage usage)
 {
-    Compile(device, _target, goal);
+    Compile(device, _target, usage);
 }
 
 void Graph::CreatePipeline(Device const *device, Pass pass, bool silent)
@@ -882,7 +882,7 @@ void Graph::Build(Device const *device, Pass pass, bool silent)
             break;
         }
 
-        if (resource == _target && _goal == GraphGoal::eToTransfer)
+        if (resource == _target && _usage == GraphUsage::eToTransfer)
         {
             attachment.finalLayout = vk::ImageLayout::eTransferSrcOptimal;
         }
@@ -1104,7 +1104,7 @@ void Graph::OnResizeCallback(void *graph, Device const *device, size_t width, si
 
 bool Graph::IsSampled(Resource resource)
 {
-    if (_goal == eToTransfer)
+    if (_usage == eToTransfer)
     {
         return GetResourceInfo(resource).readers.size() > 0 && resource != _target;
     }

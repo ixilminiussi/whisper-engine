@@ -4,6 +4,8 @@
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 
+#include <wsp_drawable.hpp>
+
 #include <vulkan/vulkan.hpp>
 
 #include <cgltf.h>
@@ -13,7 +15,7 @@
 namespace wsp
 {
 
-class Mesh
+class Mesh : public Drawable
 {
   public:
     struct Vertex
@@ -46,7 +48,8 @@ class Mesh
 
     void Free(class Device const *);
 
-    void BindAndDraw(vk::CommandBuffer commandBuffer);
+    virtual void Bind(vk::CommandBuffer) const override;
+    virtual void Draw(vk::CommandBuffer) const override;
 
   private:
     static cgltf_accessor const *FindAccessor(cgltf_primitive const *prim, cgltf_attribute_type type);

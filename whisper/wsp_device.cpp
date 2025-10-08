@@ -19,6 +19,23 @@
 
 using namespace wsp;
 
+Device *Device::_instance{nullptr};
+
+Device *Device::Get()
+{
+    if (!_instance)
+    {
+        _instance = new Device();
+    }
+
+    return _instance;
+}
+
+Device *DeviceAccessor::Get()
+{
+    return Device::Get();
+}
+
 Device::Device()
 {
 }
@@ -51,7 +68,7 @@ void Device::Free()
         return;
     }
 
-    check(_device);
+    check(_device && "Device: Must initialize device sooner");
     _device.destroyCommandPool(_commandPool);
     _device.destroy();
 
@@ -64,7 +81,7 @@ void Device::Free()
 void Device::PopulateImGuiInitInfo(ImGui_ImplVulkan_InitInfo *initInfo) const
 {
     check(_physicalDevice);
-    check(_device);
+    check(_device && "Device: Must initialize device sooner");
 
     initInfo->PhysicalDevice = _physicalDevice;
     initInfo->Device = _device;
@@ -204,7 +221,7 @@ std::vector<vk::PresentModeKHR> Device::GetSurfacePresentModesKHR(vk::SurfaceKHR
 
 vk::CommandBuffer Device::BeginSingleTimeCommand() const
 {
-    check(_device);
+    check(_device && "Device: Must initialize device sooner");
 
     vk::CommandBufferAllocateInfo allocInfo{};
     allocInfo.level = vk::CommandBufferLevel::ePrimary;
@@ -215,8 +232,8 @@ vk::CommandBuffer Device::BeginSingleTimeCommand() const
     if (vk::Result const result = _device.allocateCommandBuffers(&allocInfo, &commandBuffer);
         result != vk::Result::eSuccess)
     {
-        spdlog::critical("ErrorMsg: {}", vk::to_string(static_cast<vk::Result>(result)));
-        throw std::runtime_error("Device: failed to allocate command buffer");
+        throw std::runtime_error(fmt::format("Device: failed to allocate command buffer : {}",
+                                             vk::to_string(static_cast<vk::Result>(result))));
     }
 
     vk::CommandBufferBeginInfo beginInfo{};
@@ -224,8 +241,8 @@ vk::CommandBuffer Device::BeginSingleTimeCommand() const
 
     if (vk::Result const result = commandBuffer.begin(&beginInfo); result != vk::Result::eSuccess)
     {
-        spdlog::critical("ErrorMsg: {}", vk::to_string(static_cast<vk::Result>(result)));
-        throw std::runtime_error("Device: failed to begin command buffer");
+        throw std::runtime_error(
+            fmt::format("Device: failed to begin command buffer : {}", vk::to_string(static_cast<vk::Result>(result))));
     }
 
     return commandBuffer;
@@ -241,8 +258,8 @@ void Device::EndSingleTimeCommand(vk::CommandBuffer commandBuffer) const
 
     if (vk::Result const result = _graphicsQueue.submit(1, &submitInfo, VK_NULL_HANDLE); result != vk::Result::eSuccess)
     {
-        spdlog::critical("ErrorMsg: {}", vk::to_string(static_cast<vk::Result>(result)));
-        throw std::runtime_error("Device: failed to submit graphics queue");
+        throw std::runtime_error(fmt::format("Device: failed to submit graphics queue : {}",
+                                             vk::to_string(static_cast<vk::Result>(result))));
     }
     _graphicsQueue.waitIdle();
 
@@ -282,8 +299,8 @@ void Device::CreateLogicalDevice(std::vector<char const *> const &requiredExtens
     if (vk::Result const result = physicalDevice.createDevice(&createInfo, nullptr, &_device);
         result != vk::Result::eSuccess)
     {
-        spdlog::critical("ErrorMsg: {}", vk::to_string(static_cast<vk::Result>(result)));
-        throw std::runtime_error("failed to create logical device");
+        throw std::runtime_error(
+            fmt::format("failed to create logical device : {}", vk::to_string(static_cast<vk::Result>(result))));
     }
 
     _graphicsQueue = _device.getQueue(indices.graphicsFamily, 0);
@@ -296,7 +313,7 @@ void Device::CreateLogicalDevice(std::vector<char const *> const &requiredExtens
 
 void Device::CreateCommandPool(vk::PhysicalDevice physicalDevice, vk::SurfaceKHR surface, std::string const &name)
 {
-    check(_device);
+    check(_device && "Device: Must initialize device sooner");
 
     QueueFamilyIndices const queueFamilyIndices = FindQueueFamilies(physicalDevice, surface);
 
@@ -307,8 +324,8 @@ void Device::CreateCommandPool(vk::PhysicalDevice physicalDevice, vk::SurfaceKHR
     if (vk::Result const result = _device.createCommandPool(&poolInfo, nullptr, &_commandPool);
         result != vk::Result::eSuccess)
     {
-        spdlog::critical("ErrorMsg: {}", vk::to_string(static_cast<vk::Result>(result)));
-        throw std::runtime_error("Device: failed to create command pool");
+        throw std::runtime_error(
+            fmt::format("Device: failed to create command pool : {}", vk::to_string(static_cast<vk::Result>(result))));
     }
 
     DebugNameObject(_commandPool, vk::ObjectType::eCommandPool, name);
@@ -316,7 +333,7 @@ void Device::CreateCommandPool(vk::PhysicalDevice physicalDevice, vk::SurfaceKHR
 
 void Device::CreateTracyContext(TracyVkCtx *tracyCtx)
 {
-    check(_device);
+    check(_device && "Device: Must initialize device sooner");
     check(_physicalDevice);
     check(_graphicsQueue);
 
@@ -329,8 +346,8 @@ void Device::CreateTracyContext(TracyVkCtx *tracyCtx)
     if (vk::Result const result = _device.allocateCommandBuffers(&allocInfo, &commandBuffer);
         result != vk::Result::eSuccess)
     {
-        spdlog::critical("ErrorMsg: {}", vk::to_string(static_cast<vk::Result>(result)));
-        throw std::runtime_error("Device: failed to allocate command buffer");
+        throw std::runtime_error(fmt::format("Device: failed to allocate command buffer : {}",
+                                             vk::to_string(static_cast<vk::Result>(result))));
     }
 
     *tracyCtx = TracyVkContext(_physicalDevice, _device, _graphicsQueue, commandBuffer);
@@ -340,60 +357,60 @@ void Device::CreateTracyContext(TracyVkCtx *tracyCtx)
 
 void Device::ResetFences(std::vector<vk::Fence> const &fences) const
 {
-    check(_device);
+    check(_device && "Device: Must initialize device sooner");
 
     if (vk::Result const result = _device.resetFences(fences.size(), fences.data()); result != vk::Result::eSuccess)
     {
-        spdlog::critical("ErrorMsg: {}", vk::to_string(static_cast<vk::Result>(result)));
-        throw std::runtime_error("Device: failed to reset fence");
+        throw std::runtime_error(
+            fmt::format("Device: failed to reset fence : {}", vk::to_string(static_cast<vk::Result>(result))));
     }
 }
 
 void Device::WaitForFences(std::vector<vk::Fence> const &fences, bool waitAll, uint64_t timer) const
 {
-    check(_device);
+    check(_device && "Device: Must initialize device sooner");
 
     if (vk::Result const result = _device.waitForFences(fences.size(), fences.data(), (vk::Bool32)waitAll, timer);
         result != vk::Result::eSuccess)
     {
-        spdlog::critical("ErrorMsg: {}", vk::to_string(static_cast<vk::Result>(result)));
-        throw std::runtime_error("Device: failed to wait for fence");
+        throw std::runtime_error(
+            fmt::format("Device: failed to wait for fence : {}", vk::to_string(static_cast<vk::Result>(result))));
     }
 }
 
 void Device::SubmitToGraphicsQueue(std::vector<vk::SubmitInfo *> const &submits, vk::Fence fence) const
 {
-    check(_device);
+    check(_device && "Device: Must initialize device sooner");
 
     if (vk::Result const result = _graphicsQueue.submit(submits.size(), *submits.data(), fence);
         result != vk::Result::eSuccess)
     {
-        spdlog::critical("ErrorMsg: {}", vk::to_string(static_cast<vk::Result>(result)));
-        throw std::runtime_error("Device: failed to wait for fence");
+        throw std::runtime_error(
+            fmt::format("Device: failed to wait for fence : {}", vk::to_string(static_cast<vk::Result>(result))));
     }
 }
 
 void Device::PresentKHR(vk::PresentInfoKHR const *presentInfo) const
 {
-    check(_device);
+    check(_device && "Device: Must initialize device sooner");
 
     if (vk::Result const result = _presentQueue.presentKHR(presentInfo); result != vk::Result::eSuccess)
     {
-        spdlog::critical("ErrorMsg: {}", vk::to_string(static_cast<vk::Result>(result)));
-        throw std::runtime_error("Device: failed to present KHR");
+        throw std::runtime_error(
+            fmt::format("Device: failed to present KHR : {}", vk::to_string(static_cast<vk::Result>(result))));
     }
 }
 
 void Device::CreateSemaphore(vk::SemaphoreCreateInfo const &createInfo, vk::Semaphore *semaphore,
                              std::string const &name) const
 {
-    check(_device);
+    check(_device && "Device: Must initialize device sooner");
 
     if (vk::Result const result = _device.createSemaphore(&createInfo, nullptr, semaphore);
         result != vk::Result::eSuccess)
     {
-        spdlog::critical("ErrorMsg: {}", vk::to_string(static_cast<vk::Result>(result)));
-        throw std::runtime_error("Device: failed to create semaphore");
+        throw std::runtime_error(
+            fmt::format("Device: failed to create semaphore : {}", vk::to_string(static_cast<vk::Result>(result))));
     }
 
     DebugNameObject(*semaphore, vk::ObjectType::eSemaphore, name);
@@ -401,12 +418,12 @@ void Device::CreateSemaphore(vk::SemaphoreCreateInfo const &createInfo, vk::Sema
 
 void Device::CreateFence(vk::FenceCreateInfo const &createInfo, vk::Fence *fence, std::string const &name) const
 {
-    check(_device);
+    check(_device && "Device: Must initialize device sooner");
 
     if (vk::Result const result = _device.createFence(&createInfo, nullptr, fence); result != vk::Result::eSuccess)
     {
-        spdlog::critical("ErrorMsg: {}", vk::to_string(static_cast<vk::Result>(result)));
-        throw std::runtime_error("Device: failed to create fence");
+        throw std::runtime_error(
+            fmt::format("Device: failed to create fence : {}", vk::to_string(static_cast<vk::Result>(result))));
     }
 
     DebugNameObject(*fence, vk::ObjectType::eFence, name);
@@ -415,13 +432,13 @@ void Device::CreateFence(vk::FenceCreateInfo const &createInfo, vk::Fence *fence
 void Device::CreateFramebuffer(vk::FramebufferCreateInfo const &createInfo, vk::Framebuffer *framebuffer,
                                std::string const &name) const
 {
-    check(_device);
+    check(_device && "Device: Must initialize device sooner");
 
     if (vk::Result const result = _device.createFramebuffer(&createInfo, nullptr, framebuffer);
         result != vk::Result::eSuccess)
     {
-        spdlog::critical("ErrorMsg: {}", vk::to_string(static_cast<vk::Result>(result)));
-        throw std::runtime_error("Device: failed to create framebuffer");
+        throw std::runtime_error(
+            fmt::format("Device: failed to create framebuffer : {}", vk::to_string(static_cast<vk::Result>(result))));
     }
 
     DebugNameObject(*framebuffer, vk::ObjectType::eFramebuffer, name);
@@ -430,13 +447,13 @@ void Device::CreateFramebuffer(vk::FramebufferCreateInfo const &createInfo, vk::
 void Device::CreateRenderPass(vk::RenderPassCreateInfo const &createInfo, vk::RenderPass *renderPass,
                               std::string const &name) const
 {
-    check(_device);
+    check(_device && "Device: Must initialize device sooner");
 
     if (vk::Result const result = _device.createRenderPass(&createInfo, nullptr, renderPass);
         result != vk::Result::eSuccess)
     {
-        spdlog::critical("ErrorMsg: {}", vk::to_string(static_cast<vk::Result>(result)));
-        throw std::runtime_error("Device: failed to create renderPass");
+        throw std::runtime_error(
+            fmt::format("Device: failed to create renderPass : {}", vk::to_string(static_cast<vk::Result>(result))));
     }
 
     DebugNameObject(*renderPass, vk::ObjectType::eRenderPass, name);
@@ -445,12 +462,12 @@ void Device::CreateRenderPass(vk::RenderPassCreateInfo const &createInfo, vk::Re
 void Device::CreateImageAndBindMemory(vk::ImageCreateInfo const &createInfo, vk::Image *image,
                                       vk::DeviceMemory *imageMemory, std::string const &name) const
 {
-    check(_device);
+    check(_device && "Device: Must initialize device sooner");
 
     if (vk::Result const result = _device.createImage(&createInfo, nullptr, image); result != vk::Result::eSuccess)
     {
-        spdlog::critical("ErrorMsg: {}", vk::to_string(static_cast<vk::Result>(result)));
-        throw std::runtime_error("Device: failed to create imageView");
+        throw std::runtime_error(
+            fmt::format("Device: failed to create imageView : {}", vk::to_string(static_cast<vk::Result>(result))));
     }
 
     vk::MemoryRequirements const memRequirements = _device.getImageMemoryRequirements(*image);
@@ -476,12 +493,12 @@ void Device::CreateBufferAndBindMemory(vk::BufferCreateInfo const &createInfo, v
                                        vk::MemoryPropertyFlags const &memoryPropertyFlags,
                                        std::string const &name) const
 {
-    check(_device);
+    check(_device && "Device: Must initialize device sooner");
 
     if (vk::Result const result = _device.createBuffer(&createInfo, nullptr, buffer); result != vk::Result::eSuccess)
     {
-        spdlog::critical("ErrorMsg: {}", vk::to_string(static_cast<vk::Result>(result)));
-        throw std::runtime_error("Device: failed to create buffer");
+        throw std::runtime_error(
+            fmt::format("Device: failed to create buffer : {}", vk::to_string(static_cast<vk::Result>(result))));
     }
 
     vk::MemoryRequirements const memRequirements = _device.getBufferMemoryRequirements(*buffer);
@@ -493,8 +510,8 @@ void Device::CreateBufferAndBindMemory(vk::BufferCreateInfo const &createInfo, v
     if (vk::Result const result = _device.allocateMemory(&allocInfo, nullptr, bufferMemory);
         result != vk::Result::eSuccess)
     {
-        spdlog::critical("ErrorMsg: {}", vk::to_string(static_cast<vk::Result>(result)));
-        throw std::runtime_error("Device: failed to allocate buffer memory");
+        throw std::runtime_error(fmt::format("Device: failed to allocate buffer memory : {}",
+                                             vk::to_string(static_cast<vk::Result>(result))));
     }
 
     _device.bindBufferMemory(*buffer, *bufferMemory, 0);
@@ -522,27 +539,27 @@ void Device::MapMemory(vk::DeviceMemory deviceMemory, void **mappedMemory) const
             _device.mapMemory(deviceMemory, 0, VK_WHOLE_SIZE, vk::MemoryMapFlagBits{}, mappedMemory);
         result != vk::Result::eSuccess)
     {
-        spdlog::critical("ErrorMsg: {}", vk::to_string(static_cast<vk::Result>(result)));
-        throw std::runtime_error("Device: failed to map memory");
+        throw std::runtime_error(
+            fmt::format("Device: failed to map memory : {}", vk::to_string(static_cast<vk::Result>(result))));
     }
 }
 
 void Device::FlushMappedMemoryRange(vk::MappedMemoryRange const &mappedMemoryRange) const
 {
-    check(_device);
+    check(_device && "Device: Must initialize device sooner");
     _device.flushMappedMemoryRanges({mappedMemoryRange});
 }
 
 void Device::CreateImageView(vk::ImageViewCreateInfo const &createInfo, vk::ImageView *imageView,
                              std::string const &name) const
 {
-    check(_device);
+    check(_device && "Device: Must initialize device sooner");
 
     if (vk::Result const result = _device.createImageView(&createInfo, nullptr, imageView);
         result != vk::Result::eSuccess)
     {
-        spdlog::critical("ErrorMsg: {}", vk::to_string(static_cast<vk::Result>(result)));
-        throw std::runtime_error("Device: failed to create imageView");
+        throw std::runtime_error(
+            fmt::format("Device: failed to create imageView : {}", vk::to_string(static_cast<vk::Result>(result))));
     }
 
     DebugNameObject(*imageView, vk::ObjectType::eImageView, name);
@@ -550,7 +567,7 @@ void Device::CreateImageView(vk::ImageViewCreateInfo const &createInfo, vk::Imag
 
 vk::Sampler Device::CreateSampler(vk::SamplerCreateInfo const &createInfo, std::string const &name) const
 {
-    check(_device);
+    check(_device && "Device: Must initialize device sooner");
 
     vk::Sampler sampler = _device.createSampler(createInfo);
 
@@ -562,13 +579,13 @@ vk::Sampler Device::CreateSampler(vk::SamplerCreateInfo const &createInfo, std::
 void Device::AllocateDescriptorSet(vk::DescriptorSetAllocateInfo const &allocInfo, vk::DescriptorSet *descriptorSet,
                                    std::string const &name) const
 {
-    check(_device);
+    check(_device && "Device: Must initialize device sooner");
 
     if (vk::Result const result = _device.allocateDescriptorSets(&allocInfo, descriptorSet);
         result != vk::Result::eSuccess)
     {
-        spdlog::critical("ErrorMsg: {}", vk::to_string(static_cast<vk::Result>(result)));
-        throw std::runtime_error("Device: failed to allocate descriptor set");
+        throw std::runtime_error(fmt::format("Device: failed to allocate descriptor set : {}",
+                                             vk::to_string(static_cast<vk::Result>(result))));
     }
 
     DebugNameObject(*descriptorSet, vk::ObjectType::eDescriptorSet, name);
@@ -576,34 +593,34 @@ void Device::AllocateDescriptorSet(vk::DescriptorSetAllocateInfo const &allocInf
 
 void Device::UpdateDescriptorSet(vk::WriteDescriptorSet const &writeDescriptor) const
 {
-    check(_device);
+    check(_device && "Device: Must initialize device sooner");
 
     _device.updateDescriptorSets(1, &writeDescriptor, 0, nullptr);
 }
 
 void Device::FreeDescriptorSets(vk::DescriptorPool descriptorPool, std::vector<vk::DescriptorSet> descriptorSets) const
 {
-    check(_device);
+    check(_device && "Device: Must initialize device sooner");
 
     if (vk::Result const result =
             _device.freeDescriptorSets(descriptorPool, descriptorSets.size(), descriptorSets.data());
         result != vk::Result::eSuccess)
     {
-        spdlog::critical("ErrorMsg: {}", vk::to_string(static_cast<vk::Result>(result)));
-        throw std::runtime_error("Device: failed to free descriptor sets");
+        throw std::runtime_error(
+            fmt::format("Device: failed to free descriptor sets : {}", vk::to_string(static_cast<vk::Result>(result))));
     }
 }
 
 void Device::CreateSwapchainKHR(vk::SwapchainCreateInfoKHR const &createInfo, vk::SwapchainKHR *swapchain,
                                 std::string const &name) const
 {
-    check(_device);
+    check(_device && "Device: Must initialize device sooner");
 
     if (vk::Result const result = _device.createSwapchainKHR(&createInfo, nullptr, swapchain);
         result != vk::Result::eSuccess)
     {
-        spdlog::critical("ErrorMsg: {}", vk::to_string(static_cast<vk::Result>(result)));
-        throw std::runtime_error("Device: failed to create swapchain");
+        throw std::runtime_error(
+            fmt::format("Device: failed to create swapchain : {}", vk::to_string(static_cast<vk::Result>(result))));
     }
 
     DebugNameObject(*swapchain, vk::ObjectType::eSwapchainKHR, name);
@@ -612,13 +629,13 @@ void Device::CreateSwapchainKHR(vk::SwapchainCreateInfoKHR const &createInfo, vk
 void Device::CreateDescriptorPool(vk::DescriptorPoolCreateInfo const &createInfo, vk::DescriptorPool *descriptorPool,
                                   std::string const &name) const
 {
-    check(_device);
+    check(_device && "Device: Must initialize device sooner");
 
     if (vk::Result const result = _device.createDescriptorPool(&createInfo, nullptr, descriptorPool);
         result != vk::Result::eSuccess)
     {
-        spdlog::critical("ErrorMsg: {}", vk::to_string(static_cast<vk::Result>(result)));
-        throw std::runtime_error("Device: failed to create descriptor pool");
+        throw std::runtime_error(fmt::format("Device: failed to create descriptor pool : {}",
+                                             vk::to_string(static_cast<vk::Result>(result))));
     }
 
     DebugNameObject(*descriptorPool, vk::ObjectType::eDescriptorPool, name);
@@ -627,13 +644,13 @@ void Device::CreateDescriptorPool(vk::DescriptorPoolCreateInfo const &createInfo
 void Device::CreateDescriptorSetLayout(vk::DescriptorSetLayoutCreateInfo const &createInfo,
                                        vk::DescriptorSetLayout *descriptorSetLayout, std::string const &name) const
 {
-    check(_device);
+    check(_device && "Device: Must initialize device sooner");
 
     if (vk::Result const result = _device.createDescriptorSetLayout(&createInfo, nullptr, descriptorSetLayout);
         result != vk::Result::eSuccess)
     {
-        spdlog::critical("ErrorMsg: {}", vk::to_string(static_cast<vk::Result>(result)));
-        throw std::runtime_error("Device: failed to create descriptor set layout");
+        throw std::runtime_error(fmt::format("Device: failed to create descriptor set layout : {}",
+                                             vk::to_string(static_cast<vk::Result>(result))));
     }
 
     DebugNameObject(*descriptorSetLayout, vk::ObjectType::eDescriptorSetLayout, name);
@@ -649,21 +666,21 @@ void Device::CreateShaderModule(std::vector<char> const &code, vk::ShaderModule 
     if (vk::Result const result = _device.createShaderModule(&createInfo, nullptr, shaderModule);
         result != vk::Result::eSuccess)
     {
-        spdlog::critical("ErrorMsg: {}", vk::to_string(static_cast<vk::Result>(result)));
-        throw std::runtime_error("Device: failed to create shader module");
+        throw std::runtime_error(
+            fmt::format("Device: failed to create shader module : {}", vk::to_string(static_cast<vk::Result>(result))));
     }
 }
 
 void Device::CreatePipelineLayout(vk::PipelineLayoutCreateInfo const &createInfo, vk::PipelineLayout *pipelineLayout,
                                   std::string const &name) const
 {
-    check(_device);
+    check(_device && "Device: Must initialize device sooner");
 
     if (vk::Result const result = _device.createPipelineLayout(&createInfo, nullptr, pipelineLayout);
         result != vk::Result::eSuccess)
     {
-        spdlog::critical("ErrorMsg: {}", vk::to_string(static_cast<vk::Result>(result)));
-        throw std::runtime_error("Device: failed to create pipeline layout");
+        throw std::runtime_error(fmt::format("Device: failed to create pipeline layout : {}",
+                                             vk::to_string(static_cast<vk::Result>(result))));
     }
 
     DebugNameObject(*pipelineLayout, vk::ObjectType::ePipelineLayout, name);
@@ -672,13 +689,13 @@ void Device::CreatePipelineLayout(vk::PipelineLayoutCreateInfo const &createInfo
 void Device::CreateGraphicsPipeline(vk::GraphicsPipelineCreateInfo const &createInfo, vk::Pipeline *pipeline,
                                     std::string const &name) const
 {
-    check(_device);
+    check(_device && "Device: Must initialize device sooner");
 
     if (vk::Result const result = _device.createGraphicsPipelines(VK_NULL_HANDLE, 1, &createInfo, nullptr, pipeline);
         result != vk::Result::eSuccess)
     {
-        spdlog::critical("ErrorMsg: {}", vk::to_string(static_cast<vk::Result>(result)));
-        throw std::runtime_error("Device: failed to create pipeline layout");
+        throw std::runtime_error(fmt::format("Device: failed to create pipeline layout : {}",
+                                             vk::to_string(static_cast<vk::Result>(result))));
     }
 
     DebugNameObject(*pipeline, vk::ObjectType::ePipeline, name);
@@ -686,82 +703,82 @@ void Device::CreateGraphicsPipeline(vk::GraphicsPipelineCreateInfo const &create
 
 void Device::DestroySemaphore(vk::Semaphore semaphore) const
 {
-    check(_device);
+    check(_device && "Device: Must initialize device sooner");
     _device.destroySemaphore(semaphore, nullptr);
 }
 void Device::DestroyFence(vk::Fence fence) const
 {
-    check(_device);
+    check(_device && "Device: Must initialize device sooner");
     _device.destroyFence(fence, nullptr);
 }
 void Device::DestroyFramebuffer(vk::Framebuffer framebuffer) const
 {
-    check(_device);
+    check(_device && "Device: Must initialize device sooner");
     _device.destroyFramebuffer(framebuffer, nullptr);
 }
 void Device::DestroyRenderPass(vk::RenderPass renderPass) const
 {
-    check(_device);
+    check(_device && "Device: Must initialize device sooner");
     _device.destroyRenderPass(renderPass, nullptr);
 }
 void Device::DestroyImage(vk::Image image) const
 {
-    check(_device);
+    check(_device && "Device: Must initialize device sooner");
     _device.destroyImage(image, nullptr);
 }
 void Device::DestroyBuffer(vk::Buffer buffer) const
 {
-    check(_device);
+    check(_device && "Device: Must initialize device sooner");
     _device.destroyBuffer(buffer, nullptr);
 }
 void Device::UnmapMemory(vk::DeviceMemory deviceMemory) const
 {
-    check(_device);
+    check(_device && "Device: Must initialize device sooner");
     _device.unmapMemory(deviceMemory);
 }
 void Device::FreeDeviceMemory(vk::DeviceMemory deviceMemory) const
 {
-    check(_device);
+    check(_device && "Device: Must initialize device sooner");
     _device.freeMemory(deviceMemory, nullptr);
 }
 void Device::DestroyImageView(vk::ImageView imageView) const
 {
-    check(_device);
+    check(_device && "Device: Must initialize device sooner");
     _device.destroyImageView(imageView, nullptr);
 }
 void Device::DestroySampler(vk::Sampler sampler) const
 {
-    check(_device);
+    check(_device && "Device: Must initialize device sooner");
     _device.destroySampler(sampler, nullptr);
 }
 void Device::DestroySwapchainKHR(vk::SwapchainKHR swapchainKHR) const
 {
-    check(_device);
+    check(_device && "Device: Must initialize device sooner");
     _device.destroySwapchainKHR(swapchainKHR, nullptr);
 }
 void Device::DestroyDescriptorPool(vk::DescriptorPool descriptorPool) const
 {
-    check(_device);
+    check(_device && "Device: Must initialize device sooner");
     _device.destroyDescriptorPool(descriptorPool, nullptr);
 }
 void Device::DestroyDescriptorSetLayout(vk::DescriptorSetLayout descriptorSet) const
 {
-    check(_device);
+    check(_device && "Device: Must initialize device sooner");
     _device.destroyDescriptorSetLayout(descriptorSet, nullptr);
 }
 void Device::DestroyShaderModule(vk::ShaderModule shaderModule) const
 {
-    check(_device);
+    check(_device && "Device: Must initialize device sooner");
     _device.destroyShaderModule(shaderModule, nullptr);
 }
 void Device::DestroyPipelineLayout(vk::PipelineLayout pipelineLayout) const
 {
-    check(_device);
+    check(_device && "Device: Must initialize device sooner");
     _device.destroyPipelineLayout(pipelineLayout, nullptr);
 }
 void Device::DestroyGraphicsPipeline(vk::Pipeline pipeline) const
 {
-    check(_device);
+    check(_device && "Device: Must initialize device sooner");
     _device.destroyPipeline(pipeline, nullptr);
 }
 
@@ -790,8 +807,8 @@ void Device::AllocateCommandBuffers(std::vector<vk::CommandBuffer> *commandBuffe
     if (vk::Result const result = _device.allocateCommandBuffers(&allocInfo, commandBuffers->data());
         result != vk::Result::eSuccess)
     {
-        spdlog::critical("ErrorMsg: {}", vk::to_string(static_cast<vk::Result>(result)));
-        throw std::runtime_error("Device: failed to allocate command buffers");
+        throw std::runtime_error(fmt::format("Device: failed to allocate command buffers : {}",
+                                             vk::to_string(static_cast<vk::Result>(result))));
     }
 }
 
@@ -806,8 +823,8 @@ void Device::AcquireNextImageKHR(vk::SwapchainKHR swapchain, vk::Semaphore semap
     if (vk::Result const result = _device.acquireNextImageKHR(swapchain, timeout, semaphore, fence, imageIndex);
         result != vk::Result::eSuccess)
     {
-        spdlog::critical("ErrorMsg: {}", vk::to_string(static_cast<vk::Result>(result)));
-        throw std::runtime_error("Device: failed to acquire next imageKHR");
+        throw std::runtime_error(fmt::format("Device: failed to acquire next imageKHR : {}",
+                                             vk::to_string(static_cast<vk::Result>(result))));
     }
 }
 
@@ -816,8 +833,8 @@ std::vector<vk::Image> Device::GetSwapchainImagesKHR(vk::SwapchainKHR swapchain,
     if (vk::Result const result = _device.getSwapchainImagesKHR(swapchain, &minImageCount, nullptr);
         result != vk::Result::eSuccess)
     {
-        spdlog::critical("ErrorMsg: {}", vk::to_string(static_cast<vk::Result>(result)));
-        spdlog::warn("Device: failed to get swapchain imagesKHR");
+        spdlog::warn(fmt::format("Device: failed to get swapchain imagesKHR : {}",
+                                 vk::to_string(static_cast<vk::Result>(result))));
     }
 
     std::vector<vk::Image> images{};
@@ -825,8 +842,8 @@ std::vector<vk::Image> Device::GetSwapchainImagesKHR(vk::SwapchainKHR swapchain,
     if (vk::Result const result = _device.getSwapchainImagesKHR(swapchain, &minImageCount, images.data());
         result != vk::Result::eSuccess)
     {
-        spdlog::critical("ErrorMsg: {}", vk::to_string(static_cast<vk::Result>(result)));
-        spdlog::warn("swapchain: failed to get swapchainimageskhr");
+        spdlog::warn(fmt::format("Swapchain: failed to get swapchainimageskhr : {}",
+                                 vk::to_string(static_cast<vk::Result>(result))));
     }
 
     return images;

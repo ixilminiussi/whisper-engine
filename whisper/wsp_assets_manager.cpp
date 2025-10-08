@@ -1,3 +1,6 @@
+#include "wsp_device.hpp"
+#include <filesystem>
+#include <stdexcept>
 #include <wsp_assets_manager.hpp>
 #include <wsp_mesh.hpp>
 
@@ -44,8 +47,28 @@ std::string ToString(cgltf_result result)
     }
 };
 
-void AssetsManager::ImportMeshes(Device *device, std::string const &filepath, size_t *count)
+void AssetsManager::Free()
 {
+    Device *device = DeviceAccessor::Get();
+
+    for (std::unique_ptr<Mesh> &mesh : _meshes)
+    {
+        mesh->Free(device);
+        mesh.release();
+    }
+
+    _meshes.clear();
+}
+
+void AssetsManager::ImportTextures(std::string const &filepath)
+{
+}
+
+void AssetsManager::ImportMeshes(std::string const &filepath)
+{
+    Device *device = DeviceAccessor::Get();
+    check(device);
+
     cgltf_data *data = NULL;
     cgltf_options const options{};
 
@@ -53,52 +76,40 @@ void AssetsManager::ImportMeshes(Device *device, std::string const &filepath, si
 
         result != cgltf_result_success)
     {
-        spdlog::error("AssetsManager: asset {} parse error ({})", filepath, ToString(result));
-        return;
+        throw std::invalid_argument(
+            fmt::format("AssetsManager: asset '{}' parse error ({})", filepath, ToString(result)));
     }
 
     if (cgltf_result const result = cgltf_load_buffers(&options, data, filepath.c_str());
         result != cgltf_result_success)
     {
-        spdlog::error("AssetsManager: asset {} parse error ({})", filepath, ToString(result));
-        return;
+        throw std::invalid_argument(
+            fmt::format("AssetsManager: asset '{}' parse error ({})", filepath, ToString(result)));
     }
 
-    *count = data->meshes_count;
+    for (int i = 0; i < data->images_count; i++)
+    {
+        cgltf_image const &image = data->images[i];
+        if (image.uri && strncmp(image.uri, "data:", 5) != 0) // we're referencing a path
+        {
+            std::filesystem::path const baseDir = std::filesystem::path(filepath).parent_path();
+            std::filesystem::path const fullPath = baseDir / image.uri;
+            ImportTextures(fullPath);
+        }
+    }
 
-    spdlog::info("AssetsManager: importing new assets from {}", filepath);
+    spdlog::info("AssetsManager: importing new assets from '{}'", filepath);
 
     for (int i = 0; i < data->meshes_count; i++)
     {
         _meshes.emplace_back(new Mesh(device, &data->meshes[i]));
+        _drawable = _meshes.at(_meshes.size() - 1).get();
     }
 
     cgltf_free(data);
 }
 
-class Mesh *AssetsManager::ImportMeshTmp(class Device *device, std::string const &filepath)
+Drawable const *AssetsManager::GetDrawable()
 {
-    cgltf_data *data = NULL;
-    cgltf_options const options{};
-
-    if (cgltf_result const result = cgltf_parse_file(&options, filepath.c_str(), &data);
-
-        result != cgltf_result_success)
-    {
-        spdlog::error("AssetsManager: asset {} parse error ({})", filepath, ToString(result));
-        return nullptr;
-    }
-
-    if (cgltf_result const result = cgltf_load_buffers(&options, data, filepath.c_str());
-        result != cgltf_result_success)
-    {
-        spdlog::error("AssetsManager: asset {} parse error ({})", filepath, ToString(result));
-        return nullptr;
-    }
-
-    Mesh *mesh = new Mesh{device, &data->meshes[0]};
-
-    cgltf_free(data);
-
-    return mesh;
+    return _drawable;
 }
