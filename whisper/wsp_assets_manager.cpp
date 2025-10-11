@@ -1,16 +1,22 @@
-#include "wsp_device.hpp"
-#include <filesystem>
-#include <stdexcept>
+#include "wsp_engine.hpp"
+#include <wsp_device.hpp>
+
 #include <wsp_assets_manager.hpp>
+#include <wsp_editor.hpp>
 #include <wsp_mesh.hpp>
 
-#include <spdlog/spdlog.h>
+#include <IconsMaterialSymbols.h>
 
 #include <cgltf.h>
+#include <imgui.h>
+#include <spdlog/spdlog.h>
+
+#include <filesystem>
+#include <stdexcept>
 
 using namespace wsp;
 
-AssetsManager::AssetsManager()
+AssetsManager::AssetsManager() : _fileRoot{WSP_ASSETS}
 {
 }
 
@@ -60,12 +66,13 @@ void AssetsManager::Free()
     _meshes.clear();
 }
 
-void AssetsManager::ImportTextures(std::string const &filepath)
+void AssetsManager::ImportTextures(std::filesystem::path const &filepath)
 {
 }
 
-void AssetsManager::ImportMeshes(std::string const &filepath)
+std::vector<Mesh *> AssetsManager::ImportMeshes(std::filesystem::path const &relativePath)
 {
+    std::filesystem::path filepath = (_fileRoot / relativePath).lexically_normal();
     Device *device = DeviceAccessor::Get();
     check(device);
 
@@ -77,14 +84,14 @@ void AssetsManager::ImportMeshes(std::string const &filepath)
         result != cgltf_result_success)
     {
         throw std::invalid_argument(
-            fmt::format("AssetsManager: asset '{}' parse error ({})", filepath, ToString(result)));
+            fmt::format("AssetsManager: asset '{}' parse error ({})", filepath.string(), ToString(result)));
     }
 
     if (cgltf_result const result = cgltf_load_buffers(&options, data, filepath.c_str());
         result != cgltf_result_success)
     {
         throw std::invalid_argument(
-            fmt::format("AssetsManager: asset '{}' parse error ({})", filepath, ToString(result)));
+            fmt::format("AssetsManager: asset '{}' parse error ({})", filepath.string(), ToString(result)));
     }
 
     for (int i = 0; i < data->images_count; i++)
@@ -98,18 +105,107 @@ void AssetsManager::ImportMeshes(std::string const &filepath)
         }
     }
 
-    spdlog::info("AssetsManager: importing new assets from '{}'", filepath);
+    spdlog::info("AssetsManager: importing new assets from '{}'", filepath.string());
 
+    std::vector<class Mesh *> _drawables;
     for (int i = 0; i < data->meshes_count; i++)
     {
         _meshes.emplace_back(new Mesh(device, &data->meshes[i]));
-        _drawable = _meshes.at(_meshes.size() - 1).get();
+        _drawables.push_back(_meshes.at(_meshes.size() - 1).get());
     }
 
     cgltf_free(data);
+
+    return _drawables;
 }
 
-Drawable const *AssetsManager::GetDrawable()
+ContentBrowser::ContentBrowser(AssetsManager *assetsManager)
+    : _assetsManager{assetsManager}, _currentDirectory{assetsManager->_fileRoot}
 {
-    return _drawable;
+}
+
+ContentBrowser::~ContentBrowser()
+{
+}
+
+void ContentBrowser::RenderEditor()
+{
+    if (!ensure(_assetsManager))
+    {
+        return;
+    }
+
+    static float const padding = 16.f;
+    static float const thumbnailSize = 128.f;
+    float const cellSize = padding + thumbnailSize;
+
+    float const panelWidth = ImGui::GetContentRegionAvail().x;
+    int const columnCount = std::max(1, (int)(panelWidth / cellSize));
+
+    if (std::filesystem::canonical(_currentDirectory).compare(std::filesystem::canonical(_assetsManager->_fileRoot)) !=
+        0)
+    {
+        if (ImGui::Button("../"))
+        {
+            _currentDirectory = std::filesystem::path(_currentDirectory).parent_path();
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("/"))
+        {
+            _currentDirectory = std::filesystem::path(_assetsManager->_fileRoot);
+        }
+    }
+
+    ImGui::Columns(columnCount, 0, false);
+
+    int id = 0;
+    for (auto &directory : std::filesystem::directory_iterator(_currentDirectory))
+    {
+        static ImGuiIO &io = ImGui::GetIO();
+
+        static ImFont *Font = io.Fonts->AddFontFromFileTTF(
+            (std::string(WSP_EDITOR_ASSETS) + std::string("MaterialIcons-Regular.ttf")).c_str(),
+            thumbnailSize - padding * 2.);
+
+        ImGui::PushID(id++);
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(padding, padding));
+        ImGui::PushFont(Font);
+
+        if (directory.is_directory())
+        {
+            std::filesystem::path const path = directory.path().c_str();
+            if (ImGui::Button(ICON_MS_FOLDER, ImVec2(thumbnailSize, thumbnailSize)))
+            {
+                _currentDirectory = directory.path();
+            }
+            ImGui::PopFont();
+            ImGui::Text("%s", path.filename().c_str());
+        }
+        else
+        {
+            std::filesystem::path const path = directory.path();
+            if (ImGui::Button(ICON_MS_DESCRIPTION, ImVec2(thumbnailSize, thumbnailSize)))
+            {
+                try
+                {
+                    std::filesystem::path const relativePath =
+                        std::filesystem::relative(path, _assetsManager->_fileRoot);
+                    std::vector<Drawable const *> drawList{};
+                    for (Mesh const *mesh : _assetsManager->ImportMeshes(relativePath))
+                    {
+                        drawList.push_back((Drawable const *)mesh);
+                    }
+                    engine::Inspect(drawList);
+                }
+                catch (std::exception exception)
+                {
+                };
+            }
+            ImGui::PopFont();
+            ImGui::Text("%s", path.filename().c_str());
+        }
+        ImGui::PopStyleVar();
+        ImGui::NextColumn();
+        ImGui::PopID();
+    }
 }

@@ -1,12 +1,16 @@
 #ifndef WSP_EDITOR
 #define WSP_EDITOR
 
-// lib
-#include <memory>
 #include <vulkan/vulkan.hpp>
 
-// std
 #include <functional>
+#include <map>
+#include <memory>
+
+#define REGULAR_FONT 0u
+#define THUMBNAILS_FONT 1u
+
+struct ImFont;
 
 namespace wsp
 {
@@ -43,6 +47,7 @@ class Editor
     bool _freed;
 
     std::unique_ptr<class ViewportCamera> _viewportCamera;
+    std::unique_ptr<class AssetsManager> _assetsManager;
 
     std::vector<std::function<void()>> _deferredQueue;
 };

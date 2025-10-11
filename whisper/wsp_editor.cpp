@@ -1,5 +1,6 @@
 #include <wsp_editor.hpp>
 
+#include <wsp_assets_manager.hpp>
 #include <wsp_camera.hpp>
 #include <wsp_device.hpp>
 #include <wsp_devkit.hpp>
@@ -19,6 +20,8 @@
 #include <imgui_impl_vulkan.h>
 #include <imgui_internal.h>
 
+#include <IconsMaterialSymbols.h>
+
 #include <spdlog/spdlog.h>
 
 #include <vulkan/vulkan.hpp>
@@ -32,6 +35,14 @@ Editor::Editor(Window const *window, Device const *device, vk::Instance instance
     check(window);
 
     _viewportCamera = std::make_unique<ViewportCamera>(glm::vec3{0.f}, 10.f, glm::vec2{20.f, 0.f});
+    _assetsManager = std::make_unique<AssetsManager>();
+
+    std::vector<Drawable const *> drawList{};
+    for (Mesh const *mesh : _assetsManager->ImportMeshes("Avocado.gltf"))
+    {
+        drawList.push_back((Drawable const *)mesh);
+    }
+    engine::Inspect(drawList);
 
     InitImGui(window, device, instance);
 }
@@ -53,6 +64,8 @@ void Editor::Free(Device const *device)
         spdlog::error("Editor: already freed window");
         return;
     }
+
+    _assetsManager->Free();
 
     device->WaitIdle();
 
@@ -91,6 +104,12 @@ void Editor::Render(vk::CommandBuffer commandBuffer, Graph *graph, Window *windo
             frost::RenderEditor(frost::Meta<ViewportCamera>{}, _viewportCamera.get());
             ImGui::End();
         }
+
+        static ContentBrowser contentBrowser{_assetsManager.get()};
+
+        ImGui::Begin("Content Browser");
+        contentBrowser.RenderEditor();
+        ImGui::End();
     }
 
     ImGui::Begin("Controls");
@@ -197,8 +216,18 @@ void Editor::InitImGui(Window const *window, Device const *device, vk::Instance 
     ImGui_ImplVulkan_Init(&initInfo);
 
     spdlog::info("EDITOR FILES at : {0}", WSP_EDITOR_ASSETS);
+    float const fontSize = 16.0f;
     io.Fonts->AddFontFromFileTTF((std::string(WSP_EDITOR_ASSETS) + std::string("JetBrainsMonoNL-Regular.ttf")).c_str(),
-                                 16.0f);
+                                 fontSize);
+
+    float const iconFontSize = 16.0f;
+    static ImWchar const icons_ranges[] = {ICON_MIN_MS, ICON_MAX_16_MS, 0};
+    ImFontConfig icons_config;
+    icons_config.MergeMode = true;
+    icons_config.PixelSnapH = true;
+    icons_config.GlyphOffset = {0.0f, 4.0f};
+    io.Fonts->AddFontFromFileTTF((std::string(WSP_EDITOR_ASSETS) + std::string("MaterialIcons-Regular.ttf")).c_str(),
+                                 iconFontSize, &icons_config, icons_ranges);
 
     ApplyImGuiTheme();
 }
@@ -216,10 +245,7 @@ void Editor::InitDockspace(unsigned int dockspaceID)
     ImGuiID rightID = ImGui::DockBuilderSplitNode(dock_mainID, ImGuiDir_Right, 0.2f, nullptr, &dock_mainID);
     ImGuiID bottomID = ImGui::DockBuilderSplitNode(dock_mainID, ImGuiDir_Down, 0.3f, nullptr, &dock_mainID);
 
-    // ImGui::DockBuilderDockWindow("Graphics Manager", left_bottomID);
-    // ImGui::DockBuilderDockWindow("World Manager", left_bottomID);
-    // ImGui::DockBuilderDockWindow("Inspector", rightID);
-    ImGui::DockBuilderDockWindow("Assets", bottomID);
+    ImGui::DockBuilderDockWindow("Content Browser", bottomID);
     ImGui::DockBuilderDockWindow("Camera", rightID);
     ImGui::DockBuilderDockWindow("Viewport", dock_mainID);
     ImGui::DockBuilderDockWindow("Controls", leftID);

@@ -50,10 +50,6 @@ bool Initialize()
         assetsManager = std::make_unique<AssetsManager>();
         renderer = std::make_unique<Renderer>();
 
-        assetsManager->ImportMeshes(std::string(WSP_ASSETS) + "Avocado.gltf");
-
-        drawList.push_back(assetsManager->GetDrawable());
-
         renderer->Initialize(&drawList);
         initialized = true;
     }
@@ -120,6 +116,13 @@ void Terminate()
     {
         spdlog::critical("{0}", exception.what());
     }
+}
+
+void Inspect(std::vector<Drawable const *> drawables)
+{
+    drawList.clear();
+
+    drawList.insert(drawList.end(), drawables.begin(), drawables.end());
 }
 
 } // namespace engine

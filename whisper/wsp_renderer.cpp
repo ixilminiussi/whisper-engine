@@ -45,19 +45,20 @@ Renderer::Renderer()
       _deviceExtensions{vk::KHRSwapchainExtensionName, vk::KHRMaintenance2ExtensionName}
 {
     ZoneScopedN("initialize");
-    spdlog::info("Engine: began initialization");
+    spdlog::info("Renderer: began initialization");
 
     if (!glfwInit())
     {
-        throw std::runtime_error("Engine: GLFW failed to initialize!");
+        throw std::runtime_error("Renderer: GLFW failed to initialize!");
     }
-
-    CreateInstance();
 
     if (_vkInstance)
     {
-        spdlog::error("Engine: already initialized");
+        spdlog::error("Renderer: already initialized");
+        return;
     }
+
+    CreateInstance();
 
     _window = std::make_unique<Window>(_vkInstance, 1024, 1024, "test");
 
@@ -231,7 +232,7 @@ void Renderer::Initialize(std::vector<Drawable const *> const *drawList)
 
     _editor = std::make_unique<Editor>(_window.get(), device, _vkInstance);
 
-    spdlog::info("Engine: new window initialized");
+    spdlog::info("Renderer: new window initialized");
 }
 
 void Renderer::CreateInstance()
@@ -241,7 +242,7 @@ void Renderer::CreateInstance()
 #ifndef NDEBUG
     if (!CheckValidationLayerSupport())
     {
-        throw std::runtime_error("Engine: validation layers requested, but not available!");
+        throw std::runtime_error("Renderer: validation layers requested, but not available!");
     }
 #endif
 
@@ -259,7 +260,7 @@ void Renderer::CreateInstance()
 
     for (char const *ext : extensions)
     {
-        spdlog::info("Engine: Requested extension: {}", ext);
+        spdlog::info("Renderer: Requested extension: {}", ext);
     }
 
     createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
@@ -290,14 +291,14 @@ void Renderer::CreateInstance()
         result != vk::Result::eSuccess)
     {
         throw std::runtime_error(
-            fmt::format("Engine: failed to create _vkInstance : {}", vk::to_string(static_cast<vk::Result>(result))));
+            fmt::format("Renderer: failed to create _vkInstance : {}", vk::to_string(static_cast<vk::Result>(result))));
     }
 
 #ifndef NDEBUG
     if (const vk::Result result = CreateDebugUtilsMessengerEXT(_vkInstance, &debugCreateInfo, nullptr, &debugMessenger);
         result != vk::Result::eSuccess)
     {
-        throw std::runtime_error(fmt::format("Engine: failed to set up debug messenger : {}",
+        throw std::runtime_error(fmt::format("Renderer: failed to set up debug messenger : {}",
                                              vk::to_string(static_cast<vk::Result>(result))));
     }
 #endif
@@ -324,7 +325,7 @@ void Renderer::ExtensionsCompatibilityTest()
         spdlog::info("\t{0}", required);
         if (available.find(required) == available.end())
         {
-            throw std::runtime_error("Engine: missing required glfw extension");
+            throw std::runtime_error("Renderer: missing required glfw extension");
         }
     }
 }

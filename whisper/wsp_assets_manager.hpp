@@ -1,6 +1,7 @@
 #ifndef WSP_ASSETS_MANAGER
 #define WSP_ASSETS_MANAGER
 
+#include <filesystem>
 #include <memory>
 #include <vector>
 
@@ -13,16 +14,31 @@ class AssetsManager
     AssetsManager();
     ~AssetsManager();
 
-    void ImportTextures(std::string const &filepath);
-    void ImportMeshes(std::string const &filepath);
+    void ImportTextures(std::filesystem::path const &filepath);
+    std::vector<class Mesh *> ImportMeshes(std::filesystem::path const &filepath);
 
     void Free();
 
-    class Drawable const *GetDrawable();
+    friend class ContentBrowser;
 
   protected:
     std::vector<std::unique_ptr<class Mesh>> _meshes;
-    class Drawable *_drawable;
+
+    std::filesystem::path _fileRoot;
+};
+
+class ContentBrowser
+{
+  public:
+    ContentBrowser(AssetsManager *);
+    ~ContentBrowser();
+
+    void RenderEditor();
+
+  protected:
+    AssetsManager *_assetsManager;
+
+    std::filesystem::path _currentDirectory;
 };
 
 } // namespace wsp
