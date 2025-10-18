@@ -3,20 +3,40 @@
 
 #include <vulkan/vulkan.h>
 
-#include <wsp_engine.hpp>
-#include <wsp_graph.hpp>
+#include <wsp_editor.hpp>
+#include <wsp_render_manager.hpp>
 
 // lib
 #include <spdlog/spdlog.h>
 
+using namespace wsp;
+
+double GetDeltaTime()
+{
+    static auto start = std::chrono::system_clock::now();
+    auto end = std::chrono::system_clock::now();
+    std::chrono::duration<double> const elapsedSeconds = end - start;
+    double const dt = std::min(0.2, elapsedSeconds.count());
+    start = end;
+
+    return dt;
+}
+
 int main()
 {
-    if (!wsp::engine::Initialize())
+    Editor *editor = new Editor();
+
+    try
     {
-        return 1;
+        while (!editor->ShouldClose())
+        {
+            editor->Render();
+            editor->Update(GetDeltaTime());
+        }
+        editor->Free();
     }
-
-    wsp::engine::Run();
-
-    wsp::engine::Terminate();
+    catch (std::exception exception)
+    {
+        spdlog::critical("{}", exception.what());
+    }
 }

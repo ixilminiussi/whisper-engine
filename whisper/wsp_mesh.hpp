@@ -51,6 +51,9 @@ class Mesh : public Drawable
     virtual void Bind(vk::CommandBuffer) const override;
     virtual void Draw(vk::CommandBuffer) const override;
 
+    // if you had to fit the model in a sphere, how large the radius should be
+    float GetRadius() const;
+
   private:
     static cgltf_accessor const *FindAccessor(cgltf_primitive const *prim, cgltf_attribute_type type);
 
@@ -63,6 +66,8 @@ class Mesh : public Drawable
 
     vk::Buffer _indexBuffer;
     vk::DeviceMemory _indexDeviceMemory;
+
+    float _radius;
 
     bool _freed;
 };

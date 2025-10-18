@@ -1,3 +1,4 @@
+#include "wsp_render_manager.hpp"
 #include <wsp_device.hpp>
 #include <wsp_devkit.hpp>
 #include <wsp_engine.hpp>
@@ -28,17 +29,16 @@ size_t const Graph::SAMPLER_COLOR_CLAMPED{1};
 size_t const Graph::SAMPLER_COLOR_REPEATED{2};
 size_t const Graph::MAX_SAMPLER_SETS{500};
 
-Graph::Graph(Device const *device, size_t width, size_t height)
+Graph::Graph(size_t width, size_t height)
     : _passInfos{}, _resourceInfos{}, _images{}, _deviceMemories{}, _imageViews{}, _freed{false}, _target{0},
       _width{width}, _height{height}, _uboSize{0}, _uboDescriptorSets{}, _uboBuffers{}, _uboDeviceMemories{}
 {
-    check(device);
-
-    CreateSamplers(device);
+    CreateSamplers();
 }
 
-void Graph::CreateSamplers(Device const *device)
+void Graph::CreateSamplers()
 {
+    Device const *device = SafeDeviceAccessor::Get();
     check(device);
 
     vk::SamplerCreateInfo samplerCreateInfo{};
@@ -91,11 +91,12 @@ Graph::~Graph()
     }
 }
 
-void Graph::Free(Device const *device)
+void Graph::Free()
 {
+    Device const *device = SafeDeviceAccessor::Get();
     check(device);
 
-    Reset(device);
+    Reset();
 
     for (auto &[id, sampler] : _samplers)
     {
@@ -124,6 +125,11 @@ Pass Graph::NewPass(PassCreateInfo const &createInfo)
 void Graph::SetUboSize(size_t size)
 {
     _uboSize = size;
+}
+
+void Graph::SetPopulateUboFunction(std::function<void *()> populateUbo)
+{
+    _populateUbo = populateUbo;
 }
 
 bool Graph::FindDependencies(std::set<Resource> *validResources, std::set<Pass> *validPasses, Resource resource,
@@ -183,14 +189,15 @@ bool Graph::FindDependencies(std::set<Resource> *validResources, std::set<Pass> 
     return false;
 }
 
-void Graph::Compile(Device const *device, Resource target, GraphUsage usage)
+void Graph::Compile(Resource target, GraphUsage usage)
 {
+    Device const *device = SafeDeviceAccessor::Get();
     check(device);
 
     _target = target;
     _usage = usage;
 
-    Reset(device);
+    Reset();
 
     for (size_t pass = 0; pass < _passInfos.size(); pass++)
     {
@@ -263,12 +270,12 @@ void Graph::Compile(Device const *device, Resource target, GraphUsage usage)
 
     for (Resource const resource : _validResources)
     {
-        Build(device, resource);
+        Build(resource);
     }
     for (Pass const pass : _validPasses)
     {
-        Build(device, pass);
-        CreatePipeline(device, pass);
+        Build(pass);
+        CreatePipeline(pass);
     }
 
     spdlog::info("Graph: compiled");
@@ -294,13 +301,14 @@ vk::DescriptorSet Graph::GetTargetDescriptorSet() const
     return _descriptorSets.at(_target);
 }
 
-void Graph::ChangeUsage(Device const *device, GraphUsage usage)
+void Graph::ChangeUsage(GraphUsage usage)
 {
-    Compile(device, _target, usage);
+    Compile(_target, usage);
 }
 
-void Graph::CreatePipeline(Device const *device, Pass pass, bool silent)
+void Graph::CreatePipeline(Pass pass, bool silent)
 {
+    Device const *device = SafeDeviceAccessor::Get();
     check(device);
 
     PassCreateInfo const &passInfo = GetPassInfo(pass);
@@ -460,7 +468,7 @@ void Graph::CreatePipeline(Device const *device, Pass pass, bool silent)
     }
 }
 
-void Graph::FlushUbo(void *ubo, size_t frameIndex, Device const *device)
+void Graph::FlushUbo(void *ubo, size_t frameIndex)
 {
     if (!_requestsUniform)
     {
@@ -473,7 +481,10 @@ void Graph::FlushUbo(void *ubo, size_t frameIndex, Device const *device)
         return;
     }
     check(ubo);
+
+    Device const *device = SafeDeviceAccessor::Get();
     check(device);
+
     memcpy(_uboMappedMemories[frameIndex], ubo, _uboSize);
 
     vk::MappedMemoryRange mappedRange = {};
@@ -486,9 +497,16 @@ void Graph::FlushUbo(void *ubo, size_t frameIndex, Device const *device)
     _currentFrameIndex = frameIndex;
 }
 
-void Graph::Render(vk::CommandBuffer commandBuffer)
+void Graph::Render(vk::CommandBuffer commandBuffer, size_t frameIndex)
 {
-    TracyVkZone(Renderer::GetTracyCtx(), commandBuffer, "graph");
+    extern TracyVkCtx TRACY_CTX;
+    TracyVkZone(TRACY_CTX, commandBuffer, "graph");
+
+    if (_populateUbo)
+    {
+        void *ubo = _populateUbo();
+        FlushUbo(ubo, frameIndex);
+    }
 
     for (Pass const pass : _orderedPasses)
     {
@@ -513,7 +531,8 @@ void Graph::Render(vk::CommandBuffer commandBuffer)
 
         commandBuffer.beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);
 
-        TracyVkZoneTransient(Renderer::GetTracyCtx(), __tracy, commandBuffer, passInfo.debugName.c_str(), true);
+        extern TracyVkCtx TRACY_CTX;
+        TracyVkZoneTransient(TRACY_CTX, __tracy, commandBuffer, passInfo.debugName.c_str(), true);
 
         static vk::Viewport viewport{};
         viewport.x = 0.0f;
@@ -564,8 +583,9 @@ void Graph::Render(vk::CommandBuffer commandBuffer)
     }
 }
 
-void Graph::Reset(Device const *device)
+void Graph::Reset()
 {
+    Device const *device = SafeDeviceAccessor::Get();
     check(device);
 
     Resource resource{0};
@@ -600,11 +620,11 @@ void Graph::Reset(Device const *device)
 
     for (Resource const resource : _validResources)
     {
-        Free(device, resource);
+        Free(resource);
     }
     for (Pass const pass : _validPasses)
     {
-        Free(device, pass);
+        Free(pass);
     }
 
     _descriptorSets.clear();
@@ -616,9 +636,11 @@ void Graph::Reset(Device const *device)
     _renderPasses.clear();
 }
 
-void Graph::Free(Device const *device, Resource resource)
+void Graph::Free(Resource resource)
 {
+    Device const *device = SafeDeviceAccessor::Get();
     check(device);
+
     check(_validResources.find(resource) != _validResources.end());
 
     if (_descriptorSets.find(resource) != _descriptorSets.end())
@@ -638,9 +660,11 @@ void Graph::Free(Device const *device, Resource resource)
     device->DestroyImageView(imageView);
 }
 
-void Graph::Free(Device const *device, Pass pass)
+void Graph::Free(Pass pass)
 {
+    Device const *device = SafeDeviceAccessor::Get();
     check(device);
+
     check(_validPasses.find(pass) != _validPasses.end());
 
     PipelineHolder const &pipelineHolder = _pipelines.at(pass);
@@ -741,8 +765,9 @@ void Graph::KhanFindOrder(std::set<Resource> const &resources, std::set<Pass> co
     spdlog::info("{0}", oss.str());
 }
 
-void Graph::Build(Device const *device, Resource resource, bool silent)
+void Graph::Build(Resource resource, bool silent)
 {
+    Device const *device = SafeDeviceAccessor::Get();
     check(device);
 
     ResourceCreateInfo const &createInfo = GetResourceInfo(resource);
@@ -815,7 +840,7 @@ void Graph::Build(Device const *device, Resource resource, bool silent)
 
     if (IsSampled(resource))
     {
-        CreateDescriptor(device, resource);
+        CreateDescriptor(resource);
     }
 
     if (!silent)
@@ -824,8 +849,9 @@ void Graph::Build(Device const *device, Resource resource, bool silent)
     }
 }
 
-void Graph::Build(Device const *device, Pass pass, bool silent)
+void Graph::Build(Pass pass, bool silent)
 {
+    Device const *device = SafeDeviceAccessor::Get();
     check(device);
 
     PassCreateInfo const &createInfo = GetPassInfo(pass);
@@ -926,8 +952,11 @@ void Graph::Build(Device const *device, Pass pass, bool silent)
     }
 }
 
-void Graph::BuildUbo(Device const *device, bool silent)
+void Graph::BuildUbo(bool silent)
 {
+    Device const *device = SafeDeviceAccessor::Get();
+    check(device);
+
     check(_uboSize != 0);
     std::vector<vk::DescriptorPoolSize> descriptorPoolSizes = {
         {vk::DescriptorType::eUniformBuffer, Swapchain::MAX_FRAMES_IN_FLIGHT}};
@@ -1014,8 +1043,9 @@ void Graph::BuildUbo(Device const *device, bool silent)
     }
 }
 
-void Graph::CreateDescriptor(Device const *device, Resource resource)
+void Graph::CreateDescriptor(Resource resource)
 {
+    Device const *device = SafeDeviceAccessor::Get();
     check(device);
 
     ResourceCreateInfo const &resourceInfo = GetResourceInfo(resource);
@@ -1051,8 +1081,9 @@ void Graph::CreateDescriptor(Device const *device, Resource resource)
     _descriptorSets[resource] = descriptorSet;
 }
 
-void Graph::Resize(Device const *device, size_t width, size_t height)
+void Graph::Resize(size_t width, size_t height)
 {
+    Device const *device = SafeDeviceAccessor::Get();
     check(device);
 
     _width = width;
@@ -1069,7 +1100,7 @@ void Graph::Resize(Device const *device, size_t width, size_t height)
 
         if (resourceInfo.extent == vk::Extent2D{0, 0})
         {
-            Free(device, resource);
+            Free(resource);
             resourcesToRebuild.push_back(resource);
         }
     }
@@ -1079,27 +1110,27 @@ void Graph::Resize(Device const *device, size_t width, size_t height)
 
         if (passInfo.rebuildOnChange)
         {
-            Free(device, pass);
+            Free(pass);
             passesToRebuild.push_back(pass);
         }
     }
 
     for (Resource const resource : resourcesToRebuild)
     {
-        Build(device, resource, true);
+        Build(resource, true);
     }
 
     for (Pass const pass : passesToRebuild)
     {
-        Build(device, pass, true);
-        CreatePipeline(device, pass, true);
+        Build(pass, true);
+        CreatePipeline(pass, true);
     }
 }
 
-void Graph::OnResizeCallback(void *graph, Device const *device, size_t width, size_t height)
+void Graph::OnResizeCallback(void *graph, size_t width, size_t height)
 {
     check(graph);
-    reinterpret_cast<Graph *>(graph)->Resize(device, width, height);
+    reinterpret_cast<Graph *>(graph)->Resize(width, height);
 }
 
 bool Graph::IsSampled(Resource resource)

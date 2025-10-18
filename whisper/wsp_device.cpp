@@ -36,6 +36,11 @@ Device *DeviceAccessor::Get()
     return Device::Get();
 }
 
+Device const *SafeDeviceAccessor::Get()
+{
+    return Device::Get();
+}
+
 Device::Device()
 {
 }
@@ -522,7 +527,7 @@ void Device::CreateBufferAndBindMemory(vk::BufferCreateInfo const &createInfo, v
 
 void Device::CopyBuffer(vk::Buffer source, vk::Buffer *destination, size_t size) const
 {
-    vk::CommandBuffer commandBuffer = BeginSingleTimeCommand();
+    vk::CommandBuffer const commandBuffer = BeginSingleTimeCommand();
 
     vk::BufferCopy copyRegion{};
     copyRegion.srcOffset = 0; // Optional

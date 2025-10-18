@@ -32,6 +32,7 @@ class Device
 
   protected:
     friend class DeviceAccessor;
+    friend class SafeDeviceAccessor;
 
     static Device *Get();
     Device();
@@ -159,7 +160,17 @@ class DeviceAccessor
   protected:
     static Device *Get();
 
+    friend class RenderManager;
+};
+
+class SafeDeviceAccessor
+{
+  protected:
+    static Device const *Get();
+
     friend class Renderer;
+    friend class Window;
+    friend class Graph;
     friend class AssetsManager;
 };
 

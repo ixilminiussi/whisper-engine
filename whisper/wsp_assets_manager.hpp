@@ -2,6 +2,7 @@
 #define WSP_ASSETS_MANAGER
 
 #include <filesystem>
+#include <map>
 #include <memory>
 #include <vector>
 
@@ -19,26 +20,13 @@ class AssetsManager
 
     void Free();
 
-    friend class ContentBrowser;
+    friend class Editor;
 
   protected:
     std::vector<std::unique_ptr<class Mesh>> _meshes;
+    std::map<std::filesystem::path, std::vector<size_t>> _importList;
 
     std::filesystem::path _fileRoot;
-};
-
-class ContentBrowser
-{
-  public:
-    ContentBrowser(AssetsManager *);
-    ~ContentBrowser();
-
-    void RenderEditor();
-
-  protected:
-    AssetsManager *_assetsManager;
-
-    std::filesystem::path _currentDirectory;
 };
 
 } // namespace wsp

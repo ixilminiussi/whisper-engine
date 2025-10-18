@@ -32,7 +32,7 @@ cgltf_accessor const *Mesh::FindAccessor(cgltf_primitive const *primitive, cgltf
     return nullptr;
 }
 
-Mesh::Mesh(Device const *device, cgltf_mesh const *mesh) : _freed{false}
+Mesh::Mesh(Device const *device, cgltf_mesh const *mesh) : _freed{false}, _radius{0.f}
 {
     check(device);
 
@@ -87,6 +87,8 @@ Mesh::Mesh(Device const *device, cgltf_mesh const *mesh) : _freed{false}
             cgltf_accessor_read_float(positionAccessor, j, &position.x, 3);
             cgltf_accessor_read_float(normalAccessor, j, &normal.x, 3);
             cgltf_accessor_read_float(uvAccessor, j, &uv.x, 2);
+
+            _radius = std::max(_radius, glm::length(position));
 
             glm::vec3 color{1.0f, 1.0f, 1.0f};
             if (colorAccessor)
@@ -269,4 +271,9 @@ void Mesh::Draw(vk::CommandBuffer commandBuffer) const
         commandBuffer.bindIndexBuffer(_indexBuffer, 0, vk::IndexType::eUint32);
         commandBuffer.drawIndexed(primitive.indexCount, 1, primitive.indexOffset, primitive.vertexOffset, 0);
     }
+}
+
+float Mesh::GetRadius() const
+{
+    return _radius;
 }

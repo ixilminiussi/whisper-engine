@@ -204,7 +204,8 @@ void Swapchain::SubmitCommandBuffer(const Device *device, vk::CommandBuffer comm
         throw std::runtime_error("Renderer: failed to begin recording command buffer!");
     }
 
-    TracyVkCollect(Renderer::GetTracyCtx(), commandBuffer);
+    extern TracyVkCtx TRACY_CTX;
+    TracyVkCollect(TRACY_CTX, commandBuffer);
 
     return commandBuffer;
 }
@@ -245,7 +246,8 @@ void Swapchain::BeginRenderPass(vk::CommandBuffer commandBuffer, bool isCleared)
 
     if (isCleared)
     {
-        TracyVkZone(Renderer::GetTracyCtx(), commandBuffer, "clear");
+        extern TracyVkCtx TRACY_CTX;
+        TracyVkZone(TRACY_CTX, commandBuffer, "clear");
         vk::ClearAttachment clearAttachment = {};
         clearAttachment.aspectMask = vk::ImageAspectFlagBits::eColor;
         clearAttachment.clearValue.color = vk::ClearColorValue(std::array<float, 4>{0.157f, 0.165f, 0.212f, 1.f});
@@ -276,7 +278,9 @@ void Swapchain::BeginRenderPass(vk::CommandBuffer commandBuffer, bool isCleared)
 
 void Swapchain::BlitImage(vk::CommandBuffer commandBuffer, vk::Image image, vk::Extent2D resolution) const
 {
-    TracyVkZone(Renderer::GetTracyCtx(), commandBuffer, "blit");
+    extern TracyVkCtx TRACY_CTX;
+    TracyVkZone(TRACY_CTX, commandBuffer, "blit");
+
     vk::Image const swapchainImage = _images.at(_currentImageIndex);
 
     commandBuffer.pipelineBarrier(vk::PipelineStageFlagBits::eColorAttachmentOutput,
@@ -313,7 +317,9 @@ void Swapchain::BlitImage(vk::CommandBuffer commandBuffer, vk::Image image, vk::
 
 void Swapchain::SkipBlit(vk::CommandBuffer commandBuffer) const
 {
-    TracyVkZone(Renderer::GetTracyCtx(), commandBuffer, "skip blit");
+    extern TracyVkCtx TRACY_CTX;
+    TracyVkZone(TRACY_CTX, commandBuffer, "skip blit");
+
     vk::Image const swapchainImage = _images.at(_currentImageIndex);
 
     commandBuffer.pipelineBarrier(vk::PipelineStageFlagBits::eColorAttachmentOutput,

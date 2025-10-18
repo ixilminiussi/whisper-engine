@@ -55,7 +55,7 @@ std::string ToString(cgltf_result result)
 
 void AssetsManager::Free()
 {
-    Device *device = DeviceAccessor::Get();
+    Device const *device = SafeDeviceAccessor::Get();
 
     for (std::unique_ptr<Mesh> &mesh : _meshes)
     {
@@ -72,9 +72,21 @@ void AssetsManager::ImportTextures(std::filesystem::path const &filepath)
 
 std::vector<Mesh *> AssetsManager::ImportMeshes(std::filesystem::path const &relativePath)
 {
-    std::filesystem::path filepath = (_fileRoot / relativePath).lexically_normal();
-    Device *device = DeviceAccessor::Get();
+    Device const *device = SafeDeviceAccessor::Get();
     check(device);
+
+    std::filesystem::path const filepath = (_fileRoot / relativePath).lexically_normal();
+
+    // if we already imported file return the meshes without reimporting
+    if (_importList.find(filepath) != _importList.end())
+    {
+        std::vector<class Mesh *> _drawables;
+        for (size_t const index : _importList.at(filepath))
+        {
+            _drawables.push_back(_meshes.at(index).get());
+        }
+        return _drawables;
+    }
 
     cgltf_data *data = NULL;
     cgltf_options const options{};
@@ -111,101 +123,12 @@ std::vector<Mesh *> AssetsManager::ImportMeshes(std::filesystem::path const &rel
     for (int i = 0; i < data->meshes_count; i++)
     {
         _meshes.emplace_back(new Mesh(device, &data->meshes[i]));
+        _importList[filepath].push_back(_meshes.size() - 1);
+
         _drawables.push_back(_meshes.at(_meshes.size() - 1).get());
     }
 
     cgltf_free(data);
 
     return _drawables;
-}
-
-ContentBrowser::ContentBrowser(AssetsManager *assetsManager)
-    : _assetsManager{assetsManager}, _currentDirectory{assetsManager->_fileRoot}
-{
-}
-
-ContentBrowser::~ContentBrowser()
-{
-}
-
-void ContentBrowser::RenderEditor()
-{
-    if (!ensure(_assetsManager))
-    {
-        return;
-    }
-
-    static float const padding = 16.f;
-    static float const thumbnailSize = 128.f;
-    float const cellSize = padding + thumbnailSize;
-
-    float const panelWidth = ImGui::GetContentRegionAvail().x;
-    int const columnCount = std::max(1, (int)(panelWidth / cellSize));
-
-    if (std::filesystem::canonical(_currentDirectory).compare(std::filesystem::canonical(_assetsManager->_fileRoot)) !=
-        0)
-    {
-        if (ImGui::Button("../"))
-        {
-            _currentDirectory = std::filesystem::path(_currentDirectory).parent_path();
-        }
-        ImGui::SameLine();
-        if (ImGui::Button("/"))
-        {
-            _currentDirectory = std::filesystem::path(_assetsManager->_fileRoot);
-        }
-    }
-
-    ImGui::Columns(columnCount, 0, false);
-
-    int id = 0;
-    for (auto &directory : std::filesystem::directory_iterator(_currentDirectory))
-    {
-        static ImGuiIO &io = ImGui::GetIO();
-
-        static ImFont *Font = io.Fonts->AddFontFromFileTTF(
-            (std::string(WSP_EDITOR_ASSETS) + std::string("MaterialIcons-Regular.ttf")).c_str(),
-            thumbnailSize - padding * 2.);
-
-        ImGui::PushID(id++);
-        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(padding, padding));
-        ImGui::PushFont(Font);
-
-        if (directory.is_directory())
-        {
-            std::filesystem::path const path = directory.path().c_str();
-            if (ImGui::Button(ICON_MS_FOLDER, ImVec2(thumbnailSize, thumbnailSize)))
-            {
-                _currentDirectory = directory.path();
-            }
-            ImGui::PopFont();
-            ImGui::Text("%s", path.filename().c_str());
-        }
-        else
-        {
-            std::filesystem::path const path = directory.path();
-            if (ImGui::Button(ICON_MS_DESCRIPTION, ImVec2(thumbnailSize, thumbnailSize)))
-            {
-                try
-                {
-                    std::filesystem::path const relativePath =
-                        std::filesystem::relative(path, _assetsManager->_fileRoot);
-                    std::vector<Drawable const *> drawList{};
-                    for (Mesh const *mesh : _assetsManager->ImportMeshes(relativePath))
-                    {
-                        drawList.push_back((Drawable const *)mesh);
-                    }
-                    engine::Inspect(drawList);
-                }
-                catch (std::exception exception)
-                {
-                };
-            }
-            ImGui::PopFont();
-            ImGui::Text("%s", path.filename().c_str());
-        }
-        ImGui::PopStyleVar();
-        ImGui::NextColumn();
-        ImGui::PopID();
-    }
 }

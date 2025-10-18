@@ -26,6 +26,8 @@ class ViewportCamera
     ViewportCamera(glm::vec3 const &center, float distance, glm::vec2 const &rotation); // orbit builder
     ~ViewportCamera() = default;
 
+    void SetOrbitDistance(float);
+
     void SetOrbitTarget(glm::vec3 const &target);
     glm::vec3 const &GetOrbitTarget() const;
 
@@ -45,7 +47,7 @@ class ViewportCamera
 
     Camera const *GetCamera() const;
 
-    static void OnResizeCallback(void *camera, class Device const *, size_t width, size_t height);
+    static void OnResizeCallback(void *camera, size_t width, size_t height);
 
     void Update(double dt);
 

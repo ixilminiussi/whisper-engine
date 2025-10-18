@@ -21,37 +21,17 @@ class Renderer
     Renderer(Renderer const &) = delete;
     Renderer &operator=(Renderer const &) = delete;
 
-    void Initialize(std::vector<class Drawable const *> const *);
+    void Initialize(size_t width, size_t height);
     void Free();
-    void Render() const;
-    void Update(double dt);
+    void Render(vk::CommandBuffer, size_t frameIndex) const;
 
-    static TracyVkCtx GetTracyCtx();
-
-    bool ShouldClose();
+    class Graph *GetGraph() const;
 
   private:
     void Free(class Device const *);
 
-    void CreateInstance();
-    static std::vector<char const *> GetRequiredExtensions();
-    static void ExtensionsCompatibilityTest();
-
-#ifndef NDEBUG
-    bool CheckValidationLayerSupport();
-#endif
-
-    std::vector<char const *> const _validationLayers;
-    std::vector<char const *> const _deviceExtensions;
-
     std::unique_ptr<class Graph> _graph;
-    std::unique_ptr<class Window> _window;
-    std::unique_ptr<class Editor> _editor;
     std::vector<Resource> _resources;
-
-    static vk::Instance _vkInstance;
-
-    static TracyVkCtx tracyCtx;
 
     bool _freed;
 };
