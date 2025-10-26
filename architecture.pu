@@ -1,0 +1,69 @@
+@startuml
+
+class RenderManager {
+    + Get()
+    + WindowID NewWindowRenderer()
+    + CloseWindow(WindowID)
+    + GetGraph(WindowID)
+    + BeginRender(WindowID)
+    + EndRender(WindowID)
+    + BindResizeCallback(WindowID)
+    - CreateInstance()
+}
+
+class Device {
+    + Get()
+}
+
+class Renderer {
+    + GetGraph()
+    + Render()
+}
+
+class Graph {
+    + NewPass()
+    + NewResource()
+    + Compile(Target)
+    + Render()
+}
+
+Renderer --* Graph
+
+class Window {
+    + GetSurface()
+    + BindResizeCallback()
+    - Swapchain
+    - Surface
+    - GLFWWindow
+}
+
+RenderManager --* Renderer
+RenderManager --* Window
+RenderManager --> Device
+
+Renderer ..> Device
+Window ..> Device
+
+class Editor {
+    + ShouldClose()
+    + Render()
+    + Update(Delta)
+    - ViewportCamera
+    - WindowID
+}
+
+class AssetsManager {
+    + ImportTextures()
+    + ImportMeshes()
+    - Meshes
+    - Textures
+}
+
+Editor --> RenderManager
+Editor --> Graph
+Editor --* AssetsManager
+Editor --* InputManager
+
+AssetsManager ..> Device
+
+@enduml

@@ -44,7 +44,7 @@ Editor::Editor() : _freed{false}, _drawList{nullptr}
 
     _viewportCamera = std::make_unique<ViewportCamera>(glm::vec3{0.f}, 10.f, glm::vec2{20.f, 0.f});
     _assetsManager = std::make_unique<AssetsManager>();
-    // _inputManager = std::make_unique<InputManager>();
+    _inputManager = std::make_unique<InputManager>(_windowID);
 
     renderManager->InitImGui(_windowID);
 
@@ -160,6 +160,10 @@ void Editor::Render()
 
     ImGui::Begin("Content Browser");
     RenderContentBrowser();
+    ImGui::End();
+
+    ImGui::Begin("Editor Settings");
+    frost::RenderEditor(frost::Meta<InputManager>{}, _inputManager.get());
     ImGui::End();
 
     ImGui::EndFrame();

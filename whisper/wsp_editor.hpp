@@ -45,7 +45,7 @@ class Editor
 
     std::unique_ptr<class ViewportCamera> _viewportCamera;
     std::unique_ptr<class AssetsManager> _assetsManager;
-    // std::unique_ptr<class InputManager> _inputManager;
+    std::unique_ptr<class InputManager> _inputManager;
 
     std::vector<std::function<void()>> _deferredQueue;
 

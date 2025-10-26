@@ -1,9 +1,12 @@
 #ifndef WSP_INPUT_MANAGER
 #define WSP_INPUT_MANAGER
 
+#include "wsp_custom_types.hpp"
 #include <wsp_input_action.hpp>
 
 #include <spdlog/spdlog.h>
+
+#include <wsp_devkit.hpp>
 
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
@@ -14,54 +17,63 @@
 #include <string>
 #include <unordered_map>
 
+#include <.generated/wsp_input_manager.generated.hpp>
+
+class GLFWwindow;
+
 namespace wsp
 {
 
+using WindowID = size_t;
+
+WCLASS()
 class InputManager
 {
   public:
-    InputManager(class Window &,
+    InputManager(WindowID,
                  std::string const &filepath = std::string(GAME_FILES) + std::string("properties/input-manager.xml"));
     ~InputManager();
 
-    void save();
-    void saveAs(std::string const &);
-    void load();
+    template <typename T>
+    void BindAxis(std::string const &name, void (T::*callbackFunction)(float, glm::vec2), T *instance);
+    template <typename T>
+    void BindButton(std::string const &name, void (T::*callbackFunction)(float, int), T *instance);
+    void UnbindAll();
+    void AddInput(std::string const &name, class ButtonAction *);
+    void AddInput(std::string const &name, class AxisAction *);
+    void PollEvents(float dt);
 
-    template <typename T>
-    void bindAxis(std::string const &name, void (T::*callbackFunction)(float, glm::vec2), T *instance);
-    template <typename T>
-    void bindButton(std::string const &name, void (T::*callbackFunction)(float, int), T *instance);
-    void unbindAll();
-    void addInput(std::string const &name, class InputAction *);
-    void pollEvents(float dt);
-    static void setMouseCapture(bool, bool force = false);
-    static void scrollCallback(GLFWwindow *window, double xoffset, double yoffset);
-    static void onScrollStop();
+    void SetMouseCapture(bool) const;
+
+    static void ScrollCallback(GLFWwindow *, double xoffset, double yoffset);
+    static void OnScrollStop();
     static double scrollX, scrollY;
     static bool isScrolling;
 
-    void editor();
+    WCLASS_BODY$InputManager();
 
   private:
-    std::string const _filepath;
     bool _gamepadDetected{false};
-    std::unordered_map<std::string, class InputAction *> _inputDictionary;
-    class Window &_window;
+
+    WPROPERTY()
+    dictionary<std::string, class ButtonAction *> _buttonDictionary;
+    WPROPERTY()
+    dictionary<std::string, class AxisAction *> _axisDictionary;
+
+    WindowID _windowID;
 };
 
 template <typename T>
-inline void InputManager::bindAxis(std::string const &name, void (T::*callbackFunction)(float, glm::vec2), T *instance)
+inline void InputManager::BindAxis(std::string const &name, void (T::*callbackFunction)(float, glm::vec2), T *instance)
 {
-    auto mappedInput = _inputDictionary.find(name);
-    if (mappedInput == _inputDictionary.end())
+    if (_axisDictionary.contains(name))
     {
-        spdlog::warn("InputManager: attempt at binding non existant input [{0}]", name);
+        spdlog::error("InputManager: attempt at binding non existant input [{0}]", name);
         return;
     }
     else
     {
-        mappedInput->second->bind([instance, callbackFunction](float dt, glm::vec2 value) {
+        _axisDictionary[name]->Bind([instance, callbackFunction](float dt, glm::vec2 value) {
             if (instance)
                 (instance->*callbackFunction)(dt, value);
             else
@@ -72,17 +84,16 @@ inline void InputManager::bindAxis(std::string const &name, void (T::*callbackFu
 }
 
 template <typename T>
-inline void InputManager::bindButton(std::string const &name, void (T::*callbackFunction)(float, int), T *instance)
+inline void InputManager::BindButton(std::string const &name, void (T::*callbackFunction)(float, int), T *instance)
 {
-    auto mappedInput = _inputDictionary.find(name);
-    if (mappedInput == _inputDictionary.end())
+    if (_buttonDictionary.contains(name))
     {
         spdlog::warn("InputManager: attempt at binding non existant input [{0}]", name);
         return;
     }
     else
     {
-        mappedInput->second->bind([instance, callbackFunction](float dt, int val) {
+        _buttonDictionary[name]->Bind([instance, callbackFunction](float dt, int val) {
             if (instance)
                 (instance->*callbackFunction)(dt, val);
             else
@@ -93,5 +104,7 @@ inline void InputManager::bindButton(std::string const &name, void (T::*callback
 }
 
 } // namespace wsp
+
+WGENERATED_META_DATA();
 
 #endif

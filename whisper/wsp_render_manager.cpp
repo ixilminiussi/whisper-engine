@@ -220,14 +220,14 @@ WindowID RenderManager::NewWindowRenderer()
 
 bool RenderManager::ShouldClose(WindowID windowID)
 {
-    check(_windowRenderers.find(windowID) != _windowRenderers.end());
+    check(Validate(windowID));
 
     return _windowRenderers.at(windowID).window->ShouldClose();
 }
 
 void RenderManager::CloseWindow(WindowID windowID)
 {
-    check(_windowRenderers.find(windowID) != _windowRenderers.end());
+    check(Validate(windowID));
 
     Device *device = DeviceAccessor::Get();
     check(device);
@@ -242,9 +242,14 @@ void RenderManager::CloseWindow(WindowID windowID)
     _windowRenderers.erase(windowID);
 }
 
+bool RenderManager::Validate(WindowID windowID) const
+{
+    return (_windowRenderers.find(windowID) != _windowRenderers.end());
+}
+
 void RenderManager::BindResizeCallback(WindowID windowID, void *pointer, void (*function)(void *, size_t, size_t))
 {
-    if (ensure(_windowRenderers.find(windowID) != _windowRenderers.end()))
+    if (ensure(Validate(windowID)))
     {
         _windowRenderers.at(windowID).window->BindResizeCallback(pointer, function);
     }
@@ -252,14 +257,21 @@ void RenderManager::BindResizeCallback(WindowID windowID, void *pointer, void (*
 
 class Graph *RenderManager::GetGraph(WindowID windowID) const
 {
-    check(_windowRenderers.find(windowID) != _windowRenderers.end());
+    check(Validate(windowID));
 
     return _windowRenderers.at(windowID).renderer->GetGraph();
 }
 
+GLFWwindow *RenderManager::GetGLFWHandle(WindowID windowID) const
+{
+    check(Validate(windowID));
+
+    return _windowRenderers.at(windowID).window->GetGLFWHandle();
+}
+
 vk::CommandBuffer RenderManager::BeginRender(WindowID windowID, bool blit)
 {
-    check(_windowRenderers.find(windowID) != _windowRenderers.end());
+    check(Validate(windowID));
 
     WindowRenderer &windowRenderer = _windowRenderers.at(windowID);
 
@@ -284,7 +296,7 @@ vk::CommandBuffer RenderManager::BeginRender(WindowID windowID, bool blit)
 
 void RenderManager::EndRender(vk::CommandBuffer commandBuffer, WindowID windowID)
 {
-    check(_windowRenderers.find(windowID) != _windowRenderers.end());
+    check(Validate(windowID));
 
     WindowRenderer &windowRenderer = _windowRenderers.at(windowID);
     windowRenderer.window->SwapchainFlush(commandBuffer);
@@ -401,7 +413,7 @@ void RenderManager::InitImGui(WindowID windowID)
     Device *device = DeviceAccessor::Get();
     check(device);
 
-    check(_windowRenderers.find(windowID) != _windowRenderers.end());
+    check(Validate(windowID));
     Window *window = _windowRenderers.at(windowID).window.get();
 
     IMGUI_CHECKVERSION();

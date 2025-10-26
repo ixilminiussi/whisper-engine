@@ -1,6 +1,7 @@
 #ifndef WSP_DEVKIT
 #define WSP_DEVKIT
 
+#include <type_traits>
 #ifndef NDEBUG
 #include <sstream>
 #include <stdexcept>
@@ -16,6 +17,7 @@
 #if defined(_MSC_VER)
 #define DEBUG_BREAK() __debugbreak()
 #else
+#include <signal.h>
 #include <unistd.h>
 #define DEBUG_BREAK() raise(SIGTRAP)
 #endif
@@ -49,8 +51,9 @@
 #define ensure(expr) true;
 #endif
 
-#define PROPERTY(...) /* PROPERTY */
-#define FROST(...)    /* FROST */
-#define REFRESH(...)  /* REFRESH */
+#define WPROPERTY(...) /* WPROPERTY */
+#define WCLASS(...)    /* WCLASS */
+#define WENUM(...)     /* WENUM */
+#define REFRESH(...)   /* REFRESH */
 
 #endif

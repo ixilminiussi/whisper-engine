@@ -31,7 +31,6 @@ class Renderer
     void Free(class Device const *);
 
     std::unique_ptr<class Graph> _graph;
-    std::vector<Resource> _resources;
 
     bool _freed;
 };

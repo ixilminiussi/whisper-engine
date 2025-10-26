@@ -1,18 +1,19 @@
 #ifndef WSP_VIEWPORT_CAMERA
 #define WSP_VIEWPORT_CAMERA
 
-#include <.generated/wsp_viewport_camera.generated.hpp>
-
 #include <wsp_camera.hpp>
 #include <wsp_devkit.hpp>
+#include <wsp_input_action.hpp>
 
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 
+#include <.generated/wsp_viewport_camera.generated.hpp>
+
 namespace wsp
 {
 
-FROST()
+WCLASS()
 class ViewportCamera
 {
   public:
@@ -54,32 +55,33 @@ class ViewportCamera
     REFRESH()
     void Refresh();
 
-  FROST_BODY$ViewportCamera
+    WCLASS_BODY$ViewportCamera();
 
-      protected : void Rotate(glm::vec2);
+  protected:
+    void Rotate(glm::vec2);
     void Orbit(glm::vec2);
 
     void RefreshView();
 
-    PROPERTY()
+    WPROPERTY()
     Camera _camera;
 
     glm::vec3 _orbitPoint;
     glm::vec3 _orbitTarget;
     float _orbitLerp;
 
-    PROPERTY(Edit::eSlider, 0.01f, 10.f, 0.01f)
+    WPROPERTY(Edit::eSlider, 0.01f, 10.f, 0.01f)
     float _orbitDistance;
 
-    PROPERTY(Edit::eDrag)
+    WPROPERTY(Edit::eDrag)
     glm::vec3 _position; // Gets priority over orbit;
 
-    PROPERTY(Edit::eDrag, 0.f, 0.f, 1.f)
+    WPROPERTY(Edit::eDrag, 0.f, 0.f, 1.f)
     glm::vec2 _rotation; // Get priority over orbit; position
 
-    PROPERTY(Edit::eSlider, 1.f, 100.f, 0.01f)
+    WPROPERTY(Edit::eSlider, 1.f, 100.f, 0.01f)
     float _movementSpeed;
-    PROPERTY(Edit::eSlider, 0.1f, 2.f, 0.01f)
+    WPROPERTY(Edit::eSlider, 0.1f, 2.f, 0.01f)
     glm::vec2 _mouseSensitivity;
 
     PossessionMode _possessionMode;
@@ -87,7 +89,6 @@ class ViewportCamera
 
 } // namespace wsp
 
-using namespace wsp;
-FROST_DATA$ViewportCamera;
+WGENERATED_META_DATA()
 
 #endif

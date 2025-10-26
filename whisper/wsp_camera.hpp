@@ -1,16 +1,17 @@
 #ifndef WSP_CAMERA
 #define WSP_CAMERA
 
-#include <.generated/wsp_camera.generated.hpp>
-
 #include <glm/mat4x4.hpp>
 #include <glm/vec3.hpp>
 #include <wsp_devkit.hpp>
+#include <wsp_input_action.hpp>
+
+#include <.generated/wsp_camera.generated.hpp>
 
 namespace wsp
 {
 
-FROST()
+WCLASS()
 class Camera
 {
   public:
@@ -54,7 +55,7 @@ class Camera
     REFRESH()
     void Refresh();
 
-    FROST_BODY$Camera;
+    WCLASS_BODY$Camera();
 
   protected:
     enum Mode
@@ -71,11 +72,11 @@ class Camera
     Mode _mode;
 
     float _aspectRatio; // for perspective
-    PROPERTY(eSlider, 10.f, 170.f)
+    WPROPERTY(eSlider, 10.f, 170.f)
     float _fov;
-    PROPERTY(eInput)
+    WPROPERTY(eInput)
     float _nearPlane;
-    PROPERTY(eInput)
+    WPROPERTY(eInput)
     float _farPlane;
 
     float _left, _right, _top, _bottom, _near, _far; // for orthographic
@@ -83,6 +84,6 @@ class Camera
 
 } // namespace wsp
 
-FROST_DATA$Camera
+WGENERATED_META_DATA()
 
 #endif
