@@ -39,8 +39,8 @@ class InputManager
     template <typename T>
     void BindButton(std::string const &name, void (T::*callbackFunction)(float, int), T *instance);
     void UnbindAll();
-    void AddInput(std::string const &name, class ButtonAction *);
-    void AddInput(std::string const &name, class AxisAction *);
+    void AddInput(std::string const &name, class ButtonAction const &);
+    void AddInput(std::string const &name, class AxisAction const &);
     void PollEvents(float dt);
 
     void SetMouseCapture(bool) const;
@@ -56,9 +56,9 @@ class InputManager
     bool _gamepadDetected{false};
 
     WPROPERTY()
-    dictionary<std::string, class ButtonAction *> _buttonDictionary;
+    dictionary<std::string, class ButtonAction> _buttonDictionary;
     WPROPERTY()
-    dictionary<std::string, class AxisAction *> _axisDictionary;
+    dictionary<std::string, class AxisAction> _axisDictionary;
 
     WindowID _windowID;
 };
@@ -73,7 +73,7 @@ inline void InputManager::BindAxis(std::string const &name, void (T::*callbackFu
     }
     else
     {
-        _axisDictionary[name]->Bind([instance, callbackFunction](float dt, glm::vec2 value) {
+        _axisDictionary[name].Bind([instance, callbackFunction](float dt, glm::vec2 value) {
             if (instance)
                 (instance->*callbackFunction)(dt, value);
             else
@@ -93,7 +93,7 @@ inline void InputManager::BindButton(std::string const &name, void (T::*callback
     }
     else
     {
-        _buttonDictionary[name]->Bind([instance, callbackFunction](float dt, int val) {
+        _buttonDictionary[name].Bind([instance, callbackFunction](float dt, int val) {
             if (instance)
                 (instance->*callbackFunction)(dt, val);
             else

@@ -76,9 +76,19 @@ template <typename Key, typename Val> struct dictionary
         data.clear();
     }
 
+    auto begin()
+    {
+        return data.begin();
+    }
+
     auto begin() const
     {
         return data.begin();
+    }
+
+    auto end()
+    {
+        return data.end();
     }
 
     auto end() const

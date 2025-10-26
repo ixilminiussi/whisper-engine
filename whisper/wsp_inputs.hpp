@@ -20,37 +20,6 @@ enum InputSource
     eKeyboard
 };
 
-inline char const *ToString(InputSource inputSource)
-{
-    switch (inputSource)
-    {
-    case InputSource::eGamepad:
-        return "GAMEPAD";
-        break;
-    case InputSource::eMouse:
-        return "MOUSE";
-        break;
-    case InputSource::eKeyboard:
-        return "KEYBOARD";
-        break;
-    }
-    return "";
-}
-
-inline InputSource ToInputSource(char const *sourceString)
-{
-    if (strcmp(sourceString, "GAMEPAD") == 0)
-    {
-        return InputSource::eGamepad;
-    }
-    if (strcmp(sourceString, "MOUSE") == 0)
-    {
-        return InputSource::eMouse;
-    }
-
-    return InputSource::eKeyboard;
-}
-
 WCLASS()
 struct Button
 {

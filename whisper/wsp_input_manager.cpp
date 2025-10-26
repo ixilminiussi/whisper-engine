@@ -31,20 +31,11 @@ InputManager::InputManager(WindowID windowID, std::string const &filepath)
 
 InputManager::~InputManager()
 {
-    for (auto &pair : _buttonDictionary)
-    {
-        delete pair.second;
-    }
     _buttonDictionary.clear();
-
-    for (auto &pair : _axisDictionary)
-    {
-        delete pair.second;
-    }
     _axisDictionary.clear();
 }
 
-void InputManager::AddInput(std::string const &name, ButtonAction *newInput)
+void InputManager::AddInput(std::string const &name, ButtonAction const &newInput)
 {
     if (ensure(_buttonDictionary.contains(name)))
     {
@@ -56,7 +47,7 @@ void InputManager::AddInput(std::string const &name, ButtonAction *newInput)
     spdlog::error("InputManager: Attempt at rebinding existing button [{0}]", name.c_str());
 }
 
-void InputManager::AddInput(std::string const &name, AxisAction *newInput)
+void InputManager::AddInput(std::string const &name, AxisAction const &newInput)
 {
     if (ensure(_axisDictionary.contains(name)))
     {
@@ -83,11 +74,11 @@ void InputManager::PollEvents(float dt)
 
     for (auto &[name, button] : _buttonDictionary)
     {
-        button->Poll(handle, dt);
+        button.Poll(handle, dt);
     }
     for (auto &[name, axis] : _axisDictionary)
     {
-        axis->Poll(handle, dt);
+        axis.Poll(handle, dt);
     }
 }
 
@@ -95,11 +86,11 @@ void InputManager::UnbindAll()
 {
     for (auto &[name, button] : _buttonDictionary)
     {
-        button->UnbindAll();
+        button.UnbindAll();
     }
     for (auto &[name, axis] : _axisDictionary)
     {
-        axis->UnbindAll();
+        axis.UnbindAll();
     }
 }
 

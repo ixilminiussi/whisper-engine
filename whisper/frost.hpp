@@ -92,8 +92,14 @@ template <typename T> inline bool RenderEditor(Meta<T> meta, T *owner)
     {
         bool modified = false;
 
-        std::apply([owner, &modified](auto &&...args) { ((modified |= (RenderField(args, owner))), ...); },
-                   meta.fields);
+        int i = 0;
+        std::apply(
+            [owner, &modified, &i](auto &&...args) {
+                ImGui::PushID(i++);
+                ((modified |= (RenderField(args, owner))), ...);
+                ImGui::PopID();
+            },
+            meta.fields);
 
         if (modified)
         {
@@ -321,9 +327,7 @@ inline bool RenderNode(char const *label, std::pair<First, Second> *address, Edi
     bool modified = false;
 
     ImGui::LabelText(label, "");
-    ImGui::SameLine();
     modified |= RenderNode("##First", &(address->first), edit, min, max, step, format);
-    ImGui::SameLine();
     modified |= RenderNode("##Second", &(address->second), edit, min, max, step, format);
 
     return modified;
@@ -337,30 +341,36 @@ inline bool RenderNode(char const *label, std::vector<Element> *address, Edit ed
 
     bool modified = false;
 
-    std::vector<Element> &list = *address;
-    auto it = list.begin();
-
-    while (it != list.end())
+    if (ImGui::CollapsingHeader(label))
     {
-        ImGui::PushID(i++);
+        std::vector<Element> &list = *address;
+        auto it = list.begin();
 
-        RenderNode(std::to_string(i).c_str(), &*it, edit, min, max, step, format);
-        ImGui::SameLine();
-        if (ImGui::Button(ICON_MS_DELETE))
+        while (it != list.end())
         {
-            it = list.erase(it);
-            modified = true;
+            ImGui::PushID(i++);
+
+            RenderNode(std::to_string(i).c_str(), &*it, edit, min, max, step, format);
+            if (ImGui::Button(ICON_MS_DELETE))
+            {
+                it = list.erase(it);
+                modified = true;
+            }
+            else
+            {
+                it++;
+            }
+
+            ImGui::PopID();
         }
 
-        ImGui::PopID();
-    }
-
-    if (ImGui::Button(ICON_MS_ADD))
-    {
-        check(std::is_default_constructible_v<Element> &&
-              "Frost: FPROPERTY map elements MUST be default constructible");
-        list.emplace_back();
-        modified = true;
+        if (ImGui::Button(ICON_MS_ADD))
+        {
+            check(std::is_default_constructible_v<Element> &&
+                  "Frost: FPROPERTY map elements MUST be default constructible");
+            list.emplace_back();
+            modified = true;
+        }
     }
 
     return modified;
