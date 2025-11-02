@@ -166,13 +166,13 @@ void ViewportCamera::OnMouseMovement(double dt, glm::vec2 value)
 {
     if (_possessionMode == eOrbit)
     {
-        Orbit(glm::radians(-value * (float)dt));
+        Orbit(-value * _mouseSensitivity * (float)dt);
     }
     else
     {
         if (_possessionMode == eMove)
         {
-            Rotate(glm::radians(-value * (float)dt));
+            Rotate(-value * _mouseSensitivity * (float)dt);
         }
     }
 }

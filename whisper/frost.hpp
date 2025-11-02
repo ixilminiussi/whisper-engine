@@ -9,6 +9,7 @@
 
 #include <IconsMaterialSymbols.h>
 
+#include <wsp_custom_imgui.hpp>
 #include <wsp_custom_types.hpp>
 #include <wsp_inputs.hpp>
 
@@ -95,9 +96,7 @@ template <typename T> inline bool RenderEditor(Meta<T> meta, T *owner)
         int i = 0;
         std::apply(
             [owner, &modified, &i](auto &&...args) {
-                ImGui::PushID(i++);
-                ((modified |= (RenderField(args, owner))), ...);
-                ImGui::PopID();
+                ((ImGui::PushID(i++), modified |= RenderField(args, owner), ImGui::PopID()), ...);
             },
             meta.fields);
 
@@ -111,21 +110,30 @@ template <typename T> inline bool RenderEditor(Meta<T> meta, T *owner)
 
         return modified;
     }
+
+    return false;
 }
 
 template <typename T> inline bool RenderNode(char const *label, T *address, Edit, float, float, float, char const *)
 {
-    bool modified = false;
-    if (ImGui::TreeNode(label))
+    std::string stringified = std::string(label);
+    if constexpr (Meta<T>{}.usage == frost::WhispUsage::eEnum)
     {
-        if constexpr (Meta<T>{}.usage == frost::WhispUsage::eEnum)
-        {
-            modified = RenderEnum<T>(label, address);
-        }
-        else
-        {
-            modified = RenderEditor(Meta<T>{}, address);
-        }
+        return RenderEnum<T>(label, address);
+    }
+    if (stringified.size() == 0)
+    {
+        return RenderEditor(Meta<T>{}, address);
+    }
+    if (stringified[0] == '#')
+    {
+        return RenderEditor(Meta<T>{}, address);
+    }
+
+    bool modified = false;
+    if (wsp::TreeNode(label))
+    {
+        modified = RenderEditor(Meta<T>{}, address);
         ImGui::TreePop();
     }
 
@@ -326,9 +334,21 @@ inline bool RenderNode(char const *label, std::pair<First, Second> *address, Edi
 {
     bool modified = false;
 
-    ImGui::LabelText(label, "");
-    modified |= RenderNode("##First", &(address->first), edit, min, max, step, format);
-    modified |= RenderNode("##Second", &(address->second), edit, min, max, step, format);
+    if (ImGui::BeginTable(label, 3, ImGuiTableFlags_SizingFixedFit))
+    {
+        ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_None);
+        ImGui::TableSetupColumn("First", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableSetupColumn("Second", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableNextRow();
+        ImGui::TableSetColumnIndex(0);
+        ImGui::LabelText(label, "");
+        ImGui::TableSetColumnIndex(1);
+        modified |= RenderNode("##First", &(address->first), edit, min, max, step, format);
+        ImGui::TableSetColumnIndex(2);
+        modified |= RenderNode("##Second", &(address->second), edit, min, max, step, format);
+
+        ImGui::EndTable();
+    }
 
     return modified;
 }
@@ -341,17 +361,33 @@ inline bool RenderNode(char const *label, std::vector<Element> *address, Edit ed
 
     bool modified = false;
 
-    if (ImGui::CollapsingHeader(label))
+    ImGui::Text(label);
+
+    std::vector<Element> &list = *address;
+
+    if (ImGui::BeginTable(label, 3, ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_Borders))
     {
-        std::vector<Element> &list = *address;
+        ImGui::TableSetupColumn("ID", ImGuiTableColumnFlags_None);
+        ImGui::TableSetupColumn("Item", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableSetupColumn("   ", ImGuiTableColumnFlags_None);
+        ImGui::TableHeadersRow();
+
         auto it = list.begin();
 
         while (it != list.end())
         {
-            ImGui::PushID(i++);
+            ImGui::PushID(i);
 
-            RenderNode(std::to_string(i).c_str(), &*it, edit, min, max, step, format);
-            if (ImGui::Button(ICON_MS_DELETE))
+            ImGui::TableNextRow();
+
+            ImGui::TableSetColumnIndex(0);
+            ImGui::Text("%i", i);
+
+            ImGui::TableSetColumnIndex(1);
+            RenderNode(fmt::format("##{}", i).c_str(), &*it, edit, min, max, step, format);
+
+            ImGui::TableSetColumnIndex(2);
+            if (wsp::RedButton(ICON_MS_DELETE))
             {
                 it = list.erase(it);
                 modified = true;
@@ -361,16 +397,20 @@ inline bool RenderNode(char const *label, std::vector<Element> *address, Edit ed
                 it++;
             }
 
+            i++;
+
             ImGui::PopID();
         }
 
-        if (ImGui::Button(ICON_MS_ADD))
-        {
-            check(std::is_default_constructible_v<Element> &&
-                  "Frost: FPROPERTY map elements MUST be default constructible");
-            list.emplace_back();
-            modified = true;
-        }
+        ImGui::EndTable();
+    }
+
+    if (wsp::GreenButton(ICON_MS_ADD))
+    {
+        check(std::is_default_constructible_v<Element> &&
+              "Frost: FPROPERTY map elements MUST be default constructible");
+        list.emplace_back();
+        modified = true;
     }
 
     return modified;
@@ -381,6 +421,8 @@ inline bool RenderNode(char const *label, std::array<T, N> *address, Edit edit, 
                        char const *format)
 {
     bool modified = false;
+
+    ImGui::Text(label);
 
     int i = 0;
     for (T &element : *address)

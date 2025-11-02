@@ -1,3 +1,5 @@
+#include "wsp_custom_imgui.hpp"
+#include "wsp_inputs.hpp"
 #ifndef NDEBUG
 #include <wsp_editor.hpp>
 
@@ -45,6 +47,14 @@ Editor::Editor() : _freed{false}, _drawList{nullptr}
     _viewportCamera = std::make_unique<ViewportCamera>(glm::vec3{0.f}, 10.f, glm::vec2{20.f, 0.f});
     _assetsManager = std::make_unique<AssetsManager>();
     _inputManager = std::make_unique<InputManager>(_windowID);
+
+    _inputManager->AddInput("look", AxisAction{WSP_MOUSE_AXIS_X_RELATIVE, WSP_MOUSE_AXIS_Y_RELATIVE});
+    _inputManager->AddInput("left click on", ButtonAction{ButtonAction::Usage::ePressed, {WSP_MOUSE_BUTTON_LEFT}});
+    _inputManager->AddInput("left click off", ButtonAction{ButtonAction::Usage::eReleased, {WSP_MOUSE_BUTTON_LEFT}});
+
+    _inputManager->BindAxis("look", &ViewportCamera::OnMouseMovement, _viewportCamera.get());
+    _inputManager->BindButton("left click on", &Editor::OnClick, this);
+    _inputManager->BindButton("left click off", &Editor::OnClick, this);
 
     renderManager->InitImGui(_windowID);
 
@@ -135,8 +145,6 @@ bool Editor::ShouldClose() const
 
 void Editor::Render()
 {
-    glfwPollEvents();
-
     vk::CommandBuffer const commandBuffer = RenderManager::Get()->BeginRender(_windowID);
 
     extern TracyVkCtx TRACY_CTX;
@@ -158,9 +166,7 @@ void Editor::Render()
         ImGui::End();
     }
 
-    ImGui::Begin("Content Browser");
     RenderContentBrowser();
-    ImGui::End();
 
     ImGui::Begin("Editor Settings");
     frost::RenderEditor(frost::Meta<InputManager>{}, _inputManager.get());
@@ -178,16 +184,32 @@ void Editor::Render()
 
 void Editor::Update(double dt)
 {
+    _inputManager->PollEvents(dt);
+
     for (std::function<void()> const &func : _deferredQueue)
     {
         func();
     }
+
+    _viewportCamera->Update(dt);
 }
 
 void Editor::PopulateUbo(GlobalUbo *ubo)
 {
     ubo->camera.viewProjection =
         _viewportCamera->GetCamera()->GetProjection() * _viewportCamera->GetCamera()->GetView();
+}
+
+void Editor::OnClick(double dt, int value)
+{
+    if (_isHoveringViewport && value)
+    {
+        _viewportCamera->Possess(ViewportCamera::PossessionMode::eOrbit);
+    }
+    else
+    {
+        _viewportCamera->Possess(ViewportCamera::PossessionMode::eReleased);
+    }
 }
 
 void Editor::InitDockspace(unsigned int dockspaceID)
@@ -254,6 +276,9 @@ void Editor::RenderViewport()
     ImGui::Begin("Viewport");
     ImGui::PopStyleVar(3);
 
+    _isHoveringViewport = ImGui::IsWindowHovered(ImGuiHoveredFlags_AllowWhenBlockedByPopup |
+                                                 ImGuiHoveredFlags_AllowWhenBlockedByActiveItem);
+
     ImVec2 const size = ImGui::GetContentRegionAvail();
     static ImVec2 oldSize = ImVec2(10, 10);
     ImGui::Image((ImTextureID)(graph->GetTargetDescriptorSet().operator VkDescriptorSet()), size);
@@ -278,6 +303,7 @@ void Editor::RenderContentBrowser()
         return;
     }
 
+    ImGui::Begin("Content Browser");
     static std::filesystem::path _currentDirectory = _assetsManager->_fileRoot;
 
     static float const padding = 16.f;
@@ -290,12 +316,12 @@ void Editor::RenderContentBrowser()
     if (std::filesystem::canonical(_currentDirectory).compare(std::filesystem::canonical(_assetsManager->_fileRoot)) !=
         0)
     {
-        if (ImGui::Button("../"))
+        if (wsp::VanillaButton("../"))
         {
             _currentDirectory = std::filesystem::path(_currentDirectory).parent_path();
         }
         ImGui::SameLine();
-        if (ImGui::Button("/"))
+        if (wsp::VanillaButton("/"))
         {
             _currentDirectory = std::filesystem::path(_assetsManager->_fileRoot);
         }
@@ -306,30 +332,21 @@ void Editor::RenderContentBrowser()
     int id = 0;
     for (auto &directory : std::filesystem::directory_iterator(_currentDirectory))
     {
-        static ImGuiIO &io = ImGui::GetIO();
-
-        static ImFont *Font = io.Fonts->AddFontFromFileTTF(
-            (std::string(WSP_EDITOR_ASSETS) + std::string("MaterialIcons-Regular.ttf")).c_str(),
-            thumbnailSize - padding * 2.);
-
         ImGui::PushID(id++);
-        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(padding, padding));
-        ImGui::PushFont(Font);
 
         if (directory.is_directory())
         {
             std::filesystem::path const path = directory.path().c_str();
-            if (ImGui::Button(ICON_MS_FOLDER, ImVec2(thumbnailSize, thumbnailSize)))
+            if (wsp::ThumbnailButton(ICON_MS_FOLDER))
             {
                 _currentDirectory = directory.path();
             }
-            ImGui::PopFont();
             ImGui::Text("%s", path.filename().c_str());
         }
         else
         {
             std::filesystem::path const path = directory.path();
-            if (ImGui::Button(ICON_MS_DESCRIPTION, ImVec2(thumbnailSize, thumbnailSize)))
+            if (wsp::ThumbnailButton(ICON_MS_DESCRIPTION))
             {
                 try
                 {
@@ -361,13 +378,12 @@ void Editor::RenderContentBrowser()
                 {
                 };
             }
-            ImGui::PopFont();
             ImGui::Text("%s", path.filename().c_str());
         }
-        ImGui::PopStyleVar();
         ImGui::NextColumn();
         ImGui::PopID();
     }
+    ImGui::End();
 }
 
 #endif

@@ -35,13 +35,13 @@ class InputManager
     ~InputManager();
 
     template <typename T>
-    void BindAxis(std::string const &name, void (T::*callbackFunction)(float, glm::vec2), T *instance);
+    void BindAxis(std::string const &name, void (T::*callbackFunction)(double, glm::vec2), T *instance);
     template <typename T>
-    void BindButton(std::string const &name, void (T::*callbackFunction)(float, int), T *instance);
+    void BindButton(std::string const &name, void (T::*callbackFunction)(double, int), T *instance);
     void UnbindAll();
     void AddInput(std::string const &name, class ButtonAction const &);
     void AddInput(std::string const &name, class AxisAction const &);
-    void PollEvents(float dt);
+    void PollEvents(double dt);
 
     void SetMouseCapture(bool) const;
 
@@ -64,43 +64,39 @@ class InputManager
 };
 
 template <typename T>
-inline void InputManager::BindAxis(std::string const &name, void (T::*callbackFunction)(float, glm::vec2), T *instance)
+inline void InputManager::BindAxis(std::string const &name, void (T::*callbackFunction)(double, glm::vec2), T *instance)
 {
-    if (_axisDictionary.contains(name))
+    if (!_axisDictionary.contains(name))
     {
-        spdlog::error("InputManager: attempt at binding non existant input [{0}]", name);
+        spdlog::error("InputManager: Attempt at binding non existant input [{0}]", name);
         return;
     }
-    else
-    {
-        _axisDictionary[name].Bind([instance, callbackFunction](float dt, glm::vec2 value) {
-            if (instance)
-                (instance->*callbackFunction)(dt, value);
-            else
-                spdlog::warn("InputManager: action being called on deleted object");
-        });
-        spdlog::info("InputManager: [{0}] bound to new function", name);
-    }
+
+    _axisDictionary[name].Bind([instance, callbackFunction](double dt, glm::vec2 value) {
+        if (instance)
+            (instance->*callbackFunction)(dt, value);
+        else
+            spdlog::warn("InputManager: action being called on deleted object");
+    });
+    spdlog::info("InputManager: [{0}] bound to new function", name);
 }
 
 template <typename T>
-inline void InputManager::BindButton(std::string const &name, void (T::*callbackFunction)(float, int), T *instance)
+inline void InputManager::BindButton(std::string const &name, void (T::*callbackFunction)(double, int), T *instance)
 {
-    if (_buttonDictionary.contains(name))
+    if (!_buttonDictionary.contains(name))
     {
-        spdlog::warn("InputManager: attempt at binding non existant input [{0}]", name);
+        spdlog::warn("InputManager: Attempt at binding non existant input [{0}]", name);
         return;
     }
-    else
-    {
-        _buttonDictionary[name].Bind([instance, callbackFunction](float dt, int val) {
-            if (instance)
-                (instance->*callbackFunction)(dt, val);
-            else
-                spdlog::warn("InputManager: action being called on deleted object");
-        });
-        spdlog::info("InputManager: [{0}] bound to new function", name);
-    }
+
+    _buttonDictionary[name].Bind([instance, callbackFunction](double dt, int val) {
+        if (instance)
+            (instance->*callbackFunction)(dt, val);
+        else
+            spdlog::warn("InputManager: Action being called on deleted object");
+    });
+    spdlog::info("InputManager: [{0}] bound to new function", name);
 }
 
 } // namespace wsp

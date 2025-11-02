@@ -27,7 +27,7 @@ class InputAction
     InputAction() = default;
     ~InputAction() = default;
 
-    virtual void Poll(GLFWwindow *, float dt) = 0;
+    virtual void Poll(GLFWwindow *, double dt) = 0;
     virtual void Bind(std::function<void(float, int)> callbackFunction) = 0;
     virtual void Bind(std::function<void(float, glm::vec2)> callbackFunction) = 0;
 
@@ -53,7 +53,7 @@ class ButtonAction : public InputAction
     ButtonAction(Usage buttonUsage, std::initializer_list<Button> buttons)
         : _buttonUsage{buttonUsage}, _buttons{buttons} {};
 
-    void Poll(GLFWwindow *, float dt) override;
+    void Poll(GLFWwindow *, double dt) override;
     void Bind(std::function<void(float, int)> callbackFunction) override;
     void Bind(std::function<void(float, glm::vec2)> callbackFunction) override;
 
@@ -88,7 +88,7 @@ class AxisAction : public InputAction
         : _buttons{right, left, up, down}, _axisUsage{eButtons} {};
     AxisAction(Axis vertical, Axis horizontal = WSP_AXIS_VOID) : _axes{vertical, horizontal}, _axisUsage{eAxes} {};
 
-    void Poll(GLFWwindow *, float dt) override;
+    void Poll(GLFWwindow *, double dt) override;
     void Bind(std::function<void(float, int)> callbackFunction) override;
     void Bind(std::function<void(float, glm::vec2)> callbackFunction) override;
 

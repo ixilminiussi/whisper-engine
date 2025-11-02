@@ -37,7 +37,7 @@ InputManager::~InputManager()
 
 void InputManager::AddInput(std::string const &name, ButtonAction const &newInput)
 {
-    if (ensure(_buttonDictionary.contains(name)))
+    if (ensure(!_buttonDictionary.contains(name)))
     {
         _buttonDictionary[name] = newInput;
         spdlog::info("InputManager: New button [{0}] added", name.c_str());
@@ -49,7 +49,7 @@ void InputManager::AddInput(std::string const &name, ButtonAction const &newInpu
 
 void InputManager::AddInput(std::string const &name, AxisAction const &newInput)
 {
-    if (ensure(_axisDictionary.contains(name)))
+    if (ensure(!_axisDictionary.contains(name)))
     {
         _axisDictionary[name] = newInput;
         spdlog::info("InputManager: New axis [{0}] added", name.c_str());
@@ -59,7 +59,7 @@ void InputManager::AddInput(std::string const &name, AxisAction const &newInput)
     spdlog::error("InputManager: Attempt at rebinding existing axis [{0}]", name.c_str());
 }
 
-void InputManager::PollEvents(float dt)
+void InputManager::PollEvents(double dt)
 {
     isScrolling = false;
     glfwPollEvents();

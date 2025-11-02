@@ -17,7 +17,7 @@
 
 using namespace wsp;
 
-void ButtonAction::Poll(GLFWwindow *handle, float dt)
+void ButtonAction::Poll(GLFWwindow *handle, double dt)
 {
     int newStatus = (_buttonUsage == Usage::eShortcut && _buttons.size() > 0) ? 1 : 0;
 
@@ -97,7 +97,7 @@ void ButtonAction::Poll(GLFWwindow *handle, float dt)
     }
 }
 
-void AxisAction::Poll(GLFWwindow *handle, float dt)
+void AxisAction::Poll(GLFWwindow *handle, double dt)
 {
     switch (_axisUsage)
     {

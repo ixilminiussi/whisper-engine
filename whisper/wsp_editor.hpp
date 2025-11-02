@@ -34,11 +34,15 @@ class Editor
 
     void PopulateUbo(class GlobalUbo *);
 
+    void OnClick(double dt, int);
+
   protected:
     static void InitDockspace(unsigned int dockspaceID);
 
     static void RenderDockspace();
     void RenderViewport();
+    bool _isHoveringViewport;
+
     void RenderContentBrowser();
 
     bool _freed;
