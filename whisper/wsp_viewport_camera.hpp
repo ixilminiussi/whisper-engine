@@ -81,7 +81,7 @@ class ViewportCamera
 
     WPROPERTY(Edit::eSlider, 1.f, 100.f, 0.01f)
     float _movementSpeed;
-    WPROPERTY(Edit::eSlider, 0.1f, 2.f, 0.01f)
+    WPROPERTY(Edit::eSlider, 0.1f, 4.f, 0.01f)
     glm::vec2 _mouseSensitivity;
 
     PossessionMode _possessionMode;

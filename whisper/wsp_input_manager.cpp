@@ -11,8 +11,6 @@
 #include <imgui.h>
 #include <tinyxml2.h>
 
-#include <unordered_map>
-
 using namespace wsp;
 
 InputManager::InputManager(WindowID windowID, std::string const &filepath)
@@ -96,6 +94,16 @@ void InputManager::UnbindAll()
 
 void InputManager::SetMouseCapture(bool b) const
 {
+    // used to hide the cursor
+    unsigned char transparent_pixel[4] = {0, 0, 0, 0};
+    GLFWimage blankImg;
+    blankImg.width = 1;
+    blankImg.height = 1;
+    blankImg.pixels = transparent_pixel;
+
+    static GLFWcursor *blankCursor = glfwCreateCursor(&blankImg, 0, 0);
+    // end
+
     RenderManager *renderManager = RenderManager::Get();
     check(renderManager);
     GLFWwindow *handle = renderManager->GetGLFWHandle(_windowID);
@@ -103,6 +111,7 @@ void InputManager::SetMouseCapture(bool b) const
     if (b)
     {
         glfwSetInputMode(handle, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+        glfwSetCursor(handle, blankCursor);
     }
     else
     {

@@ -250,7 +250,7 @@ void Swapchain::BeginRenderPass(vk::CommandBuffer commandBuffer, bool isCleared)
         TracyVkZone(TRACY_CTX, commandBuffer, "clear");
         vk::ClearAttachment clearAttachment = {};
         clearAttachment.aspectMask = vk::ImageAspectFlagBits::eColor;
-        clearAttachment.clearValue.color = vk::ClearColorValue(std::array<float, 4>{0.157f, 0.165f, 0.212f, 1.f});
+        clearAttachment.clearValue.color = vk::ClearColorValue(std::array<float, 4>{0., 0., 0., 1.f});
         clearAttachment.colorAttachment = 0;
 
         vk::ClearRect clearRect = {};

@@ -40,10 +40,10 @@ class Editor
     static void InitDockspace(unsigned int dockspaceID);
 
     static void RenderDockspace();
-    void RenderViewport();
+    void RenderViewport(bool *show);
     bool _isHoveringViewport;
 
-    void RenderContentBrowser();
+    void RenderContentBrowser(bool *show);
 
     bool _freed;
 

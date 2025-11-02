@@ -72,7 +72,8 @@ Editor::Editor() : _freed{false}, _drawList{nullptr}
     ResourceCreateInfo colorInfo{};
     colorInfo.role = ResourceRole::eColor;
     colorInfo.format = vk::Format::eR8G8B8A8Unorm;
-    colorInfo.clear.color = vk::ClearColorValue{0.1f, 0.1f, 0.1f, 1.0f};
+    glm::vec4 const clearColor = decodeSRGB(glm::vec4{24.f / 255.f, 24 / 255.f, 37 / 255.f, 1.f});
+    colorInfo.clear.color = vk::ClearColorValue{clearColor.r, clearColor.g, clearColor.b, 1.0f};
     colorInfo.debugName = "color";
 
     ResourceCreateInfo depthInfo{};
@@ -156,21 +157,54 @@ void Editor::Render()
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
 
+    static bool showViewport = true;
+    static bool showViewportCamera = true;
+    static bool showContentBrowser = true;
+
+    static bool showEditorSettings = false;
+
+    if (ImGui::BeginMainMenuBar())
+    {
+        if (ImGui::BeginMenu("options"))
+        {
+            ImGui::MenuItem("editor preferences", nullptr, &showEditorSettings);
+            ImGui::EndMenu();
+        }
+        if (ImGui::BeginMenu("windows"))
+        {
+            ImGui::MenuItem("viewport", nullptr, &showViewport);
+            ImGui::MenuItem("viewport camera", nullptr, &showViewportCamera);
+            ImGui::MenuItem("content browser", nullptr, &showContentBrowser);
+            ImGui::EndMenu();
+        }
+        ImGui::EndMainMenuBar();
+    }
+
     RenderDockspace();
-    RenderViewport();
+
+    if (showViewport)
+    {
+        RenderViewport(&showViewport);
+    }
 
     if (_viewportCamera)
     {
-        ImGui::Begin("Camera");
+        ImGui::Begin("Camera", &showViewportCamera);
         frost::RenderEditor(frost::Meta<ViewportCamera>{}, _viewportCamera.get());
         ImGui::End();
     }
 
-    RenderContentBrowser();
+    if (showContentBrowser)
+    {
+        RenderContentBrowser(&showContentBrowser);
+    }
 
-    ImGui::Begin("Editor Settings");
-    frost::RenderEditor(frost::Meta<InputManager>{}, _inputManager.get());
-    ImGui::End();
+    if (showEditorSettings)
+    {
+        ImGui::Begin("Editor Settings", &showEditorSettings);
+        frost::RenderEditor(frost::Meta<InputManager>{}, _inputManager.get());
+        ImGui::End();
+    }
 
     ImGui::EndFrame();
     ImGui::Render();
@@ -205,10 +239,12 @@ void Editor::OnClick(double dt, int value)
     if (_isHoveringViewport && value)
     {
         _viewportCamera->Possess(ViewportCamera::PossessionMode::eOrbit);
+        _inputManager->SetMouseCapture(true);
     }
     else
     {
         _viewportCamera->Possess(ViewportCamera::PossessionMode::eReleased);
+        _inputManager->SetMouseCapture(false);
     }
 }
 
@@ -266,14 +302,14 @@ void Editor::RenderDockspace()
     ImGui::End();
 }
 
-void Editor::RenderViewport()
+void Editor::RenderViewport(bool *show)
 {
     Graph *graph = RenderManager::Get()->GetGraph(_windowID);
 
     ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
-    ImGui::Begin("Viewport");
+    ImGui::Begin("Viewport", show);
     ImGui::PopStyleVar(3);
 
     _isHoveringViewport = ImGui::IsWindowHovered(ImGuiHoveredFlags_AllowWhenBlockedByPopup |
@@ -296,14 +332,14 @@ void Editor::RenderViewport()
     ImGui::End();
 }
 
-void Editor::RenderContentBrowser()
+void Editor::RenderContentBrowser(bool *show)
 {
     if (!ensure(_assetsManager.get()))
     {
         return;
     }
 
-    ImGui::Begin("Content Browser");
+    ImGui::Begin("Content Browser", show);
     static std::filesystem::path _currentDirectory = _assetsManager->_fileRoot;
 
     static float const padding = 16.f;

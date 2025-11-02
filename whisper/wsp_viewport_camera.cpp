@@ -15,7 +15,7 @@ using namespace wsp;
 
 ViewportCamera::ViewportCamera(glm::vec3 const &orbitPoint, float distance, glm::vec2 const &rotation)
     : _orbitDistance{distance}, _rotation{rotation}, _orbitTarget{orbitPoint}, _orbitPoint{orbitPoint},
-      _orbitLerp{0.1f}, _possessionMode{eReleased}, _mouseSensitivity{1.f, 0.5f}, _movementSpeed{1.f}
+      _orbitLerp{0.1f}, _possessionMode{eReleased}, _mouseSensitivity{3.f, 2.f}, _movementSpeed{1.f}
 {
     _camera.SetLeft(-_orbitDistance);
     _camera.SetRight(_orbitDistance);
@@ -82,12 +82,12 @@ void ViewportCamera::Rotate(glm::vec2 value)
 
     glm::vec3 const up = glm::vec3{0.f, -1.f, 0.f};
 
-    glm::quat qYaw = glm::angleAxis(glm::radians(_rotation.x), up);
+    glm::quat const qYaw = glm::angleAxis(glm::radians(_rotation.x), up);
 
     glm::vec3 forward = qYaw * glm::vec3{1.f, 0.f, 0.f};
-    glm::vec3 right = glm::normalize(glm::cross(up, forward));
+    glm::vec3 const right = glm::normalize(glm::cross(up, forward));
 
-    glm::quat qPitch = glm::angleAxis(glm::radians(_rotation.y), right);
+    glm::quat const qPitch = glm::angleAxis(glm::radians(_rotation.y), right);
 
     forward = glm::normalize(qPitch * forward);
 
@@ -128,12 +128,12 @@ void ViewportCamera::RefreshView()
 
     glm::vec3 const up = glm::vec3{0.f, -1.f, 0.f};
 
-    glm::quat qYaw = glm::angleAxis(glm::radians(_rotation.x), up);
+    glm::quat const qYaw = glm::angleAxis(glm::radians(_rotation.x), up);
 
     glm::vec3 forward = qYaw * glm::vec3{1.f, 0.f, 0.f};
-    glm::vec3 right = glm::normalize(glm::cross(up, forward));
+    glm::vec3 const right = glm::normalize(glm::cross(up, forward));
 
-    glm::quat qPitch = glm::angleAxis(glm::radians(_rotation.y), right);
+    glm::quat const qPitch = glm::angleAxis(glm::radians(_rotation.y), right);
 
     forward = glm::normalize(qPitch * forward);
 
@@ -185,8 +185,8 @@ void ViewportCamera::OnKeyboardMovement(double dt, glm::vec2 value)
         value = glm::normalize(value);
         value *= _movementSpeed * (float)dt;
 
-        glm::vec3 forward = _camera.GetForward();
-        glm::vec3 right = _camera.GetRight();
+        glm::vec3 const forward = _camera.GetForward();
+        glm::vec3 const right = _camera.GetRight();
 
         _orbitPoint += forward * 0.01f * -value.y;
         _orbitPoint += right * 0.01f * -value.x;

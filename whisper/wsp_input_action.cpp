@@ -90,7 +90,7 @@ void ButtonAction::Poll(GLFWwindow *handle, double dt)
 
     if (success)
     {
-        for (std::function<void(float, int)> func : _functions)
+        for (std::function<void(float, int)> const func : _functions)
         {
             func(dt, newStatus);
         }
