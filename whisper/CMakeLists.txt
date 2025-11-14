@@ -22,6 +22,7 @@ target_link_libraries(
           imgui
           cgltf
           spdlog
+          stb_image
           glm::glm
           glfw
           ${Vulkan_LIBRARIES})

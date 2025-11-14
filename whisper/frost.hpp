@@ -9,6 +9,7 @@
 
 #include <IconsMaterialSymbols.h>
 
+#include <stdexcept>
 #include <wsp_custom_imgui.hpp>
 #include <wsp_custom_types.hpp>
 #include <wsp_inputs.hpp>
@@ -54,7 +55,12 @@ template <typename Enum> inline bool RenderEnum(char const *label, Enum *address
 {
     wsp::dictionary<std::string, Enum> const &dict = EnumDictionary<Enum>();
 
-    std::string currentSelection = dict.from(*address);
+    std::vector<std::string> options = dict.from(*address);
+    if (options.size() == 0)
+    {
+        throw std::runtime_error("the current enum addressed doesnt exist in the enum dictionary");
+    }
+    std::string currentSelection = options[0];
 
     bool modified = false;
 

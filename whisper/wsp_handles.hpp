@@ -16,15 +16,15 @@ struct Pass
     size_t index;
     explicit Pass(size_t i) : index(i) {};
 
-    bool operator<(const Pass &other) const
+    bool operator<(Pass const &other) const
     {
         return index < other.index;
     }
-    bool operator==(const Pass &other) const
+    bool operator==(Pass const &other) const
     {
         return index == other.index;
     }
-    bool operator!=(const Pass &other) const
+    bool operator!=(Pass const &other) const
     {
         return index != other.index;
     }
@@ -35,15 +35,15 @@ struct Resource
     size_t index;
     explicit Resource(size_t i) : index(i) {};
 
-    bool operator<(const Resource &other) const
+    bool operator<(Resource const &other) const
     {
         return index < other.index;
     }
-    bool operator==(const Resource &other) const
+    bool operator==(Resource const &other) const
     {
         return index == other.index;
     }
-    bool operator!=(const Resource &other) const
+    bool operator!=(Resource const &other) const
     {
         return index != other.index;
     }
@@ -69,20 +69,24 @@ struct PassCreateInfo
     bool rebuildOnChange{false};
 };
 
-enum ResourceRole
+enum ResourceUsage
 {
     eColor,
-    eDepth
+    eDepth,
+    eTexture
 };
 
 struct ResourceCreateInfo
 {
+    // for regular resources
     vk::Format format;
     vk::Extent2D extent{0, 0}; // {0, 0} to follow screen extent
     vk::ClearValue clear;
 
-    ResourceRole role;
+    ResourceUsage usage;
     size_t sampler{0};
+
+    size_t textureCount{1};
 
     std::string debugName{""};
 

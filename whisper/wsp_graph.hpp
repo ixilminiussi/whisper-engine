@@ -38,6 +38,8 @@ class Graph
     [[nodiscard]] Resource NewResource(const struct ResourceCreateInfo &);
     Pass NewPass(const struct PassCreateInfo &);
 
+    void SetTexture(Resource, size_t, class Texture const *);
+
     void Compile(Resource target, GraphUsage);
     void Render(vk::CommandBuffer, size_t frameIndex);
 

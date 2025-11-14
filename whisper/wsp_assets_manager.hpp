@@ -1,6 +1,7 @@
 #ifndef WSP_ASSETS_MANAGER
 #define WSP_ASSETS_MANAGER
 
+#include "wsp_custom_types.hpp"
 #include <filesystem>
 #include <map>
 #include <memory>
@@ -15,18 +16,20 @@ class AssetsManager
     AssetsManager();
     ~AssetsManager();
 
-    void ImportTextures(std::filesystem::path const &filepath);
-    std::vector<class Mesh *> ImportMeshes(std::filesystem::path const &filepath);
+    std::vector<std::shared_ptr<class Texture>> ImportTextures(std::filesystem::path const &filepath);
+    std::vector<std::shared_ptr<class Mesh>> ImportMeshes(std::filesystem::path const &filepath);
 
     void Free();
 
     friend class Editor;
 
   protected:
-    std::vector<std::unique_ptr<class Mesh>> _meshes;
-    std::map<std::filesystem::path, std::vector<size_t>> _importList;
+    dictionary<std::shared_ptr<class Mesh>, std::filesystem::path> _meshes;
+    dictionary<std::shared_ptr<class Texture>, std::filesystem::path> _textures;
 
     std::filesystem::path _fileRoot;
+
+    bool _freed;
 };
 
 } // namespace wsp

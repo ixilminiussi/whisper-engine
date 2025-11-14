@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <stdexcept>
+#include <utility>
 #include <vector>
 
 namespace wsp // custom types
@@ -41,28 +42,32 @@ template <typename Key, typename Val> struct dictionary
         return mappedInput != data.end();
     }
 
-    Key &from(Val const &val)
+    std::vector<Key> from(Val const &val)
     {
-        auto mappedInput = std::find_if(data.begin(), data.end(), [&](auto const &e) { return e.second == val; });
-
-        if (mappedInput == data.end())
+        std::vector<Key> keys{};
+        for (auto const &[key, val] : data)
         {
-            throw std::invalid_argument("wsp::dictionary::from called on inexistant value");
+            if (val == val)
+            {
+                keys.push_back(key);
+            }
         }
 
-        return mappedInput->first;
+        return keys;
     }
 
-    Key const &from(Val const &val) const
+    std::vector<Key> from(Val const &val) const
     {
-        auto mappedInput = std::find_if(data.begin(), data.end(), [&](auto const &e) { return e.second == val; });
-
-        if (mappedInput == data.end())
+        std::vector<Key> keys{};
+        for (auto const &[key, val] : data)
         {
-            throw std::invalid_argument("wsp::dictionary::from called on inexistant value");
+            if (val == val)
+            {
+                keys.push_back(key);
+            }
         }
 
-        return mappedInput->first;
+        return keys;
     }
 
     Val const &at(Key const &key) const

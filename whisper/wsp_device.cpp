@@ -1,3 +1,4 @@
+#include <vulkan/vulkan.hpp>
 #include <wsp_device.hpp>
 
 #include <wsp_devkit.hpp>
@@ -530,8 +531,8 @@ void Device::CopyBuffer(vk::Buffer source, vk::Buffer *destination, size_t size)
     vk::CommandBuffer const commandBuffer = BeginSingleTimeCommand();
 
     vk::BufferCopy copyRegion{};
-    copyRegion.srcOffset = 0; // Optional
-    copyRegion.dstOffset = 0; // Optional
+    copyRegion.srcOffset = 0;
+    copyRegion.dstOffset = 0;
     copyRegion.size = size;
     commandBuffer.copyBuffer(source, *destination, 1, &copyRegion);
 
@@ -547,6 +548,47 @@ void Device::MapMemory(vk::DeviceMemory deviceMemory, void **mappedMemory) const
         throw std::runtime_error(
             fmt::format("Device: failed to map memory : {}", vk::to_string(static_cast<vk::Result>(result))));
     }
+}
+
+void Device::CopyBufferToImage(vk::Buffer source, vk::Image *destination, size_t width, size_t height,
+                               size_t depth) const
+{
+    vk::CommandBuffer const commandBuffer = BeginSingleTimeCommand();
+
+    commandBuffer.pipelineBarrier(vk::PipelineStageFlagBits::eTopOfPipe, vk::PipelineStageFlagBits::eTransfer, {}, {},
+                                  {},
+                                  vk::ImageMemoryBarrier{vk::AccessFlagBits::eNone,
+                                                         vk::AccessFlagBits::eTransferWrite,
+                                                         vk::ImageLayout::eUndefined,
+                                                         vk::ImageLayout::eTransferDstOptimal,
+                                                         vk::QueueFamilyIgnored,
+                                                         vk::QueueFamilyIgnored,
+                                                         *destination,
+                                                         {vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1}});
+
+    vk::BufferImageCopy copyRegion{};
+    copyRegion.bufferOffset = 0;
+    copyRegion.imageOffset = 0;
+    copyRegion.imageExtent = vk::Extent3D{(uint32_t)width, (uint32_t)height, (uint32_t)depth};
+    copyRegion.imageSubresource.aspectMask = vk::ImageAspectFlagBits::eColor;
+    copyRegion.imageSubresource.mipLevel = 0;
+    copyRegion.imageSubresource.baseArrayLayer = 0;
+    copyRegion.imageSubresource.layerCount = 1;
+
+    commandBuffer.copyBufferToImage(source, *destination, vk::ImageLayout::eTransferDstOptimal, 1, &copyRegion);
+
+    commandBuffer.pipelineBarrier(vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eAllGraphics, {}, {},
+                                  {},
+                                  vk::ImageMemoryBarrier{vk::AccessFlagBits::eTransferWrite,
+                                                         vk::AccessFlagBits::eShaderRead,
+                                                         vk::ImageLayout::eTransferDstOptimal,
+                                                         vk::ImageLayout::eShaderReadOnlyOptimal,
+                                                         vk::QueueFamilyIgnored,
+                                                         vk::QueueFamilyIgnored,
+                                                         *destination,
+                                                         {vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1}});
+
+    EndSingleTimeCommand(commandBuffer);
 }
 
 void Device::FlushMappedMemoryRange(vk::MappedMemoryRange const &mappedMemoryRange) const

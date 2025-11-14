@@ -1,6 +1,7 @@
 #ifndef WSP_MESH
 #define WSP_MESH
 
+#include <filesystem>
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 
@@ -56,8 +57,6 @@ class Mesh : public Drawable
 
   private:
     static cgltf_accessor const *FindAccessor(cgltf_primitive const *prim, cgltf_attribute_type type);
-
-    std::string _filepath;
 
     std::vector<Primitive> _primitives;
 

@@ -289,8 +289,8 @@ void Swapchain::BlitImage(vk::CommandBuffer commandBuffer, vk::Image image, vk::
                                                          vk::AccessFlagBits::eTransferWrite,
                                                          vk::ImageLayout::eUndefined,
                                                          vk::ImageLayout::eTransferDstOptimal,
-                                                         VK_QUEUE_FAMILY_IGNORED,
-                                                         VK_QUEUE_FAMILY_IGNORED,
+                                                         vk::QueueFamilyIgnored,
+                                                         vk::QueueFamilyIgnored,
                                                          swapchainImage,
                                                          {vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1}});
 
@@ -300,8 +300,8 @@ void Swapchain::BlitImage(vk::CommandBuffer commandBuffer, vk::Image image, vk::
                                                          vk::AccessFlagBits::eTransferWrite,
                                                          vk::ImageLayout::eUndefined,
                                                          vk::ImageLayout::eTransferSrcOptimal,
-                                                         VK_QUEUE_FAMILY_IGNORED,
-                                                         VK_QUEUE_FAMILY_IGNORED,
+                                                         vk::QueueFamilyIgnored,
+                                                         vk::QueueFamilyIgnored,
                                                          image,
                                                          {vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1}});
 
@@ -328,8 +328,8 @@ void Swapchain::SkipBlit(vk::CommandBuffer commandBuffer) const
                                                          vk::AccessFlagBits::eColorAttachmentWrite,
                                                          vk::ImageLayout::eUndefined,
                                                          vk::ImageLayout::eTransferDstOptimal,
-                                                         VK_QUEUE_FAMILY_IGNORED,
-                                                         VK_QUEUE_FAMILY_IGNORED,
+                                                         vk::QueueFamilyIgnored,
+                                                         vk::QueueFamilyIgnored,
                                                          swapchainImage,
                                                          {vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1}});
 }

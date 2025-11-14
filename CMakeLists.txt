@@ -42,7 +42,7 @@ else()
   message(CHECK_PASS "Found system tinyxml2")
 endif()
 
-# -- glm
+# -- glm: Try to use system glm first
 find_package(glm QUIET)
 message(CHECK_START "Find glm")
 if(NOT glm_FOUND)
@@ -54,7 +54,17 @@ else()
   message(CHECK_PASS "Found system glm")
 endif()
 
-# -- cgltf: Try to use system cgltf first
+# -- stb_image
+FetchContent_Declare(
+  stb_image
+  GIT_REPOSITORY https://github.com/nothings/stb.git
+  GIT_TAG master)
+FetchContent_MakeAvailable(stb_image)
+
+add_library(stb_image INTERFACE)
+target_include_directories(stb_image INTERFACE ${stb_image_SOURCE_DIR})
+
+# -- cgltf
 FetchContent_Declare(
   cgltf URL https://github.com/jkuhlmann/cgltf/archive/refs/tags/v1.15.zip)
 FetchContent_MakeAvailable(cgltf)

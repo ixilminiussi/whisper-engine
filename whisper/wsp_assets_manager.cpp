@@ -1,9 +1,11 @@
 #include "wsp_engine.hpp"
+#include "wsp_texture.hpp"
 #include <wsp_device.hpp>
 
 #include <wsp_assets_manager.hpp>
 #include <wsp_editor.hpp>
 #include <wsp_mesh.hpp>
+#include <wsp_texture.hpp>
 
 #include <IconsMaterialSymbols.h>
 
@@ -14,14 +16,21 @@
 #include <filesystem>
 #include <stdexcept>
 
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb_image.h>
+
 using namespace wsp;
 
-AssetsManager::AssetsManager() : _fileRoot{WSP_ASSETS}
+AssetsManager::AssetsManager() : _fileRoot{WSP_ASSETS}, _freed{false}
 {
 }
 
 AssetsManager::~AssetsManager()
 {
+    if (!_freed)
+    {
+        spdlog::critical("AssetsManager: forgot to Free before deletion");
+    }
 }
 
 std::string ToString(cgltf_result result)
@@ -55,22 +64,66 @@ std::string ToString(cgltf_result result)
 
 void AssetsManager::Free()
 {
-    Device const *device = SafeDeviceAccessor::Get();
+    spdlog::info("AssetsManager: began termination");
 
-    for (std::unique_ptr<Mesh> &mesh : _meshes)
+    if (_freed)
+    {
+        spdlog::error("AssetsManager: already freed");
+        return;
+    }
+
+    Device const *device = SafeDeviceAccessor::Get();
+    check(device);
+
+    for (auto &[mesh, path] : _meshes)
     {
         mesh->Free(device);
-        mesh.release();
     }
 
     _meshes.clear();
+
+    for (auto &[texture, path] : _textures)
+    {
+        texture->Free(device);
+    }
+
+    _meshes.clear();
+
+    _freed = true;
+
+    spdlog::info("AssetsManager: terminated");
 }
 
-void AssetsManager::ImportTextures(std::filesystem::path const &filepath)
+std::vector<std::shared_ptr<Texture>> AssetsManager::ImportTextures(std::filesystem::path const &relativePath)
 {
+    Device const *device = SafeDeviceAccessor::Get();
+    check(device);
+
+    std::filesystem::path const filepath = (_fileRoot / relativePath).lexically_normal();
+
+    // if we already imported file then return its pointer
+    if (std::vector<std::shared_ptr<class Texture>> const existing = _textures.from(filepath); existing.size() > 0)
+    {
+        return existing;
+    }
+
+    int w, h, channels;
+    stbi_uc *pixels = stbi_load(filepath.c_str(), &w, &h, &channels, STBI_rgb_alpha);
+
+    if (pixels == nullptr)
+    {
+        throw std::invalid_argument(fmt::format("AssetsManager: asset '{}' couldn't be imported", filepath.string()));
+    }
+
+    std::shared_ptr<Texture> const texture = std::make_shared<Texture>(device, pixels, w, h, channels);
+    _textures[texture] = filepath;
+
+    stbi_image_free(pixels);
+
+    return {texture};
 }
 
-std::vector<Mesh *> AssetsManager::ImportMeshes(std::filesystem::path const &relativePath)
+std::vector<std::shared_ptr<Mesh>> AssetsManager::ImportMeshes(std::filesystem::path const &relativePath)
 {
     Device const *device = SafeDeviceAccessor::Get();
     check(device);
@@ -78,14 +131,9 @@ std::vector<Mesh *> AssetsManager::ImportMeshes(std::filesystem::path const &rel
     std::filesystem::path const filepath = (_fileRoot / relativePath).lexically_normal();
 
     // if we already imported file return the meshes without reimporting
-    if (_importList.find(filepath) != _importList.end())
+    if (std::vector<std::shared_ptr<class Mesh>> const drawables = _meshes.from(filepath); drawables.size() > 0)
     {
-        std::vector<class Mesh *> _drawables;
-        for (size_t const index : _importList.at(filepath))
-        {
-            _drawables.push_back(_meshes.at(index).get());
-        }
-        return _drawables;
+        return drawables;
     }
 
     cgltf_data *data = NULL;
@@ -111,24 +159,31 @@ std::vector<Mesh *> AssetsManager::ImportMeshes(std::filesystem::path const &rel
         cgltf_image const &image = data->images[i];
         if (image.uri && strncmp(image.uri, "data:", 5) != 0) // we're referencing a path
         {
-            std::filesystem::path const baseDir = std::filesystem::path(filepath).parent_path();
-            std::filesystem::path const fullPath = baseDir / image.uri;
-            ImportTextures(fullPath);
+            std::filesystem::path const textureAbsolutePath = (filepath.parent_path() / image.uri).lexically_normal();
+            std::filesystem::path const textureRelativePath = std::filesystem::relative(textureAbsolutePath, _fileRoot);
+            ImportTextures(textureRelativePath);
+        }
+        else if (image.uri && strncmp(image.uri, "data:", 5) == 0) // we're on base64
+        {
+        }
+        else if (image.buffer_view) // embedded in buffer
+        {
+        }
+        else // invalid or extension-defined
+        {
         }
     }
 
     spdlog::info("AssetsManager: importing new assets from '{}'", filepath.string());
 
-    std::vector<class Mesh *> _drawables;
     for (int i = 0; i < data->meshes_count; i++)
     {
-        _meshes.emplace_back(new Mesh(device, &data->meshes[i]));
-        _importList[filepath].push_back(_meshes.size() - 1);
-
-        _drawables.push_back(_meshes.at(_meshes.size() - 1).get());
+        _meshes[std::make_unique<Mesh>(device, &data->meshes[i])] = filepath;
     }
+
+    std::vector<std::shared_ptr<class Mesh>> drawables = _meshes.from(filepath);
 
     cgltf_free(data);
 
-    return _drawables;
+    return drawables;
 }

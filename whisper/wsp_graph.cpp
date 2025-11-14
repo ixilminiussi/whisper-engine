@@ -1,12 +1,14 @@
-#include "wsp_render_manager.hpp"
+#include <wsp_graph.hpp>
+
 #include <wsp_device.hpp>
 #include <wsp_devkit.hpp>
 #include <wsp_engine.hpp>
-#include <wsp_graph.hpp>
 #include <wsp_handles.hpp>
+#include <wsp_render_manager.hpp>
 #include <wsp_renderer.hpp>
 #include <wsp_static_utils.hpp>
 #include <wsp_swapchain.hpp>
+#include <wsp_texture.hpp>
 
 #include <client/TracyScoped.hpp>
 #include <tracy/TracyC.h>
@@ -122,7 +124,37 @@ Pass Graph::NewPass(PassCreateInfo const &createInfo)
     return Pass{_passInfos.size() - 1};
 }
 
-void Graph::SetUboSize(size_t size)
+void Graph::SetTexture(Resource resource, size_t id, Texture const *texture)
+{
+    ResourceCreateInfo const &resourceInfo = GetResourceInfo(resource);
+    check(resourceInfo.usage == ResourceUsage::eTexture);
+
+    if (_descriptorSets.find(resource) != _descriptorSets.end())
+    {
+        std::runtime_error("Graph: resource descriptor sets not build before calling SetTexture");
+    }
+
+    Device const *device = SafeDeviceAccessor::Get();
+    check(device);
+
+    vk::DescriptorImageInfo imageInfo{};
+    check(_samplers.find(resourceInfo.sampler) != _samplers.end());
+    imageInfo.sampler = _samplers.at(resourceInfo.sampler);
+    imageInfo.imageView = texture->GetImageView();
+    imageInfo.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+
+    vk::WriteDescriptorSet write{};
+    write.dstSet = _descriptorSets.at(resource);
+    write.dstArrayElement = id;
+    write.descriptorCount = 1;
+    write.dstBinding = 0;
+    write.descriptorType = vk::DescriptorType::eCombinedImageSampler;
+    write.pImageInfo = &imageInfo;
+
+    device->UpdateDescriptorSet(write);
+}
+
+void Graph::SetUboSize(size_t const size)
 {
     _uboSize = size;
 }
@@ -191,6 +223,11 @@ bool Graph::FindDependencies(std::set<Resource> *validResources, std::set<Pass> 
 
 void Graph::Compile(Resource target, GraphUsage usage)
 {
+    if (GetResourceInfo(target).usage == ResourceUsage::eTexture)
+    {
+        throw std::invalid_argument("Graph: target cannot have 'usage' of 'ResourceUsage::eTexture'");
+    }
+
     Device const *device = SafeDeviceAccessor::Get();
     check(device);
 
@@ -381,7 +418,7 @@ void Graph::CreatePipeline(Pass pass, bool silent)
 
     for (Resource const resource : passInfo.writes)
     {
-        if (GetResourceInfo(resource).role == ResourceRole::eColor)
+        if (GetResourceInfo(resource).usage == ResourceUsage::eColor)
         {
             vk::PipelineColorBlendAttachmentState colorBlendAttachment{};
             colorBlendAttachment.colorWriteMask = vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG |
@@ -396,7 +433,7 @@ void Graph::CreatePipeline(Pass pass, bool silent)
 
             colorBlendAttachments.push_back(colorBlendAttachment);
         }
-        if (GetResourceInfo(resource).role == ResourceRole::eDepth)
+        if (GetResourceInfo(resource).usage == ResourceUsage::eDepth)
         {
             depthStencilInfo.depthTestEnable = vk::True;
             depthStencilInfo.depthWriteEnable = vk::True;
@@ -771,8 +808,17 @@ void Graph::Build(Resource resource, bool silent)
     check(device);
 
     ResourceCreateInfo const &createInfo = GetResourceInfo(resource);
-    vk::ImageCreateInfo imageInfo{};
 
+    if (createInfo.usage == ResourceUsage::eTexture)
+    {
+        check(IsSampled(resource)); // should theoretically be a thing (since it cant be written to, and would only
+                                    // appear in valid list if sampled)
+        CreateDescriptor(resource);
+
+        return;
+    }
+
+    vk::ImageCreateInfo imageInfo{};
     imageInfo.imageType = vk::ImageType::e2D;
     imageInfo.mipLevels = 1;
     imageInfo.arrayLayers = 1;
@@ -795,15 +841,19 @@ void Graph::Build(Resource resource, bool silent)
 
     if (createInfo.writers.size() > 0)
     {
-        switch (createInfo.role)
+        switch (createInfo.usage)
         {
-        case ResourceRole::eColor:
+        case ResourceUsage::eColor:
             imageInfo.usage |= vk::ImageUsageFlagBits::eColorAttachment;
             break;
-        case ResourceRole::eDepth:
+        case ResourceUsage::eDepth:
             imageInfo.usage |= vk::ImageUsageFlagBits::eDepthStencilAttachment;
             break;
         }
+    }
+    if (createInfo.usage == ResourceUsage::eTexture)
+    {
+        imageInfo.usage = vk::ImageUsageFlagBits::eTransferDst;
     }
     if (IsSampled(resource))
     {
@@ -828,7 +878,7 @@ void Graph::Build(Resource resource, bool silent)
     viewInfo.viewType = vk::ImageViewType::e2D;
     viewInfo.format = createInfo.format;
     viewInfo.subresourceRange.aspectMask =
-        createInfo.role == ResourceRole::eDepth ? vk::ImageAspectFlagBits::eDepth : vk::ImageAspectFlagBits::eColor;
+        createInfo.usage == ResourceUsage::eDepth ? vk::ImageAspectFlagBits::eDepth : vk::ImageAspectFlagBits::eColor;
     viewInfo.subresourceRange.baseMipLevel = 0;
     viewInfo.subresourceRange.levelCount = 1;
     viewInfo.subresourceRange.baseArrayLayer = 0;
@@ -888,9 +938,9 @@ void Graph::Build(Pass pass, bool silent)
         vk::AttachmentReference attachmentRef = {};
         attachmentRef.attachment = i;
 
-        switch (resourceInfo.role)
+        switch (resourceInfo.usage)
         {
-        case ResourceRole::eColor:
+        case ResourceUsage::eColor:
             attachment.storeOp = vk::AttachmentStoreOp::eStore;
             attachment.finalLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
 
@@ -898,7 +948,7 @@ void Graph::Build(Pass pass, bool silent)
 
             colorAttachmentReferences.push_back(attachmentRef);
             break;
-        case ResourceRole::eDepth:
+        case ResourceUsage::eDepth:
             attachment.storeOp = vk::AttachmentStoreOp::eDontCare;
             attachment.finalLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
 
@@ -1076,6 +1126,11 @@ void Graph::CreateDescriptor(Resource resource)
     descriptorWrite.descriptorCount = 1;
     descriptorWrite.pImageInfo = &imageInfo;
 
+    if (resourceInfo.usage == ResourceUsage::eTexture)
+    {
+        descriptorWrite.descriptorCount = resourceInfo.textureCount;
+    }
+
     device->UpdateDescriptorSet(descriptorWrite);
 
     _descriptorSets[resource] = descriptorSet;
@@ -1098,7 +1153,7 @@ void Graph::Resize(size_t width, size_t height)
     {
         ResourceCreateInfo const &resourceInfo = GetResourceInfo(resource);
 
-        if (resourceInfo.extent == vk::Extent2D{0, 0})
+        if (resourceInfo.extent == vk::Extent2D{0, 0} && resourceInfo.usage != ResourceUsage::eTexture)
         {
             Free(resource);
             resourcesToRebuild.push_back(resource);

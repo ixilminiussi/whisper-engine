@@ -70,20 +70,24 @@ Editor::Editor() : _freed{false}, _drawList{nullptr}
     });
 
     ResourceCreateInfo colorInfo{};
-    colorInfo.role = ResourceRole::eColor;
+    colorInfo.usage = ResourceUsage::eColor;
     colorInfo.format = vk::Format::eR8G8B8A8Unorm;
     glm::vec4 const clearColor = decodeSRGB(glm::vec4{24.f / 255.f, 24 / 255.f, 37 / 255.f, 1.f});
     colorInfo.clear.color = vk::ClearColorValue{clearColor.r, clearColor.g, clearColor.b, 1.0f};
     colorInfo.debugName = "color";
 
     ResourceCreateInfo depthInfo{};
-    depthInfo.role = ResourceRole::eDepth;
+    depthInfo.usage = ResourceUsage::eDepth;
     depthInfo.format = vk::Format::eD16Unorm;
     depthInfo.clear.depthStencil = vk::ClearDepthStencilValue{1.};
     depthInfo.debugName = "depth";
 
     Resource const color = graph->NewResource(colorInfo);
     Resource const depth = graph->NewResource(depthInfo);
+
+    ResourceCreateInfo texturesInfo{};
+    texturesInfo.format = vk::Format::eR8G8B8Srgb;
+    colorInfo.clear.color = vk::ClearColorValue{clearColor.r, clearColor.g, clearColor.b, 1.0f};
 
     PassCreateInfo passCreateInfo{};
     passCreateInfo.writes = {color, depth};
@@ -400,10 +404,10 @@ void Editor::RenderContentBrowser(bool *show)
 
                     float furthestRadius = 0.f;
 
-                    for (Mesh const *mesh : _assetsManager->ImportMeshes(relativePath))
+                    for (std::shared_ptr<Mesh> const mesh : _assetsManager->ImportMeshes(relativePath))
                     {
                         furthestRadius = std::max(furthestRadius, mesh->GetRadius());
-                        _drawList->push_back((Drawable const *)mesh);
+                        _drawList->push_back((Drawable const *)mesh.get());
                     }
 
                     _viewportCamera->SetOrbitTarget({0.f, 0.f, 0.f});
