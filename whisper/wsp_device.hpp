@@ -86,8 +86,8 @@ class Device
     vk::Sampler CreateSampler(vk::SamplerCreateInfo const &, std::string const &name) const;
     void AllocateDescriptorSet(vk::DescriptorSetAllocateInfo const &, vk::DescriptorSet *,
                                std::string const &name) const;
-    void UpdateDescriptorSet(vk::WriteDescriptorSet const &) const;
-    void FreeDescriptorSets(vk::DescriptorPool, std::vector<vk::DescriptorSet>) const;
+    void UpdateDescriptorSets(std::vector<vk::WriteDescriptorSet> const &) const;
+    void FreeDescriptorSet(vk::DescriptorPool, vk::DescriptorSet *) const;
     void CreateSwapchainKHR(vk::SwapchainCreateInfoKHR const &, vk::SwapchainKHR *, std::string const &name) const;
     void CreateDescriptorPool(vk::DescriptorPoolCreateInfo const &, vk::DescriptorPool *,
                               std::string const &name) const;
@@ -101,22 +101,22 @@ class Device
     void AllocateCommandBuffers(std::vector<vk::CommandBuffer> *) const;
     void FreeCommandBuffers(std::vector<vk::CommandBuffer> *) const;
 
-    void DestroySemaphore(vk::Semaphore) const;
-    void DestroyFence(vk::Fence) const;
-    void DestroyFramebuffer(vk::Framebuffer) const;
-    void DestroyRenderPass(vk::RenderPass) const;
-    void DestroyImage(vk::Image) const;
-    void FreeDeviceMemory(vk::DeviceMemory) const;
-    void DestroyBuffer(vk::Buffer) const;
-    void UnmapMemory(vk::DeviceMemory) const;
-    void DestroyImageView(vk::ImageView) const;
-    void DestroySampler(vk::Sampler) const;
-    void DestroySwapchainKHR(vk::SwapchainKHR) const;
-    void DestroyDescriptorPool(vk::DescriptorPool) const;
-    void DestroyDescriptorSetLayout(vk::DescriptorSetLayout) const;
-    void DestroyShaderModule(vk::ShaderModule) const;
-    void DestroyPipelineLayout(vk::PipelineLayout) const;
-    void DestroyGraphicsPipeline(vk::Pipeline) const;
+    void DestroySemaphore(vk::Semaphore *) const;
+    void DestroyFence(vk::Fence *) const;
+    void DestroyFramebuffer(vk::Framebuffer *) const;
+    void DestroyRenderPass(vk::RenderPass *) const;
+    void DestroyImage(vk::Image *) const;
+    void FreeDeviceMemory(vk::DeviceMemory *) const;
+    void DestroyBuffer(vk::Buffer *) const;
+    void UnmapMemory(vk::DeviceMemory *) const;
+    void DestroyImageView(vk::ImageView *) const;
+    void DestroySampler(vk::Sampler *) const;
+    void DestroySwapchainKHR(vk::SwapchainKHR *) const;
+    void DestroyDescriptorPool(vk::DescriptorPool *) const;
+    void DestroyDescriptorSetLayout(vk::DescriptorSetLayout *) const;
+    void DestroyShaderModule(vk::ShaderModule *) const;
+    void DestroyPipelineLayout(vk::PipelineLayout *) const;
+    void DestroyGraphicsPipeline(vk::Pipeline *) const;
 
     uint32_t FindMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags) const;
 

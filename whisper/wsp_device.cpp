@@ -638,24 +638,25 @@ void Device::AllocateDescriptorSet(vk::DescriptorSetAllocateInfo const &allocInf
     DebugNameObject(*descriptorSet, vk::ObjectType::eDescriptorSet, name);
 }
 
-void Device::UpdateDescriptorSet(vk::WriteDescriptorSet const &writeDescriptor) const
+void Device::UpdateDescriptorSets(std::vector<vk::WriteDescriptorSet> const &writeDescriptors) const
 {
     check(_device && "Device: Must initialize device sooner");
 
-    _device.updateDescriptorSets(1, &writeDescriptor, 0, nullptr);
+    _device.updateDescriptorSets(writeDescriptors.size(), writeDescriptors.data(), 0, nullptr);
 }
 
-void Device::FreeDescriptorSets(vk::DescriptorPool descriptorPool, std::vector<vk::DescriptorSet> descriptorSets) const
+void Device::FreeDescriptorSet(vk::DescriptorPool descriptorPool, vk::DescriptorSet *descriptorSet) const
 {
     check(_device && "Device: Must initialize device sooner");
 
-    if (vk::Result const result =
-            _device.freeDescriptorSets(descriptorPool, descriptorSets.size(), descriptorSets.data());
+    if (vk::Result const result = _device.freeDescriptorSets(descriptorPool, 1, descriptorSet);
         result != vk::Result::eSuccess)
     {
         throw std::runtime_error(
             fmt::format("Device: failed to free descriptor sets : {}", vk::to_string(static_cast<vk::Result>(result))));
     }
+
+    *descriptorSet = VK_NULL_HANDLE;
 }
 
 void Device::CreateSwapchainKHR(vk::SwapchainCreateInfoKHR const &createInfo, vk::SwapchainKHR *swapchain,
@@ -748,85 +749,117 @@ void Device::CreateGraphicsPipeline(vk::GraphicsPipelineCreateInfo const &create
     DebugNameObject(*pipeline, vk::ObjectType::ePipeline, name);
 }
 
-void Device::DestroySemaphore(vk::Semaphore semaphore) const
+void Device::DestroySemaphore(vk::Semaphore *semaphore) const
 {
+    check(*semaphore != VK_NULL_HANDLE);
     check(_device && "Device: Must initialize device sooner");
-    _device.destroySemaphore(semaphore, nullptr);
+    _device.destroySemaphore(*semaphore, nullptr);
+    *semaphore = VK_NULL_HANDLE;
 }
-void Device::DestroyFence(vk::Fence fence) const
+void Device::DestroyFence(vk::Fence *fence) const
 {
+    check(*fence != VK_NULL_HANDLE);
     check(_device && "Device: Must initialize device sooner");
-    _device.destroyFence(fence, nullptr);
+    _device.destroyFence(*fence, nullptr);
+    *fence = VK_NULL_HANDLE;
 }
-void Device::DestroyFramebuffer(vk::Framebuffer framebuffer) const
+void Device::DestroyFramebuffer(vk::Framebuffer *framebuffer) const
 {
+    check(*framebuffer != VK_NULL_HANDLE);
     check(_device && "Device: Must initialize device sooner");
-    _device.destroyFramebuffer(framebuffer, nullptr);
+    _device.destroyFramebuffer(*framebuffer, nullptr);
+    *framebuffer = VK_NULL_HANDLE;
 }
-void Device::DestroyRenderPass(vk::RenderPass renderPass) const
+void Device::DestroyRenderPass(vk::RenderPass *renderPass) const
 {
+    check(*renderPass != VK_NULL_HANDLE);
     check(_device && "Device: Must initialize device sooner");
-    _device.destroyRenderPass(renderPass, nullptr);
+    _device.destroyRenderPass(*renderPass, nullptr);
+    *renderPass = VK_NULL_HANDLE;
 }
-void Device::DestroyImage(vk::Image image) const
+void Device::DestroyImage(vk::Image *image) const
 {
+    check(*image != VK_NULL_HANDLE);
     check(_device && "Device: Must initialize device sooner");
-    _device.destroyImage(image, nullptr);
+    _device.destroyImage(*image, nullptr);
+    *image = VK_NULL_HANDLE;
 }
-void Device::DestroyBuffer(vk::Buffer buffer) const
+void Device::DestroyBuffer(vk::Buffer *buffer) const
 {
+    check(*buffer != VK_NULL_HANDLE);
     check(_device && "Device: Must initialize device sooner");
-    _device.destroyBuffer(buffer, nullptr);
+    _device.destroyBuffer(*buffer, nullptr);
+    *buffer = VK_NULL_HANDLE;
 }
-void Device::UnmapMemory(vk::DeviceMemory deviceMemory) const
+void Device::UnmapMemory(vk::DeviceMemory *deviceMemory) const
 {
+    check(*deviceMemory != VK_NULL_HANDLE);
     check(_device && "Device: Must initialize device sooner");
-    _device.unmapMemory(deviceMemory);
+    _device.unmapMemory(*deviceMemory);
+    *deviceMemory = VK_NULL_HANDLE;
 }
-void Device::FreeDeviceMemory(vk::DeviceMemory deviceMemory) const
+void Device::FreeDeviceMemory(vk::DeviceMemory *deviceMemory) const
 {
+    check(*deviceMemory != VK_NULL_HANDLE);
     check(_device && "Device: Must initialize device sooner");
-    _device.freeMemory(deviceMemory, nullptr);
+    _device.freeMemory(*deviceMemory, nullptr);
+    *deviceMemory = VK_NULL_HANDLE;
 }
-void Device::DestroyImageView(vk::ImageView imageView) const
+void Device::DestroyImageView(vk::ImageView *imageView) const
 {
+    check(*imageView != VK_NULL_HANDLE);
     check(_device && "Device: Must initialize device sooner");
-    _device.destroyImageView(imageView, nullptr);
+    _device.destroyImageView(*imageView, nullptr);
+    *imageView = VK_NULL_HANDLE;
 }
-void Device::DestroySampler(vk::Sampler sampler) const
+void Device::DestroySampler(vk::Sampler *sampler) const
 {
+    check(*sampler != VK_NULL_HANDLE);
     check(_device && "Device: Must initialize device sooner");
-    _device.destroySampler(sampler, nullptr);
+    _device.destroySampler(*sampler, nullptr);
+    *sampler = VK_NULL_HANDLE;
 }
-void Device::DestroySwapchainKHR(vk::SwapchainKHR swapchainKHR) const
+void Device::DestroySwapchainKHR(vk::SwapchainKHR *swapchainKHR) const
 {
+    check(*swapchainKHR != VK_NULL_HANDLE);
     check(_device && "Device: Must initialize device sooner");
-    _device.destroySwapchainKHR(swapchainKHR, nullptr);
+    _device.destroySwapchainKHR(*swapchainKHR, nullptr);
+    *swapchainKHR = VK_NULL_HANDLE;
 }
-void Device::DestroyDescriptorPool(vk::DescriptorPool descriptorPool) const
+void Device::DestroyDescriptorPool(vk::DescriptorPool *descriptorPool) const
 {
+    check(*descriptorPool != VK_NULL_HANDLE);
     check(_device && "Device: Must initialize device sooner");
-    _device.destroyDescriptorPool(descriptorPool, nullptr);
+    _device.destroyDescriptorPool(*descriptorPool, nullptr);
+    *descriptorPool = VK_NULL_HANDLE;
 }
-void Device::DestroyDescriptorSetLayout(vk::DescriptorSetLayout descriptorSet) const
+void Device::DestroyDescriptorSetLayout(vk::DescriptorSetLayout *descriptorSet) const
 {
+    check(*descriptorSet != VK_NULL_HANDLE);
     check(_device && "Device: Must initialize device sooner");
-    _device.destroyDescriptorSetLayout(descriptorSet, nullptr);
+    _device.destroyDescriptorSetLayout(*descriptorSet, nullptr);
+    *descriptorSet = VK_NULL_HANDLE;
 }
-void Device::DestroyShaderModule(vk::ShaderModule shaderModule) const
+void Device::DestroyShaderModule(vk::ShaderModule *shaderModule) const
 {
+    check(*shaderModule != VK_NULL_HANDLE);
     check(_device && "Device: Must initialize device sooner");
-    _device.destroyShaderModule(shaderModule, nullptr);
+    _device.destroyShaderModule(*shaderModule, nullptr);
+    *shaderModule = VK_NULL_HANDLE;
 }
-void Device::DestroyPipelineLayout(vk::PipelineLayout pipelineLayout) const
+void Device::DestroyPipelineLayout(vk::PipelineLayout *pipelineLayout) const
 {
+    check(*pipelineLayout != VK_NULL_HANDLE);
     check(_device && "Device: Must initialize device sooner");
-    _device.destroyPipelineLayout(pipelineLayout, nullptr);
+    _device.destroyPipelineLayout(*pipelineLayout, nullptr);
+    *pipelineLayout = VK_NULL_HANDLE;
 }
-void Device::DestroyGraphicsPipeline(vk::Pipeline pipeline) const
+void Device::DestroyGraphicsPipeline(vk::Pipeline *pipeline) const
 {
+    check(*pipeline != VK_NULL_HANDLE);
     check(_device && "Device: Must initialize device sooner");
-    _device.destroyPipeline(pipeline, nullptr);
+    _device.destroyPipeline(*pipeline, nullptr);
+    *pipeline = VK_NULL_HANDLE;
 }
 
 uint32_t Device::FindMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties) const

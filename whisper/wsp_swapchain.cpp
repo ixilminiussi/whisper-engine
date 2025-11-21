@@ -1,5 +1,6 @@
 #include <wsp_swapchain.hpp>
 
+#include <wsp_constants.hpp>
 #include <wsp_device.hpp>
 #include <wsp_devkit.hpp>
 #include <wsp_engine.hpp>
@@ -98,31 +99,31 @@ void Swapchain::Free(Device const *device, bool silent)
 
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
     {
-        device->DestroySemaphore(_renderFinishedSemaphores[i]);
-        device->DestroySemaphore(_imageAvailableSemaphores[i]);
-        device->DestroyFence(_inFlightFences[i]);
+        device->DestroySemaphore(&_renderFinishedSemaphores[i]);
+        device->DestroySemaphore(&_imageAvailableSemaphores[i]);
+        device->DestroyFence(&_inFlightFences[i]);
     }
     _renderFinishedSemaphores.clear();
     _imageAvailableSemaphores.clear();
     _inFlightFences.clear();
 
-    for (vk::Framebuffer const &framebuffer : _framebuffers)
+    for (vk::Framebuffer &framebuffer : _framebuffers)
     {
-        device->DestroyFramebuffer(framebuffer);
+        device->DestroyFramebuffer(&framebuffer);
     }
     _framebuffers.clear();
 
-    device->DestroyRenderPass(_renderPass);
+    device->DestroyRenderPass(&_renderPass);
 
     for (size_t i = 0; i < _imageViews.size(); i++)
     {
-        device->DestroyImageView(_imageViews[i]);
+        device->DestroyImageView(&_imageViews[i]);
     }
     _imageViews.clear();
 
     if (_swapchain)
     {
-        device->DestroySwapchainKHR(_swapchain);
+        device->DestroySwapchainKHR(&_swapchain);
         _swapchain = nullptr;
     }
 
@@ -184,7 +185,7 @@ void Swapchain::SubmitCommandBuffer(const Device *device, vk::CommandBuffer comm
 
     presentInfo.pImageIndices = &_currentImageIndex;
 
-    _currentFrameIndex = (_currentFrameIndex + 1) % Swapchain::MAX_FRAMES_IN_FLIGHT;
+    _currentFrameIndex = (_currentFrameIndex + 1) % MAX_FRAMES_IN_FLIGHT;
 
     device->PresentKHR(&presentInfo);
 }

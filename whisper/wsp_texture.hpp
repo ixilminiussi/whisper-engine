@@ -4,6 +4,10 @@
 #include <stb_image.h>
 #include <vulkan/vulkan.hpp>
 
+#ifndef NDEBUG
+#include <imgui.h>
+#endif
+
 namespace wsp
 {
 
@@ -19,6 +23,10 @@ class Texture
     void Free(class Device const *);
 
     vk::ImageView GetImageView() const;
+
+#ifndef NDEBUG
+    ImTextureID GetImTextureID(vk::Sampler); // generates
+#endif
 
   protected:
     vk::Image _image;

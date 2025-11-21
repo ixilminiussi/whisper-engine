@@ -1,3 +1,5 @@
+#include "imgui_impl_vulkan.h"
+#include <vulkan/vulkan_core.h>
 #include <wsp_texture.hpp>
 
 #include <wsp_device.hpp>
@@ -50,8 +52,8 @@ Texture::Texture(Device const *device, stbi_uc *pixels, int width, int height, i
 
     device->CreateImageView(viewInfo, &_imageView, "Texture image view");
 
-    device->DestroyBuffer(buffer);
-    device->FreeDeviceMemory(deviceMemory);
+    device->DestroyBuffer(&buffer);
+    device->FreeDeviceMemory(&deviceMemory);
 }
 
 Texture::~Texture()
@@ -72,9 +74,9 @@ void Texture::Free(Device const *device)
 
     check(device);
 
-    device->DestroyImageView(_imageView);
-    device->DestroyImage(_image);
-    device->FreeDeviceMemory(_deviceMemory);
+    device->DestroyImageView(&_imageView);
+    device->DestroyImage(&_image);
+    device->FreeDeviceMemory(&_deviceMemory);
 
     _freed = true;
 
@@ -85,3 +87,13 @@ vk::ImageView Texture::GetImageView() const
 {
     return _imageView;
 }
+
+#ifndef NDEBUG
+ImTextureID Texture::GetImTextureID(vk::Sampler sampler)
+{
+    static VkDescriptorSet textureID =
+        ImGui_ImplVulkan_AddTexture(sampler, _imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+    return (ImTextureID)textureID;
+}
+#endif

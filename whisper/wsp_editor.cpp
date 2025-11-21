@@ -1,5 +1,3 @@
-#include "wsp_custom_imgui.hpp"
-#include "wsp_inputs.hpp"
 #ifndef NDEBUG
 #include <wsp_editor.hpp>
 
@@ -7,16 +5,19 @@
 
 #include <wsp_assets_manager.hpp>
 #include <wsp_camera.hpp>
+#include <wsp_custom_imgui.hpp>
 #include <wsp_device.hpp>
 #include <wsp_engine.hpp>
 #include <wsp_global_ubo.hpp>
 #include <wsp_graph.hpp>
 #include <wsp_input_manager.hpp>
+#include <wsp_inputs.hpp>
 #include <wsp_mesh.hpp>
 #include <wsp_render_manager.hpp>
 #include <wsp_renderer.hpp>
 #include <wsp_static_utils.hpp>
 #include <wsp_swapchain.hpp>
+#include <wsp_texture.hpp>
 #include <wsp_viewport_camera.hpp>
 #include <wsp_window.hpp>
 
@@ -45,7 +46,6 @@ Editor::Editor() : _freed{false}, _drawList{nullptr}
     _windowID = renderManager->NewWindowRenderer();
 
     _viewportCamera = std::make_unique<ViewportCamera>(glm::vec3{0.f}, 10.f, glm::vec2{20.f, 0.f});
-    _assetsManager = std::make_unique<AssetsManager>();
     _inputManager = std::make_unique<InputManager>(_windowID);
 
     _inputManager->AddInput("look", AxisAction{WSP_MOUSE_AXIS_X_RELATIVE, WSP_MOUSE_AXIS_Y_RELATIVE});
@@ -82,17 +82,17 @@ Editor::Editor() : _freed{false}, _drawList{nullptr}
     depthInfo.clear.depthStencil = vk::ClearDepthStencilValue{1.};
     depthInfo.debugName = "depth";
 
-    Resource const color = graph->NewResource(colorInfo);
-    Resource const depth = graph->NewResource(depthInfo);
+    Resource const colorResource = graph->NewResource(colorInfo);
+    Resource const depthResource = graph->NewResource(depthInfo);
 
-    ResourceCreateInfo texturesInfo{};
-    texturesInfo.format = vk::Format::eR8G8B8Srgb;
-    colorInfo.clear.color = vk::ClearColorValue{clearColor.r, clearColor.g, clearColor.b, 1.0f};
+    _staticTextureAllocator = graph->GenerateStaticTextureAllocator(Graph::SAMPLER_COLOR_CLAMPED);
+
+    _assetsManager = std::make_unique<AssetsManager>(&_staticTextureAllocator);
 
     PassCreateInfo passCreateInfo{};
-    passCreateInfo.writes = {color, depth};
-    passCreateInfo.reads = {};
+    passCreateInfo.writes = {colorResource, depthResource};
     passCreateInfo.readsUniform = true;
+    passCreateInfo.readsStaticTextures = true;
     passCreateInfo.vertexInputInfo = Mesh::Vertex::GetVertexInputInfo();
     passCreateInfo.vertFile = "mesh.vert.spv";
     passCreateInfo.fragFile = "mesh.frag.spv";
@@ -111,7 +111,7 @@ Editor::Editor() : _freed{false}, _drawList{nullptr}
     };
 
     graph->NewPass(passCreateInfo);
-    graph->Compile(color, Graph::eToDescriptorSet);
+    graph->Compile(colorResource, Graph::eToDescriptorSet);
 #endif
 }
 
@@ -152,70 +152,72 @@ void Editor::Render()
 {
     vk::CommandBuffer const commandBuffer = RenderManager::Get()->BeginRender(_windowID);
 
-    extern TracyVkCtx TRACY_CTX;
-    TracyVkZone(TRACY_CTX, commandBuffer, "editor");
+    { // so that TracyCtx dies BEFORE flushing
+        extern TracyVkCtx TRACY_CTX;
+        TracyVkZone(TRACY_CTX, commandBuffer, "editor");
 
-    _deferredQueue.clear();
+        _deferredQueue.clear();
 
-    ImGui_ImplVulkan_NewFrame();
-    ImGui_ImplGlfw_NewFrame();
-    ImGui::NewFrame();
+        ImGui_ImplVulkan_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
 
-    static bool showViewport = true;
-    static bool showViewportCamera = true;
-    static bool showContentBrowser = true;
+        static bool showViewport = true;
+        static bool showViewportCamera = true;
+        static bool showContentBrowser = true;
 
-    static bool showEditorSettings = false;
+        static bool showEditorSettings = false;
 
-    if (ImGui::BeginMainMenuBar())
-    {
-        if (ImGui::BeginMenu("options"))
+        if (ImGui::BeginMainMenuBar())
         {
-            ImGui::MenuItem("editor preferences", nullptr, &showEditorSettings);
-            ImGui::EndMenu();
+            if (ImGui::BeginMenu("options"))
+            {
+                ImGui::MenuItem("editor preferences", nullptr, &showEditorSettings);
+                ImGui::EndMenu();
+            }
+            if (ImGui::BeginMenu("windows"))
+            {
+                ImGui::MenuItem("viewport", nullptr, &showViewport);
+                ImGui::MenuItem("viewport camera", nullptr, &showViewportCamera);
+                ImGui::MenuItem("content browser", nullptr, &showContentBrowser);
+                ImGui::EndMenu();
+            }
+            ImGui::EndMainMenuBar();
         }
-        if (ImGui::BeginMenu("windows"))
+
+        RenderDockspace();
+
+        if (showViewport)
         {
-            ImGui::MenuItem("viewport", nullptr, &showViewport);
-            ImGui::MenuItem("viewport camera", nullptr, &showViewportCamera);
-            ImGui::MenuItem("content browser", nullptr, &showContentBrowser);
-            ImGui::EndMenu();
+            RenderViewport(&showViewport);
         }
-        ImGui::EndMainMenuBar();
+
+        if (_viewportCamera)
+        {
+            ImGui::Begin("Camera", &showViewportCamera);
+            frost::RenderEditor(frost::Meta<ViewportCamera>{}, _viewportCamera.get());
+            ImGui::End();
+        }
+
+        if (showContentBrowser)
+        {
+            RenderContentBrowser(&showContentBrowser);
+        }
+
+        if (showEditorSettings)
+        {
+            ImGui::Begin("Editor Settings", &showEditorSettings);
+            frost::RenderEditor(frost::Meta<InputManager>{}, _inputManager.get());
+            ImGui::End();
+        }
+
+        ImGui::EndFrame();
+        ImGui::Render();
+        ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), commandBuffer);
+
+        ImGui::UpdatePlatformWindows();
+        ImGui::RenderPlatformWindowsDefault(nullptr, (void *)commandBuffer);
     }
-
-    RenderDockspace();
-
-    if (showViewport)
-    {
-        RenderViewport(&showViewport);
-    }
-
-    if (_viewportCamera)
-    {
-        ImGui::Begin("Camera", &showViewportCamera);
-        frost::RenderEditor(frost::Meta<ViewportCamera>{}, _viewportCamera.get());
-        ImGui::End();
-    }
-
-    if (showContentBrowser)
-    {
-        RenderContentBrowser(&showContentBrowser);
-    }
-
-    if (showEditorSettings)
-    {
-        ImGui::Begin("Editor Settings", &showEditorSettings);
-        frost::RenderEditor(frost::Meta<InputManager>{}, _inputManager.get());
-        ImGui::End();
-    }
-
-    ImGui::EndFrame();
-    ImGui::Render();
-    ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), commandBuffer);
-
-    ImGui::UpdatePlatformWindows();
-    ImGui::RenderPlatformWindowsDefault(nullptr, (void *)commandBuffer);
 
     RenderManager::Get()->EndRender(commandBuffer, _windowID);
 }
@@ -386,7 +388,24 @@ void Editor::RenderContentBrowser(bool *show)
         else
         {
             std::filesystem::path const path = directory.path();
-            if (wsp::ThumbnailButton(ICON_MS_DESCRIPTION))
+
+            bool r = false;
+            if (_assetsManager->_textures.contains(path)) // if the texture is loaded, put an image button
+            {
+                RenderManager *renderManager = RenderManager::Get();
+                check(renderManager);
+                vk::Sampler const sampler =
+                    renderManager->GetGraph(_windowID)->GetSampler(Graph::SAMPLER_COLOR_CLAMPED);
+                ImTextureID const textureID = _assetsManager->_textures.from(path)[0]->GetImTextureID(sampler);
+
+                r = wsp::ThumbnailButton(textureID);
+            } // else a regular icon
+            else
+            {
+                r = wsp::ThumbnailButton(ICON_MS_DESCRIPTION);
+            }
+
+            if (r)
             {
                 try
                 {

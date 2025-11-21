@@ -175,6 +175,20 @@ inline bool ThumbnailButton(char const *label)
     return r;
 }
 
+inline bool ThumbnailButton(ImTextureID textureID)
+{
+    static float const padding = 16.f;
+    static float const thumbnailSize = 128.f;
+
+    ImGui::PushStyleColor(ImGuiCol_Button, decodeSRGB(catppuccin::blue));
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, decodeSRGB(catppuccin::lavender));
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, decodeSRGB(catppuccin::lavender));
+    bool const r = ImGui::ImageButton("", textureID, ImVec2{thumbnailSize, thumbnailSize});
+    ImGui::PopStyleColor(3);
+
+    return r;
+}
+
 inline bool RedButton(char const *label, ImVec2 const &size = ImVec2{0.f, 0.f})
 {
     ImGui::PushStyleColor(ImGuiCol_Text, decodeSRGB(catppuccin::base));

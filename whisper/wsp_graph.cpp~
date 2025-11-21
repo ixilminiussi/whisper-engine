@@ -59,11 +59,12 @@ Graph::Graph(size_t width, size_t height)
       _descriptorSets{}, _freed{false}, _target{0}, _width{width}, _height{height}, _uboSize{0}, _uboDescriptorSets{},
       _uboBuffers{}, _uboDeviceMemories{}
 {
-    BuildSamplers();
+    CreateSamplers();
+    CreateDummyImage();
     BuildStaticTextures();
 }
 
-void Graph::BuildSamplers()
+void Graph::CreateSamplers()
 {
     Device const *device = SafeDeviceAccessor::Get();
     check(device);
@@ -110,8 +111,6 @@ void Graph::BuildSamplers()
     descriptorSetLayoutInfo.pBindings = descriptorSetLayoutBindings.data();
 
     device->CreateDescriptorSetLayout(descriptorSetLayoutInfo, &_descriptorSetLayout, "graph descriptor set layout");
-
-    spdlog::debug("Graph: built samplers");
 }
 
 Graph::~Graph()
@@ -137,7 +136,7 @@ void Graph::Free()
     device->DestroyDescriptorSetLayout(&_descriptorSetLayout);
     device->DestroyDescriptorPool(&_descriptorPool);
 
-    FreeStaticTextures();
+    FreeDummyImage();
 
     _freed = true;
     spdlog::info("Graph: freed");
@@ -240,7 +239,7 @@ void Graph::Compile(Resource target, GraphUsage usage)
     _target = target;
     _usage = usage;
 
-    Reset();
+    Reset(false);
 
     for (size_t pass = 0; pass < _passInfos.size(); pass++)
     {
@@ -293,6 +292,7 @@ void Graph::Compile(Resource target, GraphUsage usage)
     KhanFindOrder(_validResources, _validPasses);
 
     _requestsUniform = false;
+    _requestsStaticTextures = false;
 
     for (Pass const pass : _validPasses)
     {
@@ -304,6 +304,10 @@ void Graph::Compile(Resource target, GraphUsage usage)
             }
 
             _requestsUniform = true;
+        }
+        if (GetPassInfo(pass).readsStaticTextures)
+        {
+            _requestsStaticTextures = true;
         }
     }
     if (_requestsUniform)
@@ -318,7 +322,7 @@ void Graph::Compile(Resource target, GraphUsage usage)
     for (Pass const pass : _validPasses)
     {
         Build(pass);
-        BuildPipeline(pass);
+        CreatePipeline(pass);
     }
 
     spdlog::info("Graph: compiled");
@@ -349,7 +353,7 @@ void Graph::ChangeUsage(GraphUsage usage)
     Compile(_target, usage);
 }
 
-void Graph::BuildPipeline(Pass pass)
+void Graph::CreatePipeline(Pass pass, bool silent)
 {
     Device const *device = SafeDeviceAccessor::Get();
     check(device);
@@ -519,7 +523,10 @@ void Graph::BuildPipeline(Pass pass)
 
     device->CreateGraphicsPipeline(pipelineInfo, &pipelineHolder.pipeline, passInfo.debugName + " graphics pipeline");
 
-    spdlog::debug("Graph: built {0} pipeline", passInfo.debugName);
+    if (!silent)
+    {
+        spdlog::info("Graph: built {0} pipeline", passInfo.debugName);
+    }
 }
 
 void Graph::FlushUbo(void *ubo, size_t frameIndex)
@@ -639,9 +646,12 @@ void Graph::Render(vk::CommandBuffer commandBuffer, size_t frameIndex)
     }
 }
 
-void Graph::Reset()
+void Graph::Reset(bool silent)
 {
-    spdlog::debug("Graph: resetting began...");
+    if (!silent)
+    {
+        spdlog::info("Graph: resetting began...");
+    }
 
     Device const *device = SafeDeviceAccessor::Get();
     check(device);
@@ -650,7 +660,22 @@ void Graph::Reset()
 
     if (_uboDescriptorPool != VK_NULL_HANDLE)
     {
-        FreeUbo();
+        for (vk::DescriptorSet &uboDescriptorSet : _uboDescriptorSets)
+        {
+            device->FreeDescriptorSet(_uboDescriptorPool, &uboDescriptorSet);
+        }
+        device->DestroyDescriptorPool(&_uboDescriptorPool);
+        device->DestroyDescriptorSetLayout(&_uboDescriptorSetLayout);
+
+        for (vk::DeviceMemory &deviceMemory : _uboDeviceMemories)
+        {
+            device->UnmapMemory(&deviceMemory);
+            device->FreeDeviceMemory(&deviceMemory);
+        }
+        for (vk::Buffer &buffer : _uboBuffers)
+        {
+            device->DestroyBuffer(&buffer);
+        }
     }
 
     for (ResourceCreateInfo &resourceInfo : _resourceInfos)
@@ -663,11 +688,11 @@ void Graph::Reset()
 
     for (Resource const resource : _validResources)
     {
-        Free(resource);
+        Free(resource, silent);
     }
     for (Pass const pass : _validPasses)
     {
-        Free(pass);
+        Free(pass, silent);
     }
 
     _descriptorSets.clear();
@@ -678,10 +703,13 @@ void Graph::Reset()
     _framebuffers.clear();
     _renderPasses.clear();
 
-    spdlog::debug("Graph: resetting complete...");
+    if (!silent)
+    {
+        spdlog::info("Graph: resetting complete...");
+    }
 }
 
-void Graph::Free(Resource resource)
+void Graph::Free(Resource resource, bool silent)
 {
     Device const *device = SafeDeviceAccessor::Get();
     check(device);
@@ -695,6 +723,13 @@ void Graph::Free(Resource resource)
             device->FreeDescriptorSet(_descriptorPool, &descriptorSet);
         }
         _descriptorSets.erase(resource);
+    }
+
+    if (_staticTexturesDescriptorPool != VK_NULL_HANDLE)
+    {
+        device->FreeDescriptorSet(_staticTexturesDescriptorPool, &_staticTexturesDescriptorSet);
+        device->DestroyDescriptorPool(&_staticTexturesDescriptorPool);
+        device->DestroyDescriptorSetLayout(&_staticTexturesDescriptorSetLayout);
     }
 
     check(_images.find(resource) != _images.end());
@@ -718,11 +753,14 @@ void Graph::Free(Resource resource)
     }
     _imageViews.erase(resource);
 
-    ResourceCreateInfo createInfo = GetResourceInfo(resource);
-    spdlog::debug("Graph: freed resource '{}'", createInfo.debugName);
+    if (!silent)
+    {
+        ResourceCreateInfo createInfo = GetResourceInfo(resource);
+        spdlog::info("Graph: freed resource '{}'", createInfo.debugName);
+    }
 }
 
-void Graph::Free(Pass pass)
+void Graph::Free(Pass pass, bool silent)
 {
     Device const *device = SafeDeviceAccessor::Get();
     check(device);
@@ -744,8 +782,11 @@ void Graph::Free(Pass pass)
     vk::RenderPass &renderPass = _renderPasses.at(pass);
     device->DestroyRenderPass(&renderPass);
 
-    PassCreateInfo createInfo = GetPassInfo(pass);
-    spdlog::debug("Graph: freed pass '{}'", createInfo.debugName);
+    if (!silent)
+    {
+        PassCreateInfo createInfo = GetPassInfo(pass);
+        spdlog::info("Graph: freed pass '{}'", createInfo.debugName);
+    }
 }
 
 void Graph::KhanFindOrder(std::set<Resource> const &resources, std::set<Pass> const &passes)
@@ -833,7 +874,7 @@ void Graph::KhanFindOrder(std::set<Resource> const &resources, std::set<Pass> co
     spdlog::info("{0}", oss.str());
 }
 
-void Graph::Build(Resource resource)
+void Graph::Build(Resource resource, bool silent)
 {
     Device const *device = SafeDeviceAccessor::Get();
     check(device);
@@ -913,13 +954,16 @@ void Graph::Build(Resource resource)
 
     if (IsSampled(resource))
     {
-        BuildDescriptors(resource);
+        CreateDescriptors(resource);
     }
 
-    spdlog::debug("Graph: built {0} resource", createInfo.debugName);
+    if (!silent)
+    {
+        spdlog::info("Graph: built {0} resource", createInfo.debugName);
+    }
 }
 
-void Graph::Build(Pass pass)
+void Graph::Build(Pass pass, bool silent)
 {
     Device const *device = SafeDeviceAccessor::Get();
     check(device);
@@ -1022,10 +1066,13 @@ void Graph::Build(Pass pass)
         _framebuffers[pass][i] = framebuffer;
     }
 
-    spdlog::debug("Graph: built {0} pass", createInfo.debugName);
+    if (!silent)
+    {
+        spdlog::info("Graph: built {0} pass", createInfo.debugName);
+    }
 }
 
-void Graph::BuildUbo()
+void Graph::BuildUbo(bool silent)
 {
     Device const *device = SafeDeviceAccessor::Get();
     check(device);
@@ -1103,35 +1150,13 @@ void Graph::BuildUbo()
 
     device->UpdateDescriptorSets(writeDescriptors);
 
-    spdlog::debug("Graph: built ubo");
+    if (!silent)
+    {
+        spdlog::info("Graph: built ubo");
+    }
 }
 
-void Graph::FreeUbo()
-{
-    Device const *device = SafeDeviceAccessor::Get();
-    check(device);
-
-    for (vk::DescriptorSet &uboDescriptorSet : _uboDescriptorSets)
-    {
-        device->FreeDescriptorSet(_uboDescriptorPool, &uboDescriptorSet);
-    }
-    device->DestroyDescriptorPool(&_uboDescriptorPool);
-    device->DestroyDescriptorSetLayout(&_uboDescriptorSetLayout);
-
-    for (vk::DeviceMemory &deviceMemory : _uboDeviceMemories)
-    {
-        device->UnmapMemory(&deviceMemory);
-        device->FreeDeviceMemory(&deviceMemory);
-    }
-    for (vk::Buffer &buffer : _uboBuffers)
-    {
-        device->DestroyBuffer(&buffer);
-    }
-
-    spdlog::debug("Graph: Freed ubo");
-}
-
-void Graph::BuildStaticTextures()
+void Graph::BuildStaticTextures(bool silent)
 {
     Device const *device = SafeDeviceAccessor::Get();
     check(device);
@@ -1171,44 +1196,13 @@ void Graph::BuildStaticTextures()
 
     device->AllocateDescriptorSet(setAllocInfo, &_staticTexturesDescriptorSet, "static textures descriptor set");
 
-    BuildDummyImage();
-
-    vk::DescriptorImageInfo imageInfo{};
-    imageInfo.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
-    imageInfo.imageView = _dummyImageView;
-    imageInfo.sampler = _samplers.at(SAMPLER_COLOR_CLAMPED);
-
-    std::array<vk::DescriptorImageInfo, MAX_STATIC_TEXTURES> imageInfos{};
-    imageInfos.fill(imageInfo);
-
-    vk::WriteDescriptorSet writeDescriptor{};
-    writeDescriptor.dstSet = _staticTexturesDescriptorSet;
-    writeDescriptor.dstBinding = 0u;
-    writeDescriptor.dstArrayElement = 0u;
-    writeDescriptor.descriptorType = vk::DescriptorType::eCombinedImageSampler;
-    writeDescriptor.descriptorCount = MAX_SAMPLER_SETS;
-    writeDescriptor.pImageInfo = imageInfos.data();
-
-    device->UpdateDescriptorSets({writeDescriptor});
-
-    spdlog::debug("Graph: built static textures");
+    if (!silent)
+    {
+        spdlog::info("Graph: built static textures");
+    }
 }
 
-void Graph::FreeStaticTextures()
-{
-    Device const *device = SafeDeviceAccessor::Get();
-    check(device);
-
-    device->FreeDescriptorSet(_staticTexturesDescriptorPool, &_staticTexturesDescriptorSet);
-    device->DestroyDescriptorPool(&_staticTexturesDescriptorPool);
-    device->DestroyDescriptorSetLayout(&_staticTexturesDescriptorSetLayout);
-
-    FreeDummyImage();
-
-    spdlog::debug("Graph: freed static textures");
-}
-
-void Graph::BuildDummyImage()
+void Graph::CreateDummyImage()
 {
     Device const *device = SafeDeviceAccessor::Get();
     check(device);
@@ -1219,7 +1213,6 @@ void Graph::BuildDummyImage()
     imageInfo.extent = vk::Extent3D{1u, 1u, 1u};
     imageInfo.format = vk::Format::eR8G8B8Srgb;
     imageInfo.usage = vk::ImageUsageFlagBits::eSampled;
-    imageInfo.initialLayout = vk::ImageLayout::eUndefined;
     imageInfo.tiling = vk::ImageTiling::eOptimal;
     imageInfo.mipLevels = 1u;
     imageInfo.arrayLayers = 1u;
@@ -1251,23 +1244,6 @@ void Graph::BuildDummyImage()
 
     device->DestroyBuffer(&buffer);
     device->FreeDeviceMemory(&deviceMemory);
-
-    vk::CommandBuffer const commandBuffer = device->BeginSingleTimeCommand();
-
-    commandBuffer.pipelineBarrier(vk::PipelineStageFlagBits::eTopOfPipe, vk::PipelineStageFlagBits::eAllCommands, {},
-                                  {}, {},
-                                  vk::ImageMemoryBarrier{vk::AccessFlagBits::eNone,
-                                                         vk::AccessFlagBits::eShaderRead,
-                                                         vk::ImageLayout::eUndefined,
-                                                         vk::ImageLayout::eShaderReadOnlyOptimal,
-                                                         vk::QueueFamilyIgnored,
-                                                         vk::QueueFamilyIgnored,
-                                                         _dummyImage,
-                                                         {vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1}});
-
-    device->EndSingleTimeCommand(commandBuffer);
-
-    spdlog::debug("Graph: built dummy image");
 }
 
 void Graph::FreeDummyImage()
@@ -1278,11 +1254,9 @@ void Graph::FreeDummyImage()
     device->DestroyImage(&_dummyImage);
     device->FreeDeviceMemory(&_dummyImageMemory);
     device->DestroyImageView(&_dummyImageView);
-
-    spdlog::debug("Graph: freed dummy image");
 }
 
-void Graph::BuildDescriptors(Resource resource)
+void Graph::CreateDescriptors(Resource resource)
 {
     Device const *device = SafeDeviceAccessor::Get();
     check(device);
@@ -1323,14 +1297,10 @@ void Graph::BuildDescriptors(Resource resource)
 
         _descriptorSets[resource][i] = descriptorSet;
     }
-
-    spdlog::debug("Graph: built descriptors for '{}'", resourceInfo.debugName);
 }
 
 void Graph::Resize(size_t width, size_t height)
 {
-    spdlog::debug("Graph: resizing from {}x{} to {}x{}", _width, _height, width, height);
-
     Device const *device = SafeDeviceAccessor::Get();
     check(device);
 
@@ -1348,7 +1318,7 @@ void Graph::Resize(size_t width, size_t height)
 
         if (resourceInfo.extent == vk::Extent2D{0, 0})
         {
-            Free(resource);
+            Free(resource, true);
             resourcesToRebuild.push_back(resource);
         }
     }
@@ -1358,36 +1328,27 @@ void Graph::Resize(size_t width, size_t height)
 
         if (passInfo.rebuildOnChange)
         {
-            Free(pass);
+            Free(pass, true);
             passesToRebuild.push_back(pass);
         }
     }
 
     for (Resource const resource : resourcesToRebuild)
     {
-        Build(resource);
+        Build(resource, true);
     }
 
     for (Pass const pass : passesToRebuild)
     {
-        Build(pass);
-        BuildPipeline(pass);
+        Build(pass, true);
+        CreatePipeline(pass, true);
     }
-
-    spdlog::debug("Graph: resized to {}x{}", _width, _height, width, height);
 }
 
 void Graph::OnResizeCallback(void *graph, size_t width, size_t height)
 {
     check(graph);
     reinterpret_cast<Graph *>(graph)->Resize(width, height);
-}
-
-vk::Sampler Graph::GetSampler(size_t ID) const
-{
-    check(_samplers.find(ID) != _samplers.end());
-
-    return _samplers.at(ID);
 }
 
 bool Graph::IsSampled(Resource resource)

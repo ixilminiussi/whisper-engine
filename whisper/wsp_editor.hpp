@@ -2,6 +2,8 @@
 #ifndef WSP_EDITOR
 #define WSP_EDITOR
 
+#include <wsp_handles.hpp>
+
 #include <vulkan/vulkan.hpp>
 
 #include <functional>
@@ -50,6 +52,7 @@ class Editor
     std::unique_ptr<class ViewportCamera> _viewportCamera;
     std::unique_ptr<class AssetsManager> _assetsManager;
     std::unique_ptr<class InputManager> _inputManager;
+    StaticTextureAllocator _staticTextureAllocator;
 
     std::vector<std::function<void()>> _deferredQueue;
 

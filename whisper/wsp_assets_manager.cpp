@@ -1,9 +1,8 @@
-#include "wsp_engine.hpp"
-#include "wsp_texture.hpp"
 #include <wsp_device.hpp>
 
 #include <wsp_assets_manager.hpp>
 #include <wsp_editor.hpp>
+#include <wsp_graph.hpp>
 #include <wsp_mesh.hpp>
 #include <wsp_texture.hpp>
 
@@ -21,7 +20,8 @@
 
 using namespace wsp;
 
-AssetsManager::AssetsManager() : _fileRoot{WSP_ASSETS}, _freed{false}
+AssetsManager::AssetsManager(StaticTextureAllocator *staticTextureAllocator)
+    : _fileRoot{WSP_ASSETS}, _freed{false}, _staticTextureAllocator{staticTextureAllocator}
 {
 }
 
@@ -102,7 +102,7 @@ std::vector<std::shared_ptr<Texture>> AssetsManager::ImportTextures(std::filesys
     std::filesystem::path const filepath = (_fileRoot / relativePath).lexically_normal();
 
     // if we already imported file then return its pointer
-    if (std::vector<std::shared_ptr<class Texture>> const existing = _textures.from(filepath); existing.size() > 0)
+    if (std::vector<std::shared_ptr<Texture>> const existing = _textures.from(filepath); existing.size() > 0)
     {
         return existing;
     }
@@ -118,6 +118,8 @@ std::vector<std::shared_ptr<Texture>> AssetsManager::ImportTextures(std::filesys
     std::shared_ptr<Texture> const texture = std::make_shared<Texture>(device, pixels, w, h, channels);
     _textures[texture] = filepath;
 
+    spdlog::info("AssetsManager: loaded new texture from '{}'", filepath.string());
+
     stbi_image_free(pixels);
 
     return {texture};
@@ -131,7 +133,7 @@ std::vector<std::shared_ptr<Mesh>> AssetsManager::ImportMeshes(std::filesystem::
     std::filesystem::path const filepath = (_fileRoot / relativePath).lexically_normal();
 
     // if we already imported file return the meshes without reimporting
-    if (std::vector<std::shared_ptr<class Mesh>> const drawables = _meshes.from(filepath); drawables.size() > 0)
+    if (std::vector<std::shared_ptr<Mesh>> const drawables = _meshes.from(filepath); drawables.size() > 0)
     {
         return drawables;
     }
@@ -161,7 +163,12 @@ std::vector<std::shared_ptr<Mesh>> AssetsManager::ImportMeshes(std::filesystem::
         {
             std::filesystem::path const textureAbsolutePath = (filepath.parent_path() / image.uri).lexically_normal();
             std::filesystem::path const textureRelativePath = std::filesystem::relative(textureAbsolutePath, _fileRoot);
-            ImportTextures(textureRelativePath);
+            std::vector<std::shared_ptr<Texture>> const textures = ImportTextures(textureRelativePath);
+
+            if (_staticTextureAllocator)
+            {
+                _staticTextureAllocator->BindStaticTexture(0, textures[0].get());
+            }
         }
         else if (image.uri && strncmp(image.uri, "data:", 5) == 0) // we're on base64
         {
@@ -174,16 +181,16 @@ std::vector<std::shared_ptr<Mesh>> AssetsManager::ImportMeshes(std::filesystem::
         }
     }
 
-    spdlog::info("AssetsManager: importing new assets from '{}'", filepath.string());
-
     for (int i = 0; i < data->meshes_count; i++)
     {
         _meshes[std::make_unique<Mesh>(device, &data->meshes[i])] = filepath;
     }
 
-    std::vector<std::shared_ptr<class Mesh>> drawables = _meshes.from(filepath);
+    std::vector<std::shared_ptr<Mesh>> drawables = _meshes.from(filepath);
 
     cgltf_free(data);
+
+    spdlog::info("AssetsManager: loaded new meshes from '{}'", filepath.string());
 
     return drawables;
 }

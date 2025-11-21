@@ -14,17 +14,17 @@ namespace wsp
 struct Pass
 {
     size_t index;
-    explicit Pass(size_t i) : index(i) {};
+    constexpr explicit Pass(size_t i) : index(i) {};
 
-    bool operator<(Pass const &other) const
+    constexpr bool operator<(Pass const &other) const
     {
         return index < other.index;
     }
-    bool operator==(Pass const &other) const
+    constexpr bool operator==(Pass const &other) const
     {
         return index == other.index;
     }
-    bool operator!=(Pass const &other) const
+    constexpr bool operator!=(Pass const &other) const
     {
         return index != other.index;
     }
@@ -33,17 +33,17 @@ struct Pass
 struct Resource
 {
     size_t index;
-    explicit Resource(size_t i) : index(i) {};
+    constexpr explicit Resource(size_t i) : index(i) {};
 
-    bool operator<(Resource const &other) const
+    constexpr bool operator<(Resource const &other) const
     {
         return index < other.index;
     }
-    bool operator==(Resource const &other) const
+    constexpr bool operator==(Resource const &other) const
     {
         return index == other.index;
     }
-    bool operator!=(Resource const &other) const
+    constexpr bool operator!=(Resource const &other) const
     {
         return index != other.index;
     }
@@ -54,6 +54,9 @@ struct PassCreateInfo
     std::vector<Resource> reads;
     std::vector<Resource> writes;
     bool readsUniform;
+    bool readsStaticTextures;
+
+    size_t pushConstantSize{0};
 
     std::string vertFile;
     std::string fragFile;
@@ -73,7 +76,6 @@ enum ResourceUsage
 {
     eColor,
     eDepth,
-    eTexture
 };
 
 struct ResourceCreateInfo
@@ -86,8 +88,6 @@ struct ResourceCreateInfo
     ResourceUsage usage;
     size_t sampler{0};
 
-    size_t textureCount{1};
-
     std::string debugName{""};
 
     friend class Graph;
@@ -95,6 +95,23 @@ struct ResourceCreateInfo
   protected:
     std::vector<Pass> writers;
     std::vector<Pass> readers;
+};
+
+class StaticTextureAllocator
+{
+  public:
+    StaticTextureAllocator(vk::Sampler sampler, vk::DescriptorSet const *descriptorSet, class Device const *device)
+        : _sampler{sampler}, _descriptorSet{descriptorSet}, _device{device}
+    {
+    }
+    StaticTextureAllocator() = default;
+
+    void BindStaticTexture(size_t id, class Texture const *texture) const;
+
+  protected:
+    vk::Sampler _sampler;
+    vk::DescriptorSet const *_descriptorSet;
+    class Device const *_device;
 };
 
 } // namespace wsp

@@ -17,8 +17,6 @@ namespace wsp
 class Swapchain
 {
   public:
-    static constexpr int MAX_FRAMES_IN_FLIGHT = 2;
-
     Swapchain(class Window const *, class Device const *, vk::Extent2D, vk::SwapchainKHR oldSwapchain = VK_NULL_HANDLE);
     ~Swapchain();
 

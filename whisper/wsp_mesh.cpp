@@ -140,8 +140,8 @@ Mesh::Mesh(Device const *device, cgltf_mesh const *mesh) : _freed{false}, _radiu
                                           {vk::MemoryPropertyFlagBits::eDeviceLocal}, "mesh buffer");
 
         device->CopyBuffer(stagingBuffer, &_indexBuffer, bufferSize);
-        device->DestroyBuffer(stagingBuffer);
-        device->FreeDeviceMemory(stagingDeviceMemory);
+        device->DestroyBuffer(&stagingBuffer);
+        device->FreeDeviceMemory(&stagingDeviceMemory);
     }
 
     size_t const bufferSize = totalVertexCount * sizeof(Vertex);
@@ -170,8 +170,8 @@ Mesh::Mesh(Device const *device, cgltf_mesh const *mesh) : _freed{false}, _radiu
                                       {vk::MemoryPropertyFlagBits::eDeviceLocal}, "mesh vertex buffer");
 
     device->CopyBuffer(stagingBuffer, &_vertexBuffer, bufferSize);
-    device->DestroyBuffer(stagingBuffer);
-    device->FreeDeviceMemory(stagingDeviceMemory);
+    device->DestroyBuffer(&stagingBuffer);
+    device->FreeDeviceMemory(&stagingDeviceMemory);
 
     spdlog::info("Mesh: {} vertices, {} indices, {} primitives", vertices.size(), indices.size(), _primitives.size());
 }
@@ -195,11 +195,11 @@ void Mesh::Free(Device const *device)
 
     check(device);
 
-    device->DestroyBuffer(_vertexBuffer);
-    device->FreeDeviceMemory(_vertexDeviceMemory);
+    device->DestroyBuffer(&_vertexBuffer);
+    device->FreeDeviceMemory(&_vertexDeviceMemory);
 
-    device->DestroyBuffer(_indexBuffer);
-    device->FreeDeviceMemory(_indexDeviceMemory);
+    device->DestroyBuffer(&_indexBuffer);
+    device->FreeDeviceMemory(&_indexDeviceMemory);
 
     spdlog::info("Mesh: freed");
 }

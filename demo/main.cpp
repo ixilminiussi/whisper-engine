@@ -1,13 +1,13 @@
 #define TRACY_GPU_CONTEXT
 #define TRACY_GPU_VULKAN
 
+#define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_TRACE
+#include <spdlog/spdlog.h>
+
 #include <vulkan/vulkan.h>
 
 #include <wsp_editor.hpp>
 #include <wsp_render_manager.hpp>
-
-// lib
-#include <spdlog/spdlog.h>
 
 using namespace wsp;
 
@@ -24,6 +24,8 @@ double GetDeltaTime()
 
 int main()
 {
+    spdlog::default_logger()->set_level(spdlog::level::trace);
+
     Editor *editor = new Editor();
 
     try

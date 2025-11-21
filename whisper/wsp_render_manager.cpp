@@ -1,3 +1,4 @@
+#include <vulkan/vulkan.hpp>
 #include <wsp_render_manager.hpp>
 
 #include <wsp_devkit.hpp>
@@ -45,8 +46,10 @@ TracyVkCtx TRACY_CTX;
 }
 
 RenderManager::RenderManager()
-    : _validationLayers{"VK_LAYER_KHRONOS_validation"},
-      _deviceExtensions{vk::KHRSwapchainExtensionName, vk::KHRMaintenance2ExtensionName}
+    : _validationLayers{"VK_LAYER_KHRONOS_validation"}, _deviceExtensions{
+                                                            vk::KHRSwapchainExtensionName,
+                                                            vk::KHRMaintenance2ExtensionName,
+                                                        }
 
 {
     ZoneScopedN("initialize");
@@ -104,7 +107,7 @@ void RenderManager::Free()
     {
         if (_imguiDescriptorPools.find(windowID) != _imguiDescriptorPools.end())
         {
-            device->DestroyDescriptorPool(_imguiDescriptorPools.at(windowID));
+            device->DestroyDescriptorPool(&_imguiDescriptorPools.at(windowID));
         }
 
         pair.window->Free(_vkInstance);
@@ -184,7 +187,10 @@ void RenderManager::CreateInstance()
     createInfo.pNext = nullptr;
 #endif
 
-    if (const vk::Result result = vk::createInstance(&createInfo, nullptr, &_vkInstance);
+    spdlog::info("VK_ICD_FILENAMES = {}", std::getenv("VK_ICD_FILENAMES"));
+    spdlog::info("VK_LAYER_PATH = {}", std::getenv("VK_LAYER_PATH"));
+
+    if (vk::Result const result = vk::createInstance(&createInfo, nullptr, &_vkInstance);
         result != vk::Result::eSuccess)
     {
         throw std::runtime_error(fmt::format("RenderManager: failed to create _vkInstance : {}",
@@ -234,7 +240,7 @@ void RenderManager::CloseWindow(WindowID windowID)
     check(device);
     if (_imguiDescriptorPools.find(windowID) != _imguiDescriptorPools.end())
     {
-        device->DestroyDescriptorPool(_imguiDescriptorPools.at(windowID));
+        device->DestroyDescriptorPool(&_imguiDescriptorPools.at(windowID));
     }
 
     _windowRenderers.at(windowID).window->Free(_vkInstance);

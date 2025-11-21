@@ -42,12 +42,19 @@ template <typename Key, typename Val> struct dictionary
         return mappedInput != data.end();
     }
 
-    std::vector<Key> from(Val const &val)
+    bool contains(Val const &val) const
+    {
+        auto mappedInput = std::find_if(data.begin(), data.end(), [&](auto const &e) { return e.second == val; });
+
+        return mappedInput != data.end();
+    }
+
+    std::vector<Key> from(Val const &A)
     {
         std::vector<Key> keys{};
-        for (auto const &[key, val] : data)
+        for (auto const &[key, B] : data)
         {
-            if (val == val)
+            if (A == B)
             {
                 keys.push_back(key);
             }
@@ -56,12 +63,12 @@ template <typename Key, typename Val> struct dictionary
         return keys;
     }
 
-    std::vector<Key> from(Val const &val) const
+    std::vector<Key> from(Val const &A) const
     {
         std::vector<Key> keys{};
-        for (auto const &[key, val] : data)
+        for (auto const &[key, B] : data)
         {
-            if (val == val)
+            if (A == B)
             {
                 keys.push_back(key);
             }

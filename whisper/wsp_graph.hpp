@@ -1,6 +1,7 @@
 #ifndef WSP_GRAPH
 #define WSP_GRAPH
 
+#include <wsp_constants.hpp>
 #include <wsp_handles.hpp>
 
 #include <vulkan/vulkan.hpp>
@@ -38,12 +39,12 @@ class Graph
     [[nodiscard]] Resource NewResource(const struct ResourceCreateInfo &);
     Pass NewPass(const struct PassCreateInfo &);
 
-    void SetTexture(Resource, size_t, class Texture const *);
-
     void Compile(Resource target, GraphUsage);
     void Render(vk::CommandBuffer, size_t frameIndex);
 
     void Free();
+
+    StaticTextureAllocator GenerateStaticTextureAllocator(size_t const samplerID) const;
 
     vk::Image GetTargetImage() const;
     vk::DescriptorSet GetTargetDescriptorSet() const;
@@ -51,6 +52,8 @@ class Graph
     void ChangeUsage(GraphUsage);
     void Resize(size_t width, size_t height);
     static void OnResizeCallback(void *, size_t width, size_t height);
+
+    vk::Sampler GetSampler(size_t) const;
 
   protected:
     void FlushUbo(void *ubo, size_t frameIndex);
@@ -67,16 +70,23 @@ class Graph
 
     void KhanFindOrder(std::set<Resource> const &, std::set<Pass> const &);
 
-    void Build(Resource, bool silent = false);
-    void Build(Pass, bool silent = false);
-    void BuildUbo(bool silent = false);
+    void Build(Resource);
+    void Build(Pass);
+    void BuildUbo();
+    void BuildStaticTextures();
+
+    void BuildDummyImage();
+
+    void FreeUbo();
+    void FreeStaticTextures();
+    void FreeDummyImage();
 
     void Free(Resource);
     void Free(Pass);
 
-    void CreatePipeline(Pass, bool silent = false);
-    void CreateSamplers();
-    void CreateDescriptor(Resource resource);
+    void BuildPipeline(Pass);
+    void BuildSamplers();
+    void BuildDescriptors(Resource resource);
 
     bool FindDependencies(std::set<Resource> *validResources, std::set<Pass> *validPasses, Resource pass,
                           std::set<std::variant<Resource, Pass>> &visitingStack);
@@ -96,11 +106,15 @@ class Graph
     Resource _target;
     GraphUsage _usage;
 
-    std::map<Resource, vk::Image> _images;
-    std::map<Resource, vk::DeviceMemory> _deviceMemories;
-    std::map<Resource, vk::ImageView> _imageViews;
+    vk::Image _dummyImage;
+    vk::DeviceMemory _dummyImageMemory;
+    vk::ImageView _dummyImageView;
 
-    std::map<Pass, vk::Framebuffer> _framebuffers;
+    std::map<Resource, std::array<vk::Image, MAX_FRAMES_IN_FLIGHT>> _images;
+    std::map<Resource, std::array<vk::DeviceMemory, MAX_FRAMES_IN_FLIGHT>> _deviceMemories;
+    std::map<Resource, std::array<vk::ImageView, MAX_FRAMES_IN_FLIGHT>> _imageViews;
+
+    std::map<Pass, std::array<vk::Framebuffer, MAX_FRAMES_IN_FLIGHT>> _framebuffers;
     std::map<Pass, vk::RenderPass> _renderPasses;
     std::map<Pass, PipelineHolder> _pipelines; // in future, maybe point to an array of pipelines..? Or focus on the ONE
                                                // GIGA SHADER Unity approach?
@@ -108,14 +122,18 @@ class Graph
     std::map<size_t, vk::Sampler> _samplers;
     vk::DescriptorPool _descriptorPool;
     vk::DescriptorSetLayout _descriptorSetLayout;
-    std::map<Resource, vk::DescriptorSet> _descriptorSets;
+    std::map<Resource, std::array<vk::DescriptorSet, MAX_FRAMES_IN_FLIGHT>> _descriptorSets;
+
+    vk::DescriptorPool _staticTexturesDescriptorPool;
+    vk::DescriptorSet _staticTexturesDescriptorSet;
+    vk::DescriptorSetLayout _staticTexturesDescriptorSetLayout;
 
     bool _requestsUniform;
     size_t _uboSize;
-    std::vector<vk::Buffer> _uboBuffers;
-    std::vector<vk::DeviceMemory> _uboDeviceMemories;
-    std::vector<vk::DescriptorSet> _uboDescriptorSets;
-    std::vector<void *> _uboMappedMemories;
+    std::array<vk::Buffer, MAX_FRAMES_IN_FLIGHT> _uboBuffers;
+    std::array<vk::DeviceMemory, MAX_FRAMES_IN_FLIGHT> _uboDeviceMemories;
+    std::array<vk::DescriptorSet, MAX_FRAMES_IN_FLIGHT> _uboDescriptorSets;
+    std::array<void *, MAX_FRAMES_IN_FLIGHT> _uboMappedMemories;
     vk::DescriptorPool _uboDescriptorPool;
     vk::DescriptorSetLayout _uboDescriptorSetLayout;
 
