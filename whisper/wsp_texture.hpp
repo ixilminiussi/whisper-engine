@@ -1,6 +1,7 @@
 #ifndef WSP_TEXTURE_HPP
 #define WSP_TEXTURE_HPP
 
+#include <cstddef>
 #include <stb_image.h>
 #include <vulkan/vulkan.hpp>
 
@@ -26,6 +27,10 @@ class Texture
 
 #ifndef NDEBUG
     ImTextureID GetImTextureID(vk::Sampler); // generates
+
+  protected:
+    ImTextureID _imguiID;
+    bool _imguiFlag;
 #endif
 
   protected:

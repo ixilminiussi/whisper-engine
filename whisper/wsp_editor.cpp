@@ -435,6 +435,7 @@ void Editor::RenderContentBrowser(bool *show)
                 }
                 catch (std::exception exception)
                 {
+                    spdlog::critical("Editor: {}", exception.what());
                 };
             }
             ImGui::Text("%s", path.filename().c_str());

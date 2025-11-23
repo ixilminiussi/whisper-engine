@@ -1120,7 +1120,7 @@ void Graph::FreeUbo()
 
     for (vk::DeviceMemory &deviceMemory : _uboDeviceMemories)
     {
-        device->UnmapMemory(&deviceMemory);
+        device->UnmapMemory(deviceMemory);
         device->FreeDeviceMemory(&deviceMemory);
     }
     for (vk::Buffer &buffer : _uboBuffers)

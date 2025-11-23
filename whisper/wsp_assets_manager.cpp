@@ -108,7 +108,7 @@ std::vector<std::shared_ptr<Texture>> AssetsManager::ImportTextures(std::filesys
     }
 
     int w, h, channels;
-    stbi_uc *pixels = stbi_load(filepath.c_str(), &w, &h, &channels, STBI_rgb_alpha);
+    stbi_uc *pixels = stbi_load(filepath.c_str(), &w, &h, &channels, STBI_rgb);
 
     if (pixels == nullptr)
     {
@@ -167,7 +167,7 @@ std::vector<std::shared_ptr<Mesh>> AssetsManager::ImportMeshes(std::filesystem::
 
             if (_staticTextureAllocator)
             {
-                _staticTextureAllocator->BindStaticTexture(0, textures[0].get());
+                _staticTextureAllocator->BindStaticTexture(i, textures[0].get());
             }
         }
         else if (image.uri && strncmp(image.uri, "data:", 5) == 0) // we're on base64

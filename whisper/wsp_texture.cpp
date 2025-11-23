@@ -1,4 +1,5 @@
 #include "imgui_impl_vulkan.h"
+#include <spdlog/spdlog.h>
 #include <vulkan/vulkan_core.h>
 #include <wsp_texture.hpp>
 
@@ -12,6 +13,8 @@ using namespace wsp;
 Texture::Texture(Device const *device, stbi_uc *pixels, int width, int height, int channels) : _freed{false}
 {
     check(device);
+
+    ZoneScopedN("load texture");
 
     // Create image
     vk::ImageCreateInfo imageInfo{};
@@ -36,7 +39,10 @@ Texture::Texture(Device const *device, stbi_uc *pixels, int width, int height, i
         bufferInfo, &buffer, &deviceMemory,
         vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent, "Texture buffer");
 
-    device->MapMemory(deviceMemory, (void **)&pixels);
+    void *memory;
+    device->MapMemory(deviceMemory, &memory);
+    memcpy(memory, pixels, width * height * channels);
+    device->UnmapMemory(deviceMemory);
 
     device->CopyBufferToImage(buffer, &_image, width, height);
 
@@ -54,6 +60,8 @@ Texture::Texture(Device const *device, stbi_uc *pixels, int width, int height, i
 
     device->DestroyBuffer(&buffer);
     device->FreeDeviceMemory(&deviceMemory);
+
+    spdlog::info("Texture: {} width, {} height, {} channels", width, height, channels);
 }
 
 Texture::~Texture()
@@ -91,9 +99,13 @@ vk::ImageView Texture::GetImageView() const
 #ifndef NDEBUG
 ImTextureID Texture::GetImTextureID(vk::Sampler sampler)
 {
-    static VkDescriptorSet textureID =
-        ImGui_ImplVulkan_AddTexture(sampler, _imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    if (!_imguiFlag)
+    {
+        _imguiID =
+            (ImTextureID)ImGui_ImplVulkan_AddTexture(sampler, _imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        _imguiFlag = true;
+    }
 
-    return (ImTextureID)textureID;
+    return _imguiID;
 }
 #endif

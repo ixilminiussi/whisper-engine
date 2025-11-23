@@ -201,7 +201,7 @@ void Swapchain::SubmitCommandBuffer(const Device *device, vk::CommandBuffer comm
 
     if (vk::Result const result = commandBuffer.begin(&beginInfo); result != vk::Result::eSuccess)
     {
-        spdlog::critical("ErrorMsg: {}", vk::to_string(static_cast<vk::Result>(result)));
+        spdlog::critical("Error: {}", vk::to_string(static_cast<vk::Result>(result)));
         throw std::runtime_error("Renderer: failed to begin recording command buffer!");
     }
 

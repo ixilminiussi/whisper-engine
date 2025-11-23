@@ -79,6 +79,7 @@ class Device
                                    vk::MemoryPropertyFlags const &, std::string const &name) const;
     void CopyBuffer(vk::Buffer source, vk::Buffer *destination, size_t size) const;
     void MapMemory(vk::DeviceMemory, void **mappedMemory) const;
+    void UnmapMemory(vk::DeviceMemory) const;
     void CopyBufferToImage(vk::Buffer source, vk::Image *destination, size_t width, size_t height,
                            size_t depth = 1) const;
     void FlushMappedMemoryRange(vk::MappedMemoryRange const &mappedMemoryRange) const;
@@ -108,7 +109,6 @@ class Device
     void DestroyImage(vk::Image *) const;
     void FreeDeviceMemory(vk::DeviceMemory *) const;
     void DestroyBuffer(vk::Buffer *) const;
-    void UnmapMemory(vk::DeviceMemory *) const;
     void DestroyImageView(vk::ImageView *) const;
     void DestroySampler(vk::Sampler *) const;
     void DestroySwapchainKHR(vk::SwapchainKHR *) const;

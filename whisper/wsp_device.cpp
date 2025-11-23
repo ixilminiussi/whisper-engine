@@ -550,6 +550,13 @@ void Device::MapMemory(vk::DeviceMemory deviceMemory, void **mappedMemory) const
     }
 }
 
+void Device::UnmapMemory(vk::DeviceMemory deviceMemory) const
+{
+    check(deviceMemory != VK_NULL_HANDLE);
+    check(_device && "Device: Must initialize device sooner");
+    _device.unmapMemory(deviceMemory);
+}
+
 void Device::CopyBufferToImage(vk::Buffer source, vk::Image *destination, size_t width, size_t height,
                                size_t depth) const
 {
@@ -784,26 +791,19 @@ void Device::DestroyImage(vk::Image *image) const
     _device.destroyImage(*image, nullptr);
     *image = VK_NULL_HANDLE;
 }
-void Device::DestroyBuffer(vk::Buffer *buffer) const
-{
-    check(*buffer != VK_NULL_HANDLE);
-    check(_device && "Device: Must initialize device sooner");
-    _device.destroyBuffer(*buffer, nullptr);
-    *buffer = VK_NULL_HANDLE;
-}
-void Device::UnmapMemory(vk::DeviceMemory *deviceMemory) const
-{
-    check(*deviceMemory != VK_NULL_HANDLE);
-    check(_device && "Device: Must initialize device sooner");
-    _device.unmapMemory(*deviceMemory);
-    *deviceMemory = VK_NULL_HANDLE;
-}
 void Device::FreeDeviceMemory(vk::DeviceMemory *deviceMemory) const
 {
     check(*deviceMemory != VK_NULL_HANDLE);
     check(_device && "Device: Must initialize device sooner");
     _device.freeMemory(*deviceMemory, nullptr);
     *deviceMemory = VK_NULL_HANDLE;
+}
+void Device::DestroyBuffer(vk::Buffer *buffer) const
+{
+    check(*buffer != VK_NULL_HANDLE);
+    check(_device && "Device: Must initialize device sooner");
+    _device.destroyBuffer(*buffer, nullptr);
+    *buffer = VK_NULL_HANDLE;
 }
 void Device::DestroyImageView(vk::ImageView *imageView) const
 {
