@@ -36,7 +36,10 @@ class RenderManager
 
     void BindResizeCallback(WindowID, void *pointer, void (*function)(void *, size_t, size_t));
     class Graph *GetGraph(WindowID) const;
+    class StaticTextures *GetStaticTextures() const;
     GLFWwindow *GetGLFWHandle(WindowID) const;
+
+    void BindStaticTexture(class Texture *) const;
 
     vk::CommandBuffer BeginRender(WindowID, bool blit = false);
     void EndRender(vk::CommandBuffer, WindowID);
@@ -64,6 +67,8 @@ class RenderManager
 
     std::map<WindowID, WindowRenderer> _windowRenderers;
     std::map<WindowID, vk::DescriptorPool> _imguiDescriptorPools;
+
+    class StaticTextures *_staticTextures;
 
     static vk::Instance _vkInstance;
 

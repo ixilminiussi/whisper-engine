@@ -3,13 +3,17 @@
 #include <wsp_assets_manager.hpp>
 #include <wsp_editor.hpp>
 #include <wsp_graph.hpp>
+#include <wsp_image.hpp>
+#include <wsp_material.hpp>
 #include <wsp_mesh.hpp>
+#include <wsp_render_manager.hpp>
+#include <wsp_sampler.hpp>
+#include <wsp_static_textures.hpp>
 #include <wsp_texture.hpp>
 
 #include <IconsMaterialSymbols.h>
 
 #include <cgltf.h>
-#include <imgui.h>
 #include <spdlog/spdlog.h>
 
 #include <filesystem>
@@ -18,19 +22,63 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
+#include <imgui_impl_vulkan.h>
+
 using namespace wsp;
 
-AssetsManager::AssetsManager(StaticTextureAllocator *staticTextureAllocator)
-    : _fileRoot{WSP_ASSETS}, _freed{false}, _staticTextureAllocator{staticTextureAllocator}
+AssetsManager::AssetsManager() : _fileRoot{WSP_ASSETS}
 {
+#ifndef NDEBUG
+    Device const *device = SafeDeviceAccessor::Get();
+    check(device);
+
+    _defaultSampler =
+        Sampler::Builder{}.Name("preview sampler").AddressMode(vk::SamplerAddressMode::eClampToEdge).Build(device);
+#endif
 }
 
 AssetsManager::~AssetsManager()
 {
-    if (!_freed)
+    spdlog::info("AssetsManager: began termination");
+
+    Device const *device = SafeDeviceAccessor::Get();
+    check(device);
+
+    delete _defaultSampler;
+
+#ifndef NDEBUG
+    for (auto &[image, pair] : _previewTextures)
     {
-        spdlog::critical("AssetsManager: forgot to Free before deletion");
+        ImGui_ImplVulkan_RemoveTexture((VkDescriptorSet)pair.first);
+        device->DestroyImageView(&pair.second);
     }
+#endif
+
+    for (auto const &[mesh, path] : _meshes)
+    {
+        delete mesh;
+    }
+    _meshes.clear();
+
+    for (Texture *texture : _textures)
+    {
+        delete texture;
+    }
+    _textures.clear();
+
+    for (Sampler *sampler : _samplers)
+    {
+        delete sampler;
+    }
+    _samplers.clear();
+
+    for (auto &[image, path] : _images)
+    {
+        delete image;
+    }
+    _images.clear();
+
+    spdlog::info("AssetsManager: terminated");
 }
 
 std::string ToString(cgltf_result result)
@@ -62,78 +110,17 @@ std::string ToString(cgltf_result result)
     }
 };
 
-void AssetsManager::Free()
-{
-    spdlog::info("AssetsManager: began termination");
-
-    if (_freed)
-    {
-        spdlog::error("AssetsManager: already freed");
-        return;
-    }
-
-    Device const *device = SafeDeviceAccessor::Get();
-    check(device);
-
-    for (auto &[mesh, path] : _meshes)
-    {
-        mesh->Free(device);
-    }
-
-    _meshes.clear();
-
-    for (auto &[texture, path] : _textures)
-    {
-        texture->Free(device);
-    }
-
-    _meshes.clear();
-
-    _freed = true;
-
-    spdlog::info("AssetsManager: terminated");
-}
-
-std::vector<std::shared_ptr<Texture>> AssetsManager::ImportTextures(std::filesystem::path const &relativePath)
+std::vector<Mesh *> AssetsManager::ImportGlTF(std::filesystem::path const &relativePath)
 {
     Device const *device = SafeDeviceAccessor::Get();
     check(device);
 
-    std::filesystem::path const filepath = (_fileRoot / relativePath).lexically_normal();
-
-    // if we already imported file then return its pointer
-    if (std::vector<std::shared_ptr<Texture>> const existing = _textures.from(filepath); existing.size() > 0)
-    {
-        return existing;
-    }
-
-    int w, h, channels;
-    stbi_uc *pixels = stbi_load(filepath.c_str(), &w, &h, &channels, STBI_rgb);
-
-    if (pixels == nullptr)
-    {
-        throw std::invalid_argument(fmt::format("AssetsManager: asset '{}' couldn't be imported", filepath.string()));
-    }
-
-    std::shared_ptr<Texture> const texture = std::make_shared<Texture>(device, pixels, w, h, channels);
-    _textures[texture] = filepath;
-
-    spdlog::info("AssetsManager: loaded new texture from '{}'", filepath.string());
-
-    stbi_image_free(pixels);
-
-    return {texture};
-}
-
-std::vector<std::shared_ptr<Mesh>> AssetsManager::ImportMeshes(std::filesystem::path const &relativePath)
-{
-    Device const *device = SafeDeviceAccessor::Get();
-    check(device);
+    ZoneScopedN("import gltf");
 
     std::filesystem::path const filepath = (_fileRoot / relativePath).lexically_normal();
 
     // if we already imported file return the meshes without reimporting
-    if (std::vector<std::shared_ptr<Mesh>> const drawables = _meshes.from(filepath); drawables.size() > 0)
+    if (std::vector<Mesh *> const drawables = _meshes.from(filepath); drawables.size() > 0)
     {
         return drawables;
     }
@@ -156,41 +143,107 @@ std::vector<std::shared_ptr<Mesh>> AssetsManager::ImportMeshes(std::filesystem::
             fmt::format("AssetsManager: asset '{}' parse error ({})", filepath.string(), ToString(result)));
     }
 
+    check(data);
+
+    std::vector<Image *> images{};
     for (int i = 0; i < data->images_count; i++)
     {
-        cgltf_image const &image = data->images[i];
-        if (image.uri && strncmp(image.uri, "data:", 5) != 0) // we're referencing a path
+        std::filesystem::path const imagePath = (_fileRoot / data->images[i].uri).lexically_normal();
+        if (_images.contains(imagePath))
         {
-            std::filesystem::path const textureAbsolutePath = (filepath.parent_path() / image.uri).lexically_normal();
-            std::filesystem::path const textureRelativePath = std::filesystem::relative(textureAbsolutePath, _fileRoot);
-            std::vector<std::shared_ptr<Texture>> const textures = ImportTextures(textureRelativePath);
-
-            if (_staticTextureAllocator)
-            {
-                _staticTextureAllocator->BindStaticTexture(i, textures[0].get());
-            }
+            images.push_back(_images.from(imagePath).at(0));
         }
-        else if (image.uri && strncmp(image.uri, "data:", 5) == 0) // we're on base64
+        else
         {
-        }
-        else if (image.buffer_view) // embedded in buffer
-        {
-        }
-        else // invalid or extension-defined
-        {
+            Image *image = Image::BuildGlTF(device, data->images + i, _fileRoot);
+            _images[image] = imagePath;
+            images.push_back(image);
         }
     }
 
+    std::vector<Sampler *> samplers{};
+    for (int i = 0; i < data->samplers_count; i++)
+    {
+        Sampler *sampler = Sampler::Builder{}.GlTF(data->samplers + i).Build(device);
+        _samplers.push_back(sampler);
+        samplers.push_back(sampler);
+    }
+
+    if (samplers.size() == 0)
+    {
+        samplers.push_back(_defaultSampler); // make sure there is always ONE sampler available
+    }
+
+    std::vector<Texture *> textures{};
+    for (int i = 0; i < data->textures_count; i++)
+    {
+        Texture *texture =
+            Texture::Builder{}.GlTF(data->textures + i, data->images, images, data->samplers, samplers).Build(device);
+
+        RenderManager::Get()->GetStaticTextures()->Push({texture});
+        _textures.push_back(texture);
+        textures.push_back(texture);
+    }
+
+    std::vector<Material *> materials{};
+    for (int i = 0; i < data->materials_count; i++)
+    {
+        Material *material = nullptr;
+
+        _materials.push_back(material);
+        materials.push_back(material);
+    }
+
+    std::vector<Mesh *> meshes{};
     for (int i = 0; i < data->meshes_count; i++)
     {
-        _meshes[std::make_unique<Mesh>(device, &data->meshes[i])] = filepath;
+        if (_meshes.contains(filepath))
+        {
+            meshes.push_back(_meshes.from(filepath)[0]);
+        }
+        else
+        {
+            Mesh *mesh = Mesh::BuildGlTF(device, data->meshes + i, data->materials, materials);
+            _meshes[mesh] = filepath;
+            meshes.push_back(mesh);
+        }
     }
-
-    std::vector<std::shared_ptr<Mesh>> drawables = _meshes.from(filepath);
 
     cgltf_free(data);
 
-    spdlog::info("AssetsManager: loaded new meshes from '{}'", filepath.string());
-
-    return drawables;
+    return meshes;
 }
+
+#ifndef NDEBUG
+ImTextureID AssetsManager::GetTextureID(Image *image)
+{
+    Device const *device = SafeDeviceAccessor::Get();
+    check(device);
+
+    check(image);
+
+    if (_previewTextures.find(image) == _previewTextures.end())
+    {
+        vk::ImageViewCreateInfo imageViewInfo{};
+        imageViewInfo.viewType = vk::ImageViewType::e2D;
+        imageViewInfo.image = image->GetImage();
+        imageViewInfo.format = vk::Format::eR8G8B8Srgb;
+        imageViewInfo.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
+        imageViewInfo.subresourceRange.baseMipLevel = 0;
+        imageViewInfo.subresourceRange.levelCount = 1;
+        imageViewInfo.subresourceRange.baseArrayLayer = 0;
+        imageViewInfo.subresourceRange.layerCount = 1;
+
+        vk::ImageView imageView;
+        device->CreateImageView(imageViewInfo, &imageView, "preview image");
+
+        _previewTextures[image] = {(ImTextureID)ImGui_ImplVulkan_AddTexture(
+                                       static_cast<VkSampler>(_defaultSampler->GetSampler()),
+                                       static_cast<VkImageView>(imageView),
+                                       static_cast<VkImageLayout>(vk::ImageLayout::eShaderReadOnlyOptimal)),
+                                   imageView};
+    }
+
+    return _previewTextures.at(image).first;
+}
+#endif

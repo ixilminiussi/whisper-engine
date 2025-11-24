@@ -48,18 +48,13 @@ void Window::Free(vk::Instance const &instance)
         return;
     }
 
-    if (_swapchain)
-    {
-        Device const *device = SafeDeviceAccessor::Get();
-        check(device);
-        _swapchain->Free(device);
-    }
+    delete _swapchain;
 
     instance.destroySurfaceKHR(_surface);
     glfwDestroyWindow(_glfwWindow);
 
     _freed = true;
-    spdlog::info("Window: freed window \"{0}\"", _name.c_str());
+    spdlog::info("Window: freed window \"{}\"", _name.c_str());
 }
 
 void Window::FramebufferResizeCallback(GLFWwindow *glfwWindow, int width, int height)
@@ -107,16 +102,16 @@ void Window::BuildSwapchain()
 
     device->WaitIdle();
 
-    if (_swapchain != nullptr)
+    if (_swapchain)
     {
-        Swapchain *oldSwapchain = _swapchain;
-        _swapchain = new Swapchain(this, device, {(uint32_t)_width, (uint32_t)_height}, oldSwapchain->GetHandle());
-        oldSwapchain->Free(device, true);
+        Swapchain const *oldSwapchain = _swapchain;
+        _swapchain = new Swapchain(this, vk::Extent2D{(uint32_t)_width, (uint32_t)_height}, oldSwapchain->GetHandle());
+
         delete oldSwapchain;
     }
     else
     {
-        _swapchain = new Swapchain(this, device, {(uint32_t)_width, (uint32_t)_height});
+        _swapchain = new Swapchain(this, vk::Extent2D{(uint32_t)_width, (uint32_t)_height});
         glfwSetWindowUserPointer(_glfwWindow, this);
         glfwSetFramebufferSizeCallback(_glfwWindow, FramebufferResizeCallback);
     }
@@ -124,13 +119,10 @@ void Window::BuildSwapchain()
 
 vk::CommandBuffer Window::NextCommandBuffer(size_t *frameIndex)
 {
-    Device const *device = SafeDeviceAccessor::Get();
-    check(device);
-
     check(frameIndex);
 
     *frameIndex = _swapchain->GetCurrentFrameIndeex();
-    return _swapchain->NextCommandBuffer(device);
+    return _swapchain->NextCommandBuffer();
 }
 
 void Window::SwapchainOpen(vk::CommandBuffer commandBuffer, vk::Image blittedImage) const
@@ -159,7 +151,7 @@ void Window::SwapchainFlush(vk::CommandBuffer commandBuffer)
     commandBuffer.endRenderPass();
     commandBuffer.end();
 
-    _swapchain->SubmitCommandBuffer(device, commandBuffer);
+    _swapchain->SubmitCommandBuffer(commandBuffer);
 
     device->WaitIdle();
 }
@@ -193,7 +185,6 @@ GLFWwindow *Window::GetGLFWHandle() const
 
 Swapchain *Window::GetSwapchain() const
 {
-    check(_swapchain);
     return _swapchain;
 }
 

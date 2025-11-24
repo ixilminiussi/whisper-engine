@@ -51,10 +51,10 @@ struct Resource
 
 struct PassCreateInfo
 {
+    class StaticTextures const *staticTextures{nullptr};
     std::vector<Resource> reads;
     std::vector<Resource> writes;
     bool readsUniform;
-    bool readsStaticTextures;
 
     size_t pushConstantSize{0};
 
@@ -86,7 +86,6 @@ struct ResourceCreateInfo
     vk::ClearValue clear;
 
     ResourceUsage usage;
-    size_t sampler{0};
 
     std::string debugName{""};
 
@@ -100,18 +99,19 @@ struct ResourceCreateInfo
 class StaticTextureAllocator
 {
   public:
-    StaticTextureAllocator(vk::Sampler sampler, vk::DescriptorSet const *descriptorSet, class Device const *device)
-        : _sampler{sampler}, _descriptorSet{descriptorSet}, _device{device}
+    StaticTextureAllocator(vk::DescriptorSet const *descriptorSet, class Device const *device)
+        : _descriptorSet{descriptorSet}, _device{device}
     {
     }
     StaticTextureAllocator() = default;
 
-    void BindStaticTexture(size_t id, class Texture const *texture) const;
+    void BindStaticTexture(class Texture const *texture) const;
 
   protected:
-    vk::Sampler _sampler;
     vk::DescriptorSet const *_descriptorSet;
     class Device const *_device;
+
+    size_t _ID;
 };
 
 } // namespace wsp

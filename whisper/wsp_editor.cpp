@@ -1,3 +1,4 @@
+#include "wsp_sampler.hpp"
 #ifndef NDEBUG
 #include <wsp_editor.hpp>
 
@@ -6,7 +7,6 @@
 #include <wsp_assets_manager.hpp>
 #include <wsp_camera.hpp>
 #include <wsp_custom_imgui.hpp>
-#include <wsp_device.hpp>
 #include <wsp_engine.hpp>
 #include <wsp_global_ubo.hpp>
 #include <wsp_graph.hpp>
@@ -37,9 +37,8 @@
 
 using namespace wsp;
 
-Editor::Editor() : _freed{false}, _drawList{nullptr}
+Editor::Editor() : _drawList{nullptr}
 {
-#ifndef NDEBUG
     RenderManager *renderManager = RenderManager::Get();
     check(renderManager);
 
@@ -85,14 +84,12 @@ Editor::Editor() : _freed{false}, _drawList{nullptr}
     Resource const colorResource = graph->NewResource(colorInfo);
     Resource const depthResource = graph->NewResource(depthInfo);
 
-    _staticTextureAllocator = graph->GenerateStaticTextureAllocator(Graph::SAMPLER_COLOR_CLAMPED);
-
-    _assetsManager = std::make_unique<AssetsManager>(&_staticTextureAllocator);
+    _assetsManager = std::make_unique<AssetsManager>();
 
     PassCreateInfo passCreateInfo{};
     passCreateInfo.writes = {colorResource, depthResource};
     passCreateInfo.readsUniform = true;
-    passCreateInfo.readsStaticTextures = true;
+    passCreateInfo.staticTextures = renderManager->GetStaticTextures();
     passCreateInfo.vertexInputInfo = Mesh::Vertex::GetVertexInputInfo();
     passCreateInfo.vertFile = "mesh.vert.spv";
     passCreateInfo.fragFile = "mesh.frag.spv";
@@ -112,26 +109,11 @@ Editor::Editor() : _freed{false}, _drawList{nullptr}
 
     graph->NewPass(passCreateInfo);
     graph->Compile(colorResource, Graph::eToDescriptorSet);
-#endif
 }
 
 Editor::~Editor()
 {
-    if (!_freed)
-    {
-        spdlog::critical("Editor: forgot to Free before deletion");
-    }
-}
-
-void Editor::Free()
-{
-    if (_freed)
-    {
-        spdlog::error("Editor: already freed");
-        return;
-    }
-
-    _assetsManager->Free();
+    delete _assetsManager.release();
 
     ImGui_ImplVulkan_Shutdown();
     ImGui_ImplGlfw_Shutdown();
@@ -140,7 +122,7 @@ void Editor::Free()
 
     RenderManager::Get()->Free();
 
-    _freed = true;
+    spdlog::info("Editor: shut down");
 }
 
 bool Editor::ShouldClose() const
@@ -390,13 +372,10 @@ void Editor::RenderContentBrowser(bool *show)
             std::filesystem::path const path = directory.path();
 
             bool r = false;
-            if (_assetsManager->_textures.contains(path)) // if the texture is loaded, put an image button
+            if (_assetsManager->_images.contains(path)) // if the image is loaded, put an image button
             {
-                RenderManager *renderManager = RenderManager::Get();
-                check(renderManager);
-                vk::Sampler const sampler =
-                    renderManager->GetGraph(_windowID)->GetSampler(Graph::SAMPLER_COLOR_CLAMPED);
-                ImTextureID const textureID = _assetsManager->_textures.from(path)[0]->GetImTextureID(sampler);
+                std::vector<Image *> images = _assetsManager->_images.from(path);
+                ImTextureID const textureID = _assetsManager->GetTextureID(images.at(0));
 
                 r = wsp::ThumbnailButton(textureID);
             } // else a regular icon
@@ -423,10 +402,10 @@ void Editor::RenderContentBrowser(bool *show)
 
                     float furthestRadius = 0.f;
 
-                    for (std::shared_ptr<Mesh> const mesh : _assetsManager->ImportMeshes(relativePath))
+                    for (Drawable const *drawable : _assetsManager->ImportGlTF(relativePath))
                     {
-                        furthestRadius = std::max(furthestRadius, mesh->GetRadius());
-                        _drawList->push_back((Drawable const *)mesh.get());
+                        furthestRadius = std::max(furthestRadius, drawable->GetRadius());
+                        _drawList->push_back((Drawable const *)drawable);
                     }
 
                     _viewportCamera->SetOrbitTarget({0.f, 0.f, 0.f});
@@ -435,7 +414,7 @@ void Editor::RenderContentBrowser(bool *show)
                 }
                 catch (std::exception exception)
                 {
-                    spdlog::critical("Editor: {}", exception.what());
+                    spdlog::critical("ContentBrowser: {}", exception.what());
                 };
             }
             ImGui::Text("%s", path.filename().c_str());

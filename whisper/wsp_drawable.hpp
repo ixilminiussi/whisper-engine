@@ -20,6 +20,8 @@ class Drawable
         Bind(commandBuffer);
         Draw(commandBuffer);
     }
+
+    virtual float GetRadius() const = 0;
 };
 
 } // namespace wsp

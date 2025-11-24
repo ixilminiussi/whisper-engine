@@ -1,13 +1,15 @@
-#include "wsp_constants.hpp"
-#include <vulkan/vulkan_core.h>
 #include <wsp_graph.hpp>
 
+#include <wsp_constants.hpp>
 #include <wsp_device.hpp>
 #include <wsp_devkit.hpp>
 #include <wsp_engine.hpp>
 #include <wsp_handles.hpp>
+#include <wsp_image.hpp>
 #include <wsp_render_manager.hpp>
 #include <wsp_renderer.hpp>
+#include <wsp_sampler.hpp>
+#include <wsp_static_textures.hpp>
 #include <wsp_static_utils.hpp>
 #include <wsp_swapchain.hpp>
 #include <wsp_texture.hpp>
@@ -31,64 +33,32 @@ using namespace wsp;
 size_t const Graph::SAMPLER_DEPTH{0};
 size_t const Graph::SAMPLER_COLOR_CLAMPED{1};
 size_t const Graph::SAMPLER_COLOR_REPEATED{2};
-size_t const Graph::MAX_SAMPLER_SETS{500};
-
-void StaticTextureAllocator::BindStaticTexture(size_t id, class Texture const *texture) const
-{
-    check(texture);
-    check(_device);
-
-    vk::DescriptorImageInfo imageInfo{};
-    imageInfo.sampler = _sampler;
-    imageInfo.imageView = texture->GetImageView();
-    imageInfo.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
-
-    vk::WriteDescriptorSet write{};
-    write.dstSet = *_descriptorSet;
-    write.dstArrayElement = id;
-    write.descriptorCount = 1u;
-    write.dstBinding = 0u;
-    write.descriptorType = vk::DescriptorType::eCombinedImageSampler;
-    write.pImageInfo = &imageInfo;
-
-    _device->UpdateDescriptorSets({write});
-}
 
 Graph::Graph(size_t width, size_t height)
-    : _passInfos{}, _resourceInfos{}, _images{}, _deviceMemories{}, _imageViews{}, _framebuffers{}, _samplers{},
-      _descriptorSets{}, _freed{false}, _target{0}, _width{width}, _height{height}, _uboSize{0}, _uboDescriptorSets{},
-      _uboBuffers{}, _uboDeviceMemories{}
-{
-    BuildSamplers();
-    BuildStaticTextures();
-}
-
-void Graph::BuildSamplers()
+    : _passInfos{}, _resourceInfos{}, _images{}, _textures{}, _framebuffers{}, _descriptorSets{}, _target{0},
+      _width{width}, _height{height}, _uboSize{0}, _uboDescriptorSets{}, _uboBuffers{}, _uboDeviceMemories{}
 {
     Device const *device = SafeDeviceAccessor::Get();
     check(device);
 
-    vk::SamplerCreateInfo samplerCreateInfo{};
-    samplerCreateInfo.magFilter = vk::Filter::eLinear;
-    samplerCreateInfo.minFilter = vk::Filter::eLinear;
-    samplerCreateInfo.addressModeU = vk::SamplerAddressMode::eClampToEdge;
-    samplerCreateInfo.addressModeV = vk::SamplerAddressMode::eClampToEdge;
-    samplerCreateInfo.addressModeW = vk::SamplerAddressMode::eClampToEdge;
-    samplerCreateInfo.borderColor = vk::BorderColor::eIntOpaqueBlack;
-    samplerCreateInfo.unnormalizedCoordinates = false;
-    samplerCreateInfo.compareEnable = true;
+    BuildSamplers(device);
+    BuildDescriptorPool();
+}
 
-    _samplers[SAMPLER_DEPTH] = device->CreateSampler(samplerCreateInfo, "depth sampler");
+void Graph::BuildSamplers(Device const *device)
+{
+    check(device);
 
-    samplerCreateInfo.compareEnable = false;
+    _depthSampler = Sampler::Builder{}.Depth().Name("graph depth sampler").Build(device);
+    _colorSampler = Sampler::Builder{}.Name("graph color sampler").Build(device);
 
-    _samplers[SAMPLER_COLOR_CLAMPED] = device->CreateSampler(samplerCreateInfo, "color sampler clamped");
+    spdlog::debug("Graph: built samplers");
+}
 
-    samplerCreateInfo.addressModeU = vk::SamplerAddressMode::eRepeat;
-    samplerCreateInfo.addressModeV = vk::SamplerAddressMode::eRepeat;
-    samplerCreateInfo.addressModeW = vk::SamplerAddressMode::eRepeat;
-
-    _samplers[SAMPLER_COLOR_REPEATED] = device->CreateSampler(samplerCreateInfo, "color sampler repeated");
+void Graph::BuildDescriptorPool()
+{
+    Device const *device = SafeDeviceAccessor::Get();
+    check(device);
 
     vk::DescriptorPoolSize descriptorPoolSize{};
     descriptorPoolSize.descriptorCount = MAX_DYNAMIC_TEXTURES;
@@ -96,11 +66,11 @@ void Graph::BuildSamplers()
 
     vk::DescriptorPoolCreateInfo descriptorPoolInfo{};
     descriptorPoolInfo.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet;
-    descriptorPoolInfo.maxSets = MAX_SAMPLER_SETS;
+    descriptorPoolInfo.maxSets = MAX_DYNAMIC_TEXTURES;
     descriptorPoolInfo.poolSizeCount = 1u;
     descriptorPoolInfo.pPoolSizes = &descriptorPoolSize;
 
-    device->CreateDescriptorPool(descriptorPoolInfo, &_descriptorPool, "graph descriptor pool");
+    device->CreateDescriptorPool(descriptorPoolInfo, &_descriptorPool, "_graph_descriptor_pool");
 
     std::vector<vk::DescriptorSetLayoutBinding> descriptorSetLayoutBindings{
         {0u, vk::DescriptorType::eCombinedImageSampler, 1u, {vk::ShaderStageFlagBits::eFragment}}};
@@ -109,37 +79,24 @@ void Graph::BuildSamplers()
     descriptorSetLayoutInfo.bindingCount = static_cast<uint32_t>(descriptorSetLayoutBindings.size());
     descriptorSetLayoutInfo.pBindings = descriptorSetLayoutBindings.data();
 
-    device->CreateDescriptorSetLayout(descriptorSetLayoutInfo, &_descriptorSetLayout, "graph descriptor set layout");
+    device->CreateDescriptorSetLayout(descriptorSetLayoutInfo, &_descriptorSetLayout, "_graph_descriptor_set_layout");
 
-    spdlog::debug("Graph: built samplers");
+    spdlog::debug("Graph: built descriptor pool");
 }
 
 Graph::~Graph()
-{
-    if (!_freed)
-    {
-        spdlog::critical("Graph: forgot to Free before deletion");
-    }
-}
-
-void Graph::Free()
 {
     Device const *device = SafeDeviceAccessor::Get();
     check(device);
 
     Reset();
 
-    for (auto &[id, sampler] : _samplers)
-    {
-        device->DestroySampler(&sampler);
-    }
-    _samplers.clear();
+    delete _depthSampler;
+    delete _colorSampler;
+
     device->DestroyDescriptorSetLayout(&_descriptorSetLayout);
     device->DestroyDescriptorPool(&_descriptorPool);
 
-    FreeStaticTextures();
-
-    _freed = true;
     spdlog::info("Graph: freed");
 }
 
@@ -153,16 +110,6 @@ Pass Graph::NewPass(PassCreateInfo const &createInfo)
 {
     _passInfos.push_back(createInfo);
     return Pass{_passInfos.size() - 1};
-}
-
-StaticTextureAllocator Graph::GenerateStaticTextureAllocator(size_t const samplerID) const
-{
-    Device const *device = SafeDeviceAccessor::Get();
-    check(device);
-
-    check(_samplers.size() > samplerID);
-
-    return StaticTextureAllocator{_samplers.at(samplerID), &_staticTexturesDescriptorSet, device};
 }
 
 void Graph::SetUboSize(size_t const size)
@@ -326,13 +273,18 @@ void Graph::Compile(Resource target, GraphUsage usage)
     return;
 }
 
-vk::Image Graph::GetTargetImage() const
+Image *Graph::GetTargetImage() const
 {
     if (_usage != GraphUsage::eToTransfer)
     {
         throw std::runtime_error("Graph: usage must be eToTransfer in order to get target image");
     }
-    return _images.at(_target)[_currentFrameIndex];
+    check(_images.find(_target) != _images.end());
+
+    Image *image = _images.at(_target)[_currentFrameIndex];
+    check(image);
+
+    return image;
 }
 
 vk::DescriptorSet Graph::GetTargetDescriptorSet() const
@@ -361,9 +313,9 @@ void Graph::BuildPipeline(Pass pass)
 
     PipelineHolder &pipelineHolder = _pipelines[pass];
     device->CreateShaderModule(vertCode, &pipelineHolder.vertShaderModule,
-                               passInfo.debugName + " vertex shader module");
+                               passInfo.debugName + "_vertex_shader_module");
     device->CreateShaderModule(fragCode, &pipelineHolder.fragShaderModule,
-                               passInfo.debugName + " fragment shader module");
+                               passInfo.debugName + "_fragment_shader_module");
 
     vk::PipelineShaderStageCreateInfo shaderStages[2];
     shaderStages[0].stage = vk::ShaderStageFlagBits::eVertex;
@@ -473,9 +425,9 @@ void Graph::BuildPipeline(Pass pass)
     {
         descriptorSetLayouts.push_back(_descriptorSetLayout);
     }
-    if (passInfo.readsStaticTextures)
+    if (passInfo.staticTextures)
     {
-        descriptorSetLayouts.push_back(_staticTexturesDescriptorSetLayout);
+        descriptorSetLayouts.push_back(passInfo.staticTextures->GetDescriptorSetLayout());
     }
 
     vk::PipelineLayoutCreateInfo pipelineLayoutInfo{};
@@ -485,7 +437,7 @@ void Graph::BuildPipeline(Pass pass)
     pipelineLayoutInfo.pPushConstantRanges = nullptr; // change with pushConstantRanges
 
     device->CreatePipelineLayout(pipelineLayoutInfo, &pipelineHolder.pipelineLayout,
-                                 passInfo.debugName + " pipeline layout");
+                                 passInfo.debugName + "_pipeline_layout");
 
     vk::PushConstantRange pushConstantRange{};
     if (passInfo.pushConstantSize > 0)
@@ -517,7 +469,7 @@ void Graph::BuildPipeline(Pass pass)
     pipelineInfo.basePipelineIndex = -1;
     pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
 
-    device->CreateGraphicsPipeline(pipelineInfo, &pipelineHolder.pipeline, passInfo.debugName + " graphics pipeline");
+    device->CreateGraphicsPipeline(pipelineInfo, &pipelineHolder.pipeline, passInfo.debugName + "_graphics_pipeline");
 
     spdlog::debug("Graph: built {0} pipeline", passInfo.debugName);
 }
@@ -627,10 +579,11 @@ void Graph::Render(vk::CommandBuffer commandBuffer, size_t frameIndex)
             offset += passInfo.reads.size();
         }
 
-        if (passInfo.readsStaticTextures)
+        if (passInfo.staticTextures)
         {
+            vk::DescriptorSet const staticDescriptorSet = passInfo.staticTextures->GetDescriptorSet();
             commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, _pipelines.at(pass).pipelineLayout,
-                                             offset, 1u, &_staticTexturesDescriptorSet, 0u, nullptr);
+                                             offset, 1u, &staticDescriptorSet, 0u, nullptr);
         }
 
         commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, _pipelines.at(pass).pipeline);
@@ -673,8 +626,7 @@ void Graph::Reset()
     _descriptorSets.clear();
     _pipelines.clear();
     _images.clear();
-    _deviceMemories.clear();
-    _imageViews.clear();
+    _textures.clear();
     _framebuffers.clear();
     _renderPasses.clear();
 
@@ -698,25 +650,18 @@ void Graph::Free(Resource resource)
     }
 
     check(_images.find(resource) != _images.end());
-    for (vk::Image &image : _images.at(resource))
+    for (Image *image : _images.at(resource))
     {
-        device->DestroyImage(&image);
+        delete image;
     }
     _images.erase(resource);
 
-    check(_deviceMemories.find(resource) != _deviceMemories.end());
-    for (vk::DeviceMemory &deviceMemory : _deviceMemories.at(resource))
+    check(_textures.find(resource) != _textures.end());
+    for (Texture *texture : _textures.at(resource))
     {
-        device->FreeDeviceMemory(&deviceMemory);
+        delete texture;
     }
-    _deviceMemories.erase(resource);
-
-    check(_imageViews.find(resource) != _imageViews.end());
-    for (vk::ImageView &imageView : _imageViews.at(resource))
-    {
-        device->DestroyImageView(&imageView);
-    }
-    _imageViews.erase(resource);
+    _textures.erase(resource);
 
     ResourceCreateInfo createInfo = GetResourceInfo(resource);
     spdlog::debug("Graph: freed resource '{}'", createInfo.debugName);
@@ -887,28 +832,21 @@ void Graph::Build(Resource resource)
 
     for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
     {
-        vk::Image image;
-        vk::DeviceMemory deviceMemory;
-        device->CreateImageAndBindMemory(imageInfo, &image, &deviceMemory, createInfo.debugName + " image");
+        _images[resource][i] = new Image(device, imageInfo, createInfo.debugName + std::string("_image"));
 
-        _images[resource][i] = image;
-        _deviceMemories[resource][i] = deviceMemory;
+        Texture::Builder textureBuilder = Texture::Builder{}
+                                              .SetImage(_images[resource][i])
+                                              .SetSampler(_colorSampler)
+                                              .Name(createInfo.debugName + std::string("_texture"))
+                                              .Format(createInfo.format);
 
-        vk::ImageViewCreateInfo viewInfo{};
-        viewInfo.image = _images.at(resource)[i];
-        viewInfo.viewType = vk::ImageViewType::e2D;
-        viewInfo.format = createInfo.format;
-        viewInfo.subresourceRange.aspectMask = createInfo.usage == ResourceUsage::eDepth
-                                                   ? vk::ImageAspectFlagBits::eDepth
-                                                   : vk::ImageAspectFlagBits::eColor;
-        viewInfo.subresourceRange.baseMipLevel = 0u;
-        viewInfo.subresourceRange.levelCount = 1u;
-        viewInfo.subresourceRange.baseArrayLayer = 0u;
-        viewInfo.subresourceRange.layerCount = 1u;
+        if (createInfo.usage == ResourceUsage::eDepth)
+        {
+            textureBuilder.Depth();
+            textureBuilder.SetSampler(_depthSampler);
+        }
 
-        vk::ImageView imageView;
-        device->CreateImageView(viewInfo, &imageView, createInfo.debugName + " image view");
-        _imageViews[resource][i] = imageView;
+        _textures[resource][i] = textureBuilder.Build(device);
     }
 
     if (IsSampled(resource))
@@ -1005,8 +943,8 @@ void Graph::Build(Pass pass)
         std::vector<vk::ImageView> imageViews{};
         for (Resource const resource : createInfo.writes)
         {
-            check(_imageViews.find(resource) != _imageViews.end());
-            imageViews.push_back(_imageViews.at(resource)[i]);
+            check(_textures.find(resource) != _textures.end());
+            imageViews.push_back(_textures.at(resource)[i]->GetImageView());
         }
 
         vk::FramebufferCreateInfo framebufferInfo{};
@@ -1018,7 +956,7 @@ void Graph::Build(Pass pass)
         framebufferInfo.layers = 1;
 
         vk::Framebuffer framebuffer;
-        device->CreateFramebuffer(framebufferInfo, &framebuffer, createInfo.debugName + " framebuffer");
+        device->CreateFramebuffer(framebufferInfo, &framebuffer, createInfo.debugName + "_framebuffer");
         _framebuffers[pass][i] = framebuffer;
     }
 
@@ -1050,7 +988,7 @@ void Graph::BuildUbo()
     descriptorSetLayoutInfo.pBindings = descriptorSetLayoutBindings.data();
 
     device->CreateDescriptorSetLayout(descriptorSetLayoutInfo, &_uboDescriptorSetLayout,
-                                      "graph ubo descriptor set layout");
+                                      "_graph_ubo_descriptor_set_layout");
 
     std::vector<vk::WriteDescriptorSet> writeDescriptors{};
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
@@ -1065,7 +1003,7 @@ void Graph::BuildUbo()
 
         device->CreateBufferAndBindMemory(createInfo, &uboBuffer, &uboDeviceMemory,
                                           {vk::MemoryPropertyFlagBits::eHostVisible},
-                                          "ubo buffer " + std::to_string(i));
+                                          "_ubo_buffer " + std::to_string(i));
 
         _uboBuffers[i] = uboBuffer;
         _uboDeviceMemories[i] = uboDeviceMemory;
@@ -1081,7 +1019,7 @@ void Graph::BuildUbo()
         setAllocInfo.descriptorSetCount = 1u;
         setAllocInfo.pSetLayouts = &_uboDescriptorSetLayout;
 
-        device->AllocateDescriptorSet(setAllocInfo, &descriptorSet, "ubo descriptor set " + std::to_string(i));
+        device->AllocateDescriptorSet(setAllocInfo, &descriptorSet, "_ubo_descriptor_set " + std::to_string(i));
 
         vk::DescriptorBufferInfo bufferInfo{};
         bufferInfo.offset = 0u;
@@ -1131,157 +1069,6 @@ void Graph::FreeUbo()
     spdlog::debug("Graph: Freed ubo");
 }
 
-void Graph::BuildStaticTextures()
-{
-    Device const *device = SafeDeviceAccessor::Get();
-    check(device);
-
-    vk::DescriptorPoolSize staticTexturesDescriptorPoolSize{};
-    staticTexturesDescriptorPoolSize.descriptorCount = MAX_STATIC_TEXTURES;
-    staticTexturesDescriptorPoolSize.type = vk::DescriptorType::eCombinedImageSampler;
-
-    vk::DescriptorPoolCreateInfo staticTexturesDescriptorPoolInfo{};
-    staticTexturesDescriptorPoolInfo.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet;
-    staticTexturesDescriptorPoolInfo.maxSets = MAX_SAMPLER_SETS;
-    staticTexturesDescriptorPoolInfo.poolSizeCount = 1u;
-    staticTexturesDescriptorPoolInfo.pPoolSizes = &staticTexturesDescriptorPoolSize;
-
-    device->CreateDescriptorPool(staticTexturesDescriptorPoolInfo, &_staticTexturesDescriptorPool,
-                                 "static textures descriptor pool");
-
-    vk::DescriptorSetLayoutBinding descriptorSetLayoutBinding{};
-    descriptorSetLayoutBinding.descriptorCount = MAX_STATIC_TEXTURES;
-    descriptorSetLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eAllGraphics;
-    descriptorSetLayoutBinding.descriptorType = vk::DescriptorType::eCombinedImageSampler;
-
-    vk::DescriptorSetLayoutCreateInfo descriptorSetLayoutInfo{};
-    descriptorSetLayoutInfo.bindingCount = 1u;
-    descriptorSetLayoutInfo.pBindings = &descriptorSetLayoutBinding;
-    descriptorSetLayoutInfo.pNext = nullptr;
-
-    device->CreateDescriptorSetLayout(descriptorSetLayoutInfo, &_staticTexturesDescriptorSetLayout,
-                                      "static textures descriptor set layout");
-
-    check(_samplers.find(SAMPLER_COLOR_CLAMPED) != _samplers.end());
-
-    vk::DescriptorSetAllocateInfo setAllocInfo{};
-    setAllocInfo.descriptorPool = _staticTexturesDescriptorPool;
-    setAllocInfo.descriptorSetCount = 1u;
-    setAllocInfo.pSetLayouts = &_staticTexturesDescriptorSetLayout;
-
-    device->AllocateDescriptorSet(setAllocInfo, &_staticTexturesDescriptorSet, "static textures descriptor set");
-
-    BuildDummyImage();
-
-    vk::DescriptorImageInfo imageInfo{};
-    imageInfo.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
-    imageInfo.imageView = _dummyImageView;
-    imageInfo.sampler = _samplers.at(SAMPLER_COLOR_CLAMPED);
-
-    std::array<vk::DescriptorImageInfo, MAX_STATIC_TEXTURES> imageInfos{};
-    imageInfos.fill(imageInfo);
-
-    vk::WriteDescriptorSet writeDescriptor{};
-    writeDescriptor.dstSet = _staticTexturesDescriptorSet;
-    writeDescriptor.dstBinding = 0u;
-    writeDescriptor.dstArrayElement = 0u;
-    writeDescriptor.descriptorType = vk::DescriptorType::eCombinedImageSampler;
-    writeDescriptor.descriptorCount = MAX_SAMPLER_SETS;
-    writeDescriptor.pImageInfo = imageInfos.data();
-
-    device->UpdateDescriptorSets({writeDescriptor});
-
-    spdlog::debug("Graph: built static textures");
-}
-
-void Graph::FreeStaticTextures()
-{
-    Device const *device = SafeDeviceAccessor::Get();
-    check(device);
-
-    device->FreeDescriptorSet(_staticTexturesDescriptorPool, &_staticTexturesDescriptorSet);
-    device->DestroyDescriptorPool(&_staticTexturesDescriptorPool);
-    device->DestroyDescriptorSetLayout(&_staticTexturesDescriptorSetLayout);
-
-    FreeDummyImage();
-
-    spdlog::debug("Graph: freed static textures");
-}
-
-void Graph::BuildDummyImage()
-{
-    Device const *device = SafeDeviceAccessor::Get();
-    check(device);
-
-    // Create image
-    vk::ImageCreateInfo imageInfo{};
-    imageInfo.imageType = vk::ImageType::e2D;
-    imageInfo.extent = vk::Extent3D{1u, 1u, 1u};
-    imageInfo.format = vk::Format::eR8G8B8Srgb;
-    imageInfo.usage = vk::ImageUsageFlagBits::eSampled;
-    imageInfo.initialLayout = vk::ImageLayout::eUndefined;
-    imageInfo.tiling = vk::ImageTiling::eOptimal;
-    imageInfo.mipLevels = 1u;
-    imageInfo.arrayLayers = 1u;
-
-    device->CreateImageAndBindMemory(imageInfo, &_dummyImage, &_dummyImageMemory, "Texture");
-
-    // Create buffer and copy memory
-    vk::BufferCreateInfo bufferInfo{};
-    bufferInfo.usage = vk::BufferUsageFlagBits::eTransferSrc;
-    bufferInfo.size = 1u;
-
-    vk::Buffer buffer;
-    vk::DeviceMemory deviceMemory;
-    device->CreateBufferAndBindMemory(
-        bufferInfo, &buffer, &deviceMemory,
-        vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent, "Texture buffer");
-
-    vk::ImageViewCreateInfo viewInfo{};
-    viewInfo.image = _dummyImage;
-    viewInfo.viewType = vk::ImageViewType::e2D;
-    viewInfo.format = vk::Format::eR8G8B8Srgb;
-    viewInfo.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
-    viewInfo.subresourceRange.baseMipLevel = 0;
-    viewInfo.subresourceRange.levelCount = 1;
-    viewInfo.subresourceRange.baseArrayLayer = 0;
-    viewInfo.subresourceRange.layerCount = 1;
-
-    device->CreateImageView(viewInfo, &_dummyImageView, "Texture image view");
-
-    device->DestroyBuffer(&buffer);
-    device->FreeDeviceMemory(&deviceMemory);
-
-    vk::CommandBuffer const commandBuffer = device->BeginSingleTimeCommand();
-
-    commandBuffer.pipelineBarrier(vk::PipelineStageFlagBits::eTopOfPipe, vk::PipelineStageFlagBits::eAllCommands, {},
-                                  {}, {},
-                                  vk::ImageMemoryBarrier{vk::AccessFlagBits::eNone,
-                                                         vk::AccessFlagBits::eShaderRead,
-                                                         vk::ImageLayout::eUndefined,
-                                                         vk::ImageLayout::eShaderReadOnlyOptimal,
-                                                         vk::QueueFamilyIgnored,
-                                                         vk::QueueFamilyIgnored,
-                                                         _dummyImage,
-                                                         {vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1}});
-
-    device->EndSingleTimeCommand(commandBuffer);
-
-    spdlog::debug("Graph: built dummy image");
-}
-
-void Graph::FreeDummyImage()
-{
-    Device const *device = SafeDeviceAccessor::Get();
-    check(device);
-
-    device->DestroyImage(&_dummyImage);
-    device->FreeDeviceMemory(&_dummyImageMemory);
-    device->DestroyImageView(&_dummyImageView);
-
-    spdlog::debug("Graph: freed dummy image");
-}
-
 void Graph::BuildDescriptors(Resource resource)
 {
     Device const *device = SafeDeviceAccessor::Get();
@@ -1291,7 +1078,6 @@ void Graph::BuildDescriptors(Resource resource)
 
     check(IsSampled(resource));
     check(_validResources.find(resource) != _validResources.end());
-    check(_samplers.find(resourceInfo.sampler) != _samplers.end());
 
     for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
     {
@@ -1304,12 +1090,20 @@ void Graph::BuildDescriptors(Resource resource)
 
         device->AllocateDescriptorSet(setAllocInfo, &descriptorSet, resourceInfo.debugName + " descriptor set");
 
-        check(_imageViews.find(resource) != _imageViews.end());
+        check(_textures.find(resource) != _textures.end());
 
         vk::DescriptorImageInfo imageInfo{};
         imageInfo.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
-        imageInfo.imageView = _imageViews.at(resource)[i];
-        imageInfo.sampler = _samplers.at(resourceInfo.sampler);
+        imageInfo.imageView = _textures.at(resource)[i]->GetImageView();
+
+        if (resourceInfo.usage == ResourceUsage::eDepth)
+        {
+            imageInfo.sampler = _depthSampler->GetSampler();
+        }
+        else
+        {
+            imageInfo.sampler = _colorSampler->GetSampler();
+        }
 
         vk::WriteDescriptorSet writeDescriptor{};
         writeDescriptor.dstSet = descriptorSet;
@@ -1381,13 +1175,6 @@ void Graph::OnResizeCallback(void *graph, size_t width, size_t height)
 {
     check(graph);
     reinterpret_cast<Graph *>(graph)->Resize(width, height);
-}
-
-vk::Sampler Graph::GetSampler(size_t ID) const
-{
-    check(_samplers.find(ID) != _samplers.end());
-
-    return _samplers.at(ID);
 }
 
 bool Graph::IsSampled(Resource resource)

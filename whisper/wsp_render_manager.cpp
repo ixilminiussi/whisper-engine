@@ -1,15 +1,19 @@
-#include <vulkan/vulkan.hpp>
 #include <wsp_render_manager.hpp>
 
 #include <wsp_devkit.hpp>
 
+#include <wsp_constants.hpp>
 #include <wsp_custom_imgui.hpp>
 #include <wsp_device.hpp>
 #include <wsp_graph.hpp>
+#include <wsp_image.hpp>
 #include <wsp_renderer.hpp>
+#include <wsp_static_textures.hpp>
 #include <wsp_static_utils.hpp>
 #include <wsp_swapchain.hpp>
 #include <wsp_window.hpp>
+
+#include <vulkan/vulkan.hpp>
 
 #ifndef NDEBUG
 #include <imgui.h>
@@ -78,6 +82,8 @@ RenderManager::RenderManager()
 
     window->Free(_vkInstance);
     delete window;
+
+    _staticTextures = new StaticTextures(MAX_DYNAMIC_TEXTURES, "global static textures");
 }
 
 RenderManager::~RenderManager()
@@ -112,10 +118,11 @@ void RenderManager::Free()
 
         pair.window->Free(_vkInstance);
         pair.window.release();
-        pair.renderer->Free();
-        pair.renderer.release();
+        delete pair.renderer.release();
     }
     _windowRenderers.clear();
+
+    delete _staticTextures;
 
     auto func = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(static_cast<VkInstance>(_vkInstance),
                                                                            "vkDestroyDebugUtilsMessengerEXT");
@@ -244,7 +251,7 @@ void RenderManager::CloseWindow(WindowID windowID)
     }
 
     _windowRenderers.at(windowID).window->Free(_vkInstance);
-    _windowRenderers.at(windowID).renderer->Free();
+    delete _windowRenderers.at(windowID).renderer.release();
 
     _windowRenderers.erase(windowID);
 }
@@ -262,11 +269,18 @@ void RenderManager::BindResizeCallback(WindowID windowID, void *pointer, void (*
     }
 }
 
-class Graph *RenderManager::GetGraph(WindowID windowID) const
+Graph *RenderManager::GetGraph(WindowID windowID) const
 {
     check(Validate(windowID));
 
     return _windowRenderers.at(windowID).renderer->GetGraph();
+}
+
+StaticTextures *RenderManager::GetStaticTextures() const
+{
+    check(_staticTextures);
+
+    return _staticTextures;
 }
 
 GLFWwindow *RenderManager::GetGLFWHandle(WindowID windowID) const
@@ -291,7 +305,8 @@ vk::CommandBuffer RenderManager::BeginRender(WindowID windowID, bool blit)
 
     if (blit)
     {
-        windowRenderer.window->SwapchainOpen(commandBuffer, windowRenderer.renderer->GetGraph()->GetTargetImage());
+        windowRenderer.window->SwapchainOpen(commandBuffer,
+                                             windowRenderer.renderer->GetGraph()->GetTargetImage()->GetImage());
     }
     else
     {

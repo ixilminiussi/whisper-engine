@@ -42,18 +42,12 @@ class Graph
     void Compile(Resource target, GraphUsage);
     void Render(vk::CommandBuffer, size_t frameIndex);
 
-    void Free();
-
-    StaticTextureAllocator GenerateStaticTextureAllocator(size_t const samplerID) const;
-
-    vk::Image GetTargetImage() const;
+    class Image *GetTargetImage() const;
     vk::DescriptorSet GetTargetDescriptorSet() const;
 
     void ChangeUsage(GraphUsage);
     void Resize(size_t width, size_t height);
     static void OnResizeCallback(void *, size_t width, size_t height);
-
-    vk::Sampler GetSampler(size_t) const;
 
   protected:
     void FlushUbo(void *ubo, size_t frameIndex);
@@ -73,20 +67,15 @@ class Graph
     void Build(Resource);
     void Build(Pass);
     void BuildUbo();
-    void BuildStaticTextures();
-
-    void BuildDummyImage();
-
     void FreeUbo();
-    void FreeStaticTextures();
-    void FreeDummyImage();
 
     void Free(Resource);
     void Free(Pass);
 
     void BuildPipeline(Pass);
-    void BuildSamplers();
-    void BuildDescriptors(Resource resource);
+    void BuildSamplers(class Device const *);
+    void BuildDescriptorPool();
+    void BuildDescriptors(Resource);
 
     bool FindDependencies(std::set<Resource> *validResources, std::set<Pass> *validPasses, Resource pass,
                           std::set<std::variant<Resource, Pass>> &visitingStack);
@@ -94,6 +83,9 @@ class Graph
                           std::set<std::variant<Resource, Pass>> &visitingStack);
 
     void Reset();
+
+    class Sampler *_depthSampler;
+    class Sampler *_colorSampler;
 
     std::function<void *()> _populateUbo;
 
@@ -106,27 +98,17 @@ class Graph
     Resource _target;
     GraphUsage _usage;
 
-    vk::Image _dummyImage;
-    vk::DeviceMemory _dummyImageMemory;
-    vk::ImageView _dummyImageView;
-
-    std::map<Resource, std::array<vk::Image, MAX_FRAMES_IN_FLIGHT>> _images;
-    std::map<Resource, std::array<vk::DeviceMemory, MAX_FRAMES_IN_FLIGHT>> _deviceMemories;
-    std::map<Resource, std::array<vk::ImageView, MAX_FRAMES_IN_FLIGHT>> _imageViews;
+    std::map<Resource, std::array<class Image *, MAX_FRAMES_IN_FLIGHT>> _images;
+    std::map<Resource, std::array<class Texture *, MAX_FRAMES_IN_FLIGHT>> _textures;
 
     std::map<Pass, std::array<vk::Framebuffer, MAX_FRAMES_IN_FLIGHT>> _framebuffers;
     std::map<Pass, vk::RenderPass> _renderPasses;
     std::map<Pass, PipelineHolder> _pipelines; // in future, maybe point to an array of pipelines..? Or focus on the ONE
                                                // GIGA SHADER Unity approach?
 
-    std::map<size_t, vk::Sampler> _samplers;
     vk::DescriptorPool _descriptorPool;
     vk::DescriptorSetLayout _descriptorSetLayout;
     std::map<Resource, std::array<vk::DescriptorSet, MAX_FRAMES_IN_FLIGHT>> _descriptorSets;
-
-    vk::DescriptorPool _staticTexturesDescriptorPool;
-    vk::DescriptorSet _staticTexturesDescriptorSet;
-    vk::DescriptorSetLayout _staticTexturesDescriptorSetLayout;
 
     bool _requestsUniform;
     size_t _uboSize;
@@ -143,8 +125,6 @@ class Graph
 
     size_t _width, _height;
     size_t _currentFrameIndex; // only accurate when calling FlushUbo to update
-
-    bool _freed;
 };
 
 } // namespace wsp

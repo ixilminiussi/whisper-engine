@@ -9,36 +9,55 @@
 #include <imgui.h>
 #endif
 
+class cgltf_texture;
+class cgltf_image;
+class cgltf_sampler;
+
 namespace wsp
 {
 
 class Texture
 {
   public:
-    Texture(class Device const *, stbi_uc *pixels, int width, int height, int channels);
+    class Builder
+    {
+      public:
+        Builder();
+        Builder &GlTF(cgltf_texture const *texture, cgltf_image *const pImage, std::vector<class Image *> const &images,
+                      cgltf_sampler *const pSampler, std::vector<class Sampler *> const &samplers);
+        Builder &Depth();
+        Builder &SetImage(class Image const *);
+        Builder &SetSampler(class Sampler const *);
+        Builder &Format(vk::Format);
+        Builder &Name(std::string const &);
+        Texture *Build(class Device const *);
+
+      protected:
+        vk::ImageViewCreateInfo _createInfo;
+        class Sampler const *_sampler;
+        std::string _name;
+    };
+
     ~Texture();
 
     Texture(Texture const &) = delete;
     Texture &operator=(Texture const &) = delete;
 
-    void Free(class Device const *);
-
     vk::ImageView GetImageView() const;
-
-#ifndef NDEBUG
-    ImTextureID GetImTextureID(vk::Sampler); // generates
-
-  protected:
-    ImTextureID _imguiID;
-    bool _imguiFlag;
-#endif
+    vk::Sampler GetSampler() const;
+    void SetID(size_t);
+    size_t GetID() const;
 
   protected:
-    vk::Image _image;
+    Texture(class Device const *, vk::ImageViewCreateInfo const &, class Sampler const *, std::string const &name);
+
+    std::string _name;
+
+    size_t _ID;
+
+    class Sampler const *_sampler;
+
     vk::ImageView _imageView;
-    vk::DeviceMemory _deviceMemory;
-
-    bool _freed;
 };
 
 } // namespace wsp

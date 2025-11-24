@@ -1,7 +1,6 @@
 #ifndef WSP_MESH
 #define WSP_MESH
 
-#include <filesystem>
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 
@@ -9,9 +8,10 @@
 
 #include <vulkan/vulkan.hpp>
 
-#include <cgltf.h>
-
 #include <vector>
+
+class cgltf_mesh;
+class cgltf_material;
 
 namespace wsp
 {
@@ -41,22 +41,23 @@ class Mesh : public Drawable
         uint32_t vertexOffset;
     };
 
-    Mesh(class Device const *, class cgltf_mesh const *mesh);
+    static Mesh *BuildGlTF(class Device const *, cgltf_mesh const *, cgltf_material const *pMaterial,
+                           std::vector<class Material *>);
+
+    Mesh(class Device const *, std::vector<Vertex> const &vertices, std::vector<uint32_t> const &indices,
+         std::vector<Primitive> const &primitives, std::string const &name);
     ~Mesh();
 
     Mesh(Mesh const &) = delete;
     Mesh &operator=(Mesh const &) = delete;
 
-    void Free(class Device const *);
-
     virtual void Bind(vk::CommandBuffer) const override;
     virtual void Draw(vk::CommandBuffer) const override;
 
-    // if you had to fit the model in a sphere, how large the radius should be
-    float GetRadius() const;
+    virtual float GetRadius() const override;
 
   private:
-    static cgltf_accessor const *FindAccessor(cgltf_primitive const *prim, cgltf_attribute_type type);
+    std::string _name;
 
     std::vector<Primitive> _primitives;
 
@@ -67,8 +68,6 @@ class Mesh : public Drawable
     vk::DeviceMemory _indexDeviceMemory;
 
     float _radius;
-
-    bool _freed;
 };
 
 } // namespace wsp

@@ -20,35 +20,17 @@
 
 using namespace wsp;
 
-Renderer::Renderer() : _freed{false}
+Renderer::Renderer()
 {
 }
 
 Renderer::~Renderer()
 {
-    if (!_freed)
-    {
-        spdlog::critical("Renderer: forgot to Free before deletion");
-    }
-}
-
-void Renderer::Free()
-{
-    spdlog::info("Renderer: began termination");
-
-    if (_freed)
-    {
-        spdlog::error("Renderer: already freed renderer");
-        return;
-    }
-
-    _graph->Free();
-    _graph.release();
+    delete _graph.release();
 
     glfwTerminate();
 
-    spdlog::info("Renderer: terminated");
-    _freed = true;
+    spdlog::info("Renderer: freed");
 }
 
 void Renderer::Render(vk::CommandBuffer commandBuffer, size_t frameIndex) const
@@ -64,7 +46,7 @@ void Renderer::Render(vk::CommandBuffer commandBuffer, size_t frameIndex) const
     FrameMarkEnd("frame render");
 }
 
-class Graph *Renderer::GetGraph() const
+Graph *Renderer::GetGraph() const
 {
     return _graph.get();
 }

@@ -2,6 +2,7 @@
 
 #include <wsp_device.hpp>
 #include <wsp_devkit.hpp>
+#include <wsp_material.hpp>
 
 #include <glm/geometric.hpp>
 
@@ -19,7 +20,7 @@
 
 using namespace wsp;
 
-cgltf_accessor const *Mesh::FindAccessor(cgltf_primitive const *primitive, cgltf_attribute_type type)
+cgltf_accessor const *FindAccessor(cgltf_primitive const *primitive, cgltf_attribute_type type)
 {
     for (size_t i = 0; i < primitive->attributes_count; ++i)
     {
@@ -32,17 +33,18 @@ cgltf_accessor const *Mesh::FindAccessor(cgltf_primitive const *primitive, cgltf
     return nullptr;
 }
 
-Mesh::Mesh(Device const *device, cgltf_mesh const *mesh) : _freed{false}, _radius{0.f}
+Mesh *Mesh::BuildGlTF(class Device const *device, cgltf_mesh const *mesh, cgltf_material const *pMaterial,
+                      std::vector<Material *> materials)
 {
     check(device);
+    check(mesh);
 
     ZoneScopedN("load mesh");
 
     std::vector<Vertex> vertices{};
     std::vector<uint32_t> indices{};
 
-    vertices.clear();
-    indices.clear();
+    std::vector<Primitive> primitives{};
 
     uint32_t vertexOffset = 0;
     uint32_t indexOffset = 0;
@@ -79,7 +81,13 @@ Mesh::Mesh(Device const *device, cgltf_mesh const *mesh) : _freed{false}, _radiu
 
         totalVertexCount += vertexCount;
 
-        _primitives.emplace_back(Primitive{0, indexCount, indexOffset, vertexCount, vertexOffset});
+        uint32_t const materialID = primitive->material - pMaterial;
+        check(materialID < materials.size());
+        Material *material = materials.at(materialID);
+
+        // primitives.emplace_back(Primitive{material->GetID(), indexCount, indexOffset, vertexCount, vertexOffset});
+
+        primitives.emplace_back(Primitive{0, indexCount, indexOffset, vertexCount, vertexOffset});
 
         for (cgltf_size j = 0; j < static_cast<cgltf_size>(vertexCount); j++)
         {
@@ -87,8 +95,6 @@ Mesh::Mesh(Device const *device, cgltf_mesh const *mesh) : _freed{false}, _radiu
             cgltf_accessor_read_float(positionAccessor, j, &position.x, 3);
             cgltf_accessor_read_float(normalAccessor, j, &normal.x, 3);
             cgltf_accessor_read_float(uvAccessor, j, &uv.x, 2);
-
-            _radius = std::max(_radius, glm::length(position));
 
             glm::vec3 color{1.0f, 1.0f, 1.0f};
             if (colorAccessor)
@@ -113,7 +119,25 @@ Mesh::Mesh(Device const *device, cgltf_mesh const *mesh) : _freed{false}, _radiu
 
         indexOffset += indexCount;
         vertexOffset += vertexCount;
+    }
 
+    return new Mesh(device, vertices, indices, primitives, mesh->name);
+}
+
+Mesh::Mesh(Device const *device, std::vector<Vertex> const &vertices, std::vector<uint32_t> const &indices,
+           std::vector<Primitive> const &primitives, std::string const &name)
+    : _name{name}, _primitives{primitives}
+{
+    check(device);
+
+    ZoneScopedN("build mesh");
+
+    for (Vertex const &vertex : vertices)
+    {
+        _radius = std::max(_radius, glm::length(vertex.position));
+    }
+
+    { // index buffer
         size_t const bufferSize = sizeof(uint32_t) * indices.size();
 
         vk::Buffer stagingBuffer;
@@ -126,7 +150,7 @@ Mesh::Mesh(Device const *device, cgltf_mesh const *mesh) : _freed{false}, _radiu
         device->CreateBufferAndBindMemory(
             stagingBufferInfo, &stagingBuffer, &stagingDeviceMemory,
             {vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent},
-            "mesh staging buffer");
+            _name + std::string("_index_staging_buffer"));
 
         void *mappedMemory;
         device->MapMemory(stagingDeviceMemory, &mappedMemory);
@@ -137,62 +161,52 @@ Mesh::Mesh(Device const *device, cgltf_mesh const *mesh) : _freed{false}, _radiu
         bufferInfo.usage = {vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eTransferDst};
 
         device->CreateBufferAndBindMemory(bufferInfo, &_indexBuffer, &_indexDeviceMemory,
-                                          {vk::MemoryPropertyFlagBits::eDeviceLocal}, "mesh buffer");
+                                          {vk::MemoryPropertyFlagBits::eDeviceLocal},
+                                          name + std::string("_index_buffer"));
 
         device->CopyBuffer(stagingBuffer, &_indexBuffer, bufferSize);
         device->DestroyBuffer(&stagingBuffer);
         device->FreeDeviceMemory(&stagingDeviceMemory);
     }
 
-    size_t const bufferSize = totalVertexCount * sizeof(Vertex);
+    { // vertex buffer
+        size_t const bufferSize = sizeof(Vertex) * vertices.size();
+        vk::Buffer stagingBuffer;
+        vk::DeviceMemory stagingDeviceMemory;
 
-    vk::Buffer stagingBuffer;
-    vk::DeviceMemory stagingDeviceMemory;
+        vk::BufferCreateInfo stagingBufferInfo{};
+        stagingBufferInfo.size = bufferSize;
+        stagingBufferInfo.usage = vk::BufferUsageFlagBits::eTransferSrc;
 
-    vk::BufferCreateInfo stagingBufferInfo{};
-    stagingBufferInfo.size = bufferSize;
-    stagingBufferInfo.usage = vk::BufferUsageFlagBits::eTransferSrc;
+        device->CreateBufferAndBindMemory(
+            stagingBufferInfo, &stagingBuffer, &stagingDeviceMemory,
+            {vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent},
+            _name + std::string("_vertex_staging_buffer"));
 
-    device->CreateBufferAndBindMemory(
-        stagingBufferInfo, &stagingBuffer, &stagingDeviceMemory,
-        {vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent},
-        "mesh vertex staging buffer");
+        void *mappedMemory;
+        device->MapMemory(stagingDeviceMemory, &mappedMemory);
+        memcpy(mappedMemory, vertices.data(), bufferSize);
 
-    void *mappedMemory;
-    device->MapMemory(stagingDeviceMemory, &mappedMemory);
-    memcpy(mappedMemory, vertices.data(), bufferSize);
+        vk::BufferCreateInfo bufferInfo{};
+        bufferInfo.size = bufferSize;
+        bufferInfo.usage = {vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst};
 
-    vk::BufferCreateInfo bufferInfo{};
-    bufferInfo.size = bufferSize;
-    bufferInfo.usage = {vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst};
+        device->CreateBufferAndBindMemory(bufferInfo, &_vertexBuffer, &_vertexDeviceMemory,
+                                          {vk::MemoryPropertyFlagBits::eDeviceLocal},
+                                          _name + std::string("_vertex_buffer"));
 
-    device->CreateBufferAndBindMemory(bufferInfo, &_vertexBuffer, &_vertexDeviceMemory,
-                                      {vk::MemoryPropertyFlagBits::eDeviceLocal}, "mesh vertex buffer");
+        device->CopyBuffer(stagingBuffer, &_vertexBuffer, bufferSize);
+        device->DestroyBuffer(&stagingBuffer);
+        device->FreeDeviceMemory(&stagingDeviceMemory);
+    }
 
-    device->CopyBuffer(stagingBuffer, &_vertexBuffer, bufferSize);
-    device->DestroyBuffer(&stagingBuffer);
-    device->FreeDeviceMemory(&stagingDeviceMemory);
-
-    spdlog::info("Mesh: {} vertices, {} indices, {} primitives", vertices.size(), indices.size(), _primitives.size());
+    spdlog::info("Mesh: <{}>, {} vertices, {} indices, {} primitives", _name, vertices.size(), indices.size(),
+                 _primitives.size());
 }
 
 Mesh::~Mesh()
 {
-    if (!_freed)
-    {
-        spdlog::critical("Mesh: forgot to Free before deletion");
-    }
-}
-
-void Mesh::Free(Device const *device)
-{
-    if (_freed)
-    {
-        spdlog::error("Mesh: already freed mesh");
-        return;
-    }
-    _freed = true;
-
+    Device const *device = SafeDeviceAccessor::Get();
     check(device);
 
     device->DestroyBuffer(&_vertexBuffer);
@@ -201,7 +215,7 @@ void Mesh::Free(Device const *device)
     device->DestroyBuffer(&_indexBuffer);
     device->FreeDeviceMemory(&_indexDeviceMemory);
 
-    spdlog::info("Mesh: freed");
+    spdlog::debug("Mesh: <{}> freed", _name);
 }
 
 vk::PipelineVertexInputStateCreateInfo Mesh::Vertex::GetVertexInputInfo()

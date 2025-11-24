@@ -32,8 +32,6 @@ class Editor
     void Render();
     void Update(double dt);
 
-    void Free();
-
     void PopulateUbo(class GlobalUbo *);
 
     void OnClick(double dt, int);
@@ -47,16 +45,15 @@ class Editor
 
     void RenderContentBrowser(bool *show);
 
-    bool _freed;
-
     std::unique_ptr<class ViewportCamera> _viewportCamera;
     std::unique_ptr<class AssetsManager> _assetsManager;
     std::unique_ptr<class InputManager> _inputManager;
-    StaticTextureAllocator _staticTextureAllocator;
 
     std::vector<std::function<void()>> _deferredQueue;
 
     std::vector<class Drawable const *> *_drawList;
+
+    class Sampler *_previewSampler;
 
     WindowID _windowID;
 };

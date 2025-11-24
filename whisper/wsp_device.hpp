@@ -173,7 +173,13 @@ class SafeDeviceAccessor
     friend class Renderer;
     friend class Window;
     friend class Graph;
+    friend class StaticTextures;
     friend class AssetsManager;
+    friend class Image;
+    friend class Texture;
+    friend class Sampler;
+    friend class Mesh;
+    friend class Swapchain;
 };
 
 } // namespace wsp

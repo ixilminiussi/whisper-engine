@@ -1,94 +1,131 @@
-#include "imgui_impl_vulkan.h"
-#include <spdlog/spdlog.h>
-#include <vulkan/vulkan_core.h>
 #include <wsp_texture.hpp>
 
 #include <wsp_device.hpp>
 #include <wsp_devkit.hpp>
+#include <wsp_image.hpp>
+#include <wsp_sampler.hpp>
+
+#include <cgltf.h>
+
+#include <imgui_impl_vulkan.h>
+
+#include <spdlog/spdlog.h>
 
 #include <vulkan/vulkan.hpp>
+#include <vulkan/vulkan_core.h>
 
 using namespace wsp;
 
-Texture::Texture(Device const *device, stbi_uc *pixels, int width, int height, int channels) : _freed{false}
+Texture::Builder::Builder() : _sampler{nullptr}
+{
+    _createInfo.viewType = vk::ImageViewType::e2D;
+    _createInfo.format = vk::Format::eR8G8B8Srgb;
+    _createInfo.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
+    _createInfo.subresourceRange.baseMipLevel = 0;
+    _createInfo.subresourceRange.levelCount = 1;
+    _createInfo.subresourceRange.baseArrayLayer = 0;
+    _createInfo.subresourceRange.layerCount = 1;
+}
+
+Texture::Builder &Texture::Builder::Depth()
+{
+    _createInfo.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eDepth;
+
+    return *this;
+}
+
+Texture::Builder &Texture::Builder::SetImage(Image const *image)
+{
+    check(image);
+
+    _createInfo.image = image->GetImage();
+
+    return *this;
+}
+
+Texture::Builder &Texture::Builder::SetSampler(Sampler const *sampler)
+{
+    _sampler = sampler;
+
+    return *this;
+}
+
+Texture::Builder &Texture::Builder::Format(vk::Format format)
+{
+    _createInfo.format = format;
+
+    return *this;
+}
+
+Texture::Builder &Texture::Builder::Name(std::string const &name)
+{
+    _name = name;
+
+    return *this;
+}
+
+Texture::Builder &Texture::Builder::GlTF(cgltf_texture const *texture, cgltf_image *const pImage,
+                                         std::vector<Image *> const &images, cgltf_sampler *const pSampler,
+                                         std::vector<Sampler *> const &samplers)
+{
+    check(texture);
+    check(pImage);
+
+    check(samplers.size() > 0 && "Texture: you must provide at least one candidate sampler, regardless of GlTF specs");
+
+    cgltf_image *image = texture->image;
+    size_t const imageID = image - pImage;
+
+    check(images.size() > imageID);
+
+    _createInfo.image = images.at(imageID)->GetImage();
+
+    if (texture->sampler)
+    {
+        check(pSampler);
+        size_t const samplerID = texture->sampler - pSampler;
+
+        check(samplers.size() > samplerID);
+        _sampler = samplers.at(samplerID);
+    }
+    else
+    {
+        _sampler = samplers.at(0);
+    }
+
+    if (texture->name)
+    {
+        _name = std::string(texture->name);
+    }
+
+    return *this;
+}
+
+Texture *Texture::Builder::Build(Device const *device)
+{
+    check(_sampler);
+    check(_createInfo.image);
+
+    return new Texture{device, _createInfo, _sampler, _name};
+}
+
+Texture::Texture(Device const *device, vk::ImageViewCreateInfo const &createInfo, Sampler const *sampler,
+                 std::string const &name)
+    : _name{name}, _sampler{sampler}
 {
     check(device);
 
-    ZoneScopedN("load texture");
-
-    // Create image
-    vk::ImageCreateInfo imageInfo{};
-    imageInfo.imageType = vk::ImageType::e2D;
-    imageInfo.extent = vk::Extent3D{(uint32_t)width, (uint32_t)height, 1u};
-    imageInfo.format = vk::Format::eR8G8B8Srgb;
-    imageInfo.usage = vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled;
-    imageInfo.tiling = vk::ImageTiling::eOptimal;
-    imageInfo.mipLevels = 1u;
-    imageInfo.arrayLayers = 1u;
-
-    device->CreateImageAndBindMemory(imageInfo, &_image, &_deviceMemory, "Texture");
-
-    // Create buffer and copy memory
-    vk::BufferCreateInfo bufferInfo{};
-    bufferInfo.usage = vk::BufferUsageFlagBits::eTransferSrc;
-    bufferInfo.size = width * height * channels;
-
-    vk::Buffer buffer;
-    vk::DeviceMemory deviceMemory;
-    device->CreateBufferAndBindMemory(
-        bufferInfo, &buffer, &deviceMemory,
-        vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent, "Texture buffer");
-
-    void *memory;
-    device->MapMemory(deviceMemory, &memory);
-    memcpy(memory, pixels, width * height * channels);
-    device->UnmapMemory(deviceMemory);
-
-    device->CopyBufferToImage(buffer, &_image, width, height);
-
-    vk::ImageViewCreateInfo viewInfo{};
-    viewInfo.image = _image;
-    viewInfo.viewType = vk::ImageViewType::e2D;
-    viewInfo.format = vk::Format::eR8G8B8Srgb;
-    viewInfo.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
-    viewInfo.subresourceRange.baseMipLevel = 0;
-    viewInfo.subresourceRange.levelCount = 1;
-    viewInfo.subresourceRange.baseArrayLayer = 0;
-    viewInfo.subresourceRange.layerCount = 1;
-
-    device->CreateImageView(viewInfo, &_imageView, "Texture image view");
-
-    device->DestroyBuffer(&buffer);
-    device->FreeDeviceMemory(&deviceMemory);
-
-    spdlog::info("Texture: {} width, {} height, {} channels", width, height, channels);
+    device->CreateImageView(createInfo, &_imageView, "_image_view");
 }
 
 Texture::~Texture()
 {
-    if (!_freed)
-    {
-        spdlog::critical("Texture: forgot to Free before deletion");
-    }
-}
-
-void Texture::Free(Device const *device)
-{
-    if (_freed)
-    {
-        spdlog::error("Texture: already freed");
-        return;
-    }
-
+    Device const *device = SafeDeviceAccessor::Get();
     check(device);
 
     device->DestroyImageView(&_imageView);
-    device->DestroyImage(&_image);
-    device->FreeDeviceMemory(&_deviceMemory);
 
-    _freed = true;
-
-    spdlog::info("Texture: freed");
+    spdlog::debug("Texture: <{}> freed", _name);
 }
 
 vk::ImageView Texture::GetImageView() const
@@ -96,16 +133,19 @@ vk::ImageView Texture::GetImageView() const
     return _imageView;
 }
 
-#ifndef NDEBUG
-ImTextureID Texture::GetImTextureID(vk::Sampler sampler)
+vk::Sampler Texture::GetSampler() const
 {
-    if (!_imguiFlag)
-    {
-        _imguiID =
-            (ImTextureID)ImGui_ImplVulkan_AddTexture(sampler, _imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-        _imguiFlag = true;
-    }
+    check(_sampler);
 
-    return _imguiID;
+    return _sampler->GetSampler();
 }
-#endif
+
+size_t Texture::GetID() const
+{
+    return _ID;
+}
+
+void Texture::SetID(size_t ID)
+{
+    _ID = ID;
+}

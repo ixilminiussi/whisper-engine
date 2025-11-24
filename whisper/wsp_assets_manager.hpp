@@ -4,8 +4,13 @@
 #include <wsp_custom_types.hpp>
 
 #include <filesystem>
-#include <memory>
+#include <map>
 #include <vector>
+
+#ifndef NDEBUG
+#include <imgui.h>
+#include <vulkan/vulkan.hpp>
+#endif
 
 namespace wsp
 {
@@ -13,25 +18,28 @@ namespace wsp
 class AssetsManager
 {
   public:
-    AssetsManager(class StaticTextureAllocator *staticTextureAllocator = nullptr);
+    AssetsManager();
     ~AssetsManager();
 
-    std::vector<std::shared_ptr<class Texture>> ImportTextures(std::filesystem::path const &filepath);
-    std::vector<std::shared_ptr<class Mesh>> ImportMeshes(std::filesystem::path const &filepath);
-
-    void Free();
+    std::vector<class Mesh *> ImportGlTF(std::filesystem::path const &filepath);
 
     friend class Editor;
 
   protected:
-    dictionary<std::shared_ptr<class Mesh>, std::filesystem::path> _meshes;
-    dictionary<std::shared_ptr<class Texture>, std::filesystem::path> _textures;
+    dictionary<class Mesh *, std::filesystem::path> _meshes;
+    std::vector<class Texture *> _textures;
+    dictionary<class Image *, std::filesystem::path> _images;
+    std::vector<class Sampler *> _samplers;
+    std::vector<class Material *> _materials;
+
+    class Sampler *_defaultSampler;
+
+#ifndef NDEBUG
+    ImTextureID GetTextureID(class Image *image);
+    std::map<class Image *, std::pair<ImTextureID, vk::ImageView>> _previewTextures;
+#endif
 
     std::filesystem::path _fileRoot;
-
-    class StaticTextureAllocator *_staticTextureAllocator;
-
-    bool _freed;
 };
 
 } // namespace wsp

@@ -19,10 +19,11 @@
 
 using namespace wsp;
 
-Swapchain::Swapchain(Window const *window, Device const *device, vk::Extent2D extent2D, vk::SwapchainKHR oldSwapchain)
-    : _freed{false}, _imageAvailableSemaphores{}, _renderFinishedSemaphores{}, _inFlightFences{}, _imagesInFlight{},
-      _images{}, _currentImageIndex{0}, _currentFrameIndex{0}
+Swapchain::Swapchain(Window const *window, vk::Extent2D extent2D, vk::SwapchainKHR oldSwapchain)
+    : _imageAvailableSemaphores{}, _renderFinishedSemaphores{}, _inFlightFences{}, _imagesInFlight{}, _images{},
+      _currentImageIndex{0}, _currentFrameIndex{0}
 {
+    Device const *device = SafeDeviceAccessor::Get();
     check(device);
 
     vk::SurfaceKHR const surface = window->GetSurface();
@@ -78,23 +79,16 @@ Swapchain::Swapchain(Window const *window, Device const *device, vk::Extent2D ex
 
     _extent = extent;
 
-    CreateImageViews(device, _images.size());
-    CreateRenderPass(device);
-    CreateFramebuffers(device, _images.size());
-    CreateSyncObjects(device, _images.size());
-    CreateCommandBuffers(device);
+    CreateImageViews(_images.size());
+    CreateRenderPass();
+    CreateFramebuffers(_images.size());
+    CreateSyncObjects(_images.size());
+    CreateCommandBuffers();
 }
 
 Swapchain::~Swapchain()
 {
-    if (!_freed)
-    {
-        spdlog::error("Swapchain: forgot to Free before deletion");
-    }
-}
-
-void Swapchain::Free(Device const *device, bool silent)
-{
+    Device const *device = SafeDeviceAccessor::Get();
     check(device);
 
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
@@ -127,12 +121,7 @@ void Swapchain::Free(Device const *device, bool silent)
         _swapchain = nullptr;
     }
 
-    _freed = true;
-
-    if (!silent)
-    {
-        spdlog::info("Swapchain: freed");
-    }
+    spdlog::debug("Swapchain: freed");
 }
 
 #ifndef NDEBUG
@@ -145,9 +134,11 @@ void Swapchain::PopulateImGuiInitInfo(ImGui_ImplVulkan_InitInfo *initInfo) const
 }
 #endif
 
-void Swapchain::SubmitCommandBuffer(const Device *device, vk::CommandBuffer commandBuffers)
+void Swapchain::SubmitCommandBuffer(vk::CommandBuffer commandBuffers)
 {
+    Device const *device = SafeDeviceAccessor::Get();
     check(device);
+
     check(_currentImageIndex < _imagesInFlight.size());
 
     if (_imagesInFlight[_currentImageIndex] != nullptr)
@@ -190,11 +181,12 @@ void Swapchain::SubmitCommandBuffer(const Device *device, vk::CommandBuffer comm
     device->PresentKHR(&presentInfo);
 }
 
-[[nodiscard]] vk::CommandBuffer Swapchain::NextCommandBuffer(Device const *device)
+[[nodiscard]] vk::CommandBuffer Swapchain::NextCommandBuffer()
 {
+    Device const *device = SafeDeviceAccessor::Get();
     check(device);
 
-    AcquireNextImage(device);
+    AcquireNextImage();
     vk::CommandBuffer commandBuffer = _commandBuffers[_currentFrameIndex];
 
     vk::CommandBufferBeginInfo const beginInfo{};
@@ -211,8 +203,9 @@ void Swapchain::SubmitCommandBuffer(const Device *device, vk::CommandBuffer comm
     return commandBuffer;
 }
 
-void Swapchain::AcquireNextImage(Device const *device)
+void Swapchain::AcquireNextImage()
 {
+    Device const *device = SafeDeviceAccessor::Get();
     check(device);
 
     device->WaitForFences({_inFlightFences[_currentFrameIndex]});
@@ -381,8 +374,9 @@ vk::Extent2D Swapchain::ChooseSwapExtent(vk::Extent2D windowExtent, vk::SurfaceC
     }
 }
 
-void Swapchain::CreateImageViews(Device const *device, size_t count)
+void Swapchain::CreateImageViews(size_t count)
 {
+    Device const *device = SafeDeviceAccessor::Get();
     check(device);
     check(_images.size() <= count);
 
@@ -403,8 +397,9 @@ void Swapchain::CreateImageViews(Device const *device, size_t count)
     }
 }
 
-void Swapchain::CreateRenderPass(Device const *device)
+void Swapchain::CreateRenderPass()
 {
+    Device const *device = SafeDeviceAccessor::Get();
     check(device);
 
     vk::AttachmentDescription colorAttachment = {};
@@ -452,9 +447,11 @@ void Swapchain::CreateRenderPass(Device const *device)
     device->CreateRenderPass(renderPassInfo, &_renderPass, "swapchain render pass");
 }
 
-void Swapchain::CreateFramebuffers(Device const *device, size_t count)
+void Swapchain::CreateFramebuffers(size_t count)
 {
+    Device const *device = SafeDeviceAccessor::Get();
     check(device);
+
     check(_imageViews.size() <= count);
 
     _framebuffers.resize(count);
@@ -475,9 +472,11 @@ void Swapchain::CreateFramebuffers(Device const *device, size_t count)
     }
 }
 
-void Swapchain::CreateSyncObjects(Device const *device, size_t count)
+void Swapchain::CreateSyncObjects(size_t count)
 {
+    Device const *device = SafeDeviceAccessor::Get();
     check(device);
+
     check(_images.size() <= count);
 
     _imageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
@@ -500,8 +499,9 @@ void Swapchain::CreateSyncObjects(Device const *device, size_t count)
     }
 }
 
-void Swapchain::CreateCommandBuffers(Device const *device)
+void Swapchain::CreateCommandBuffers()
 {
+    Device const *device = SafeDeviceAccessor::Get();
     check(device);
 
     _commandBuffers.resize(MAX_FRAMES_IN_FLIGHT);
