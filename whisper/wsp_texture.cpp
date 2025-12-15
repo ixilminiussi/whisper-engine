@@ -1,5 +1,6 @@
 #include <wsp_texture.hpp>
 
+#include <wsp_constants.hpp>
 #include <wsp_device.hpp>
 #include <wsp_devkit.hpp>
 #include <wsp_image.hpp>
@@ -18,27 +19,24 @@ using namespace wsp;
 
 Texture::Builder::Builder() : _sampler{nullptr}
 {
-    _createInfo.viewType = vk::ImageViewType::e2D;
-    _createInfo.format = vk::Format::eR8G8B8Srgb;
-    _createInfo.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
-    _createInfo.subresourceRange.baseMipLevel = 0;
-    _createInfo.subresourceRange.levelCount = 1;
-    _createInfo.subresourceRange.baseArrayLayer = 0;
-    _createInfo.subresourceRange.layerCount = 1;
+    _format = vk::Format::eR8G8B8Srgb;
+    _depth = false;
+    _image = nullptr;
+    _sampler = nullptr;
 }
 
 Texture::Builder &Texture::Builder::Depth()
 {
-    _createInfo.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eDepth;
+    _depth = true;
 
     return *this;
 }
 
-Texture::Builder &Texture::Builder::SetImage(Image const *image)
+Texture::Builder &Texture::Builder::SetImage(Image *image)
 {
     check(image);
 
-    _createInfo.image = image->GetImage();
+    _image = image;
 
     return *this;
 }
@@ -52,7 +50,7 @@ Texture::Builder &Texture::Builder::SetSampler(Sampler const *sampler)
 
 Texture::Builder &Texture::Builder::Format(vk::Format format)
 {
-    _createInfo.format = format;
+    _format = format;
 
     return *this;
 }
@@ -78,7 +76,7 @@ Texture::Builder &Texture::Builder::GlTF(cgltf_texture const *texture, cgltf_ima
 
     check(images.size() > imageID);
 
-    _createInfo.image = images.at(imageID)->GetImage();
+    _image = images.at(imageID);
 
     if (texture->sampler)
     {
@@ -101,19 +99,30 @@ Texture::Builder &Texture::Builder::GlTF(cgltf_texture const *texture, cgltf_ima
     return *this;
 }
 
-Texture *Texture::Builder::Build(Device const *device)
+Texture *Texture::Builder::Build(Device const *device) const
 {
     check(_sampler);
-    check(_createInfo.image);
+    check(_image);
 
-    return new Texture{device, _createInfo, _sampler, _name};
+    return new Texture{device, _image, _sampler, _format, _depth, _name};
 }
 
-Texture::Texture(Device const *device, vk::ImageViewCreateInfo const &createInfo, Sampler const *sampler,
+Texture::Texture(Device const *device, Image *image, Sampler const *sampler, vk::Format format, bool depth,
                  std::string const &name)
-    : _name{name}, _sampler{sampler}
+    : _name{name}, _image{image}, _sampler{sampler}, _ID{INVALID_ID}
 {
     check(device);
+    check(image->AskForVariant(format));
+
+    vk::ImageViewCreateInfo createInfo;
+    createInfo.viewType = vk::ImageViewType::e2D;
+    createInfo.format = format;
+    createInfo.image = image->GetImage(format);
+    createInfo.subresourceRange.aspectMask = depth ? vk::ImageAspectFlagBits::eDepth : vk::ImageAspectFlagBits::eColor;
+    createInfo.subresourceRange.baseMipLevel = 0;
+    createInfo.subresourceRange.levelCount = 1;
+    createInfo.subresourceRange.baseArrayLayer = 0;
+    createInfo.subresourceRange.layerCount = 1;
 
     device->CreateImageView(createInfo, &_imageView, "_image_view");
 }
@@ -133,6 +142,11 @@ vk::ImageView Texture::GetImageView() const
     return _imageView;
 }
 
+vk::Format Texture::GetFormat() const
+{
+    return _format;
+}
+
 vk::Sampler Texture::GetSampler() const
 {
     check(_sampler);
@@ -140,12 +154,12 @@ vk::Sampler Texture::GetSampler() const
     return _sampler->GetSampler();
 }
 
-size_t Texture::GetID() const
+int Texture::GetID() const
 {
     return _ID;
 }
 
-void Texture::SetID(size_t ID)
+void Texture::SetID(int ID)
 {
     _ID = ID;
 }

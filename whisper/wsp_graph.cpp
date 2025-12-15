@@ -434,10 +434,7 @@ void Graph::BuildPipeline(Pass pass)
     pipelineLayoutInfo.setLayoutCount = static_cast<uint32_t>(descriptorSetLayouts.size());
     pipelineLayoutInfo.pSetLayouts = descriptorSetLayouts.data();
     pipelineLayoutInfo.pushConstantRangeCount = 0u;
-    pipelineLayoutInfo.pPushConstantRanges = nullptr; // change with pushConstantRanges
-
-    device->CreatePipelineLayout(pipelineLayoutInfo, &pipelineHolder.pipelineLayout,
-                                 passInfo.debugName + "_pipeline_layout");
+    pipelineLayoutInfo.pPushConstantRanges = nullptr;
 
     vk::PushConstantRange pushConstantRange{};
     if (passInfo.pushConstantSize > 0)
@@ -449,6 +446,9 @@ void Graph::BuildPipeline(Pass pass)
         pipelineLayoutInfo.pushConstantRangeCount = 1u;
         pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
     }
+
+    device->CreatePipelineLayout(pipelineLayoutInfo, &pipelineHolder.pipelineLayout,
+                                 passInfo.debugName + "_pipeline_layout");
 
     vk::GraphicsPipelineCreateInfo pipelineInfo{};
     pipelineInfo.stageCount = 2u;
@@ -587,7 +587,7 @@ void Graph::Render(vk::CommandBuffer commandBuffer, size_t frameIndex)
         }
 
         commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, _pipelines.at(pass).pipeline);
-        passInfo.execute(commandBuffer);
+        passInfo.execute(commandBuffer, _pipelines.at(pass).pipelineLayout);
         commandBuffer.endRenderPass();
     }
 }

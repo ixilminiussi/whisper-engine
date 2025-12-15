@@ -1,7 +1,7 @@
-#include "wsp_sampler.hpp"
 #ifndef NDEBUG
 #include <wsp_editor.hpp>
 
+#include <wsp_constants.hpp>
 #include <wsp_devkit.hpp>
 
 #include <wsp_assets_manager.hpp>
@@ -61,11 +61,11 @@ Editor::Editor() : _drawList{nullptr}
 
     Graph *graph = renderManager->GetGraph(_windowID);
 
-    graph->SetUboSize(sizeof(GlobalUbo));
+    graph->SetUboSize(sizeof(ubo::Ubo));
     graph->SetPopulateUboFunction([this]() {
-        GlobalUbo *ubo = new GlobalUbo();
-        this->PopulateUbo(ubo);
-        return ubo;
+        ubo::Ubo *uboInfo = new ubo::Ubo();
+        this->PopulateUbo(uboInfo);
+        return uboInfo;
     });
 
     ResourceCreateInfo colorInfo{};
@@ -94,14 +94,15 @@ Editor::Editor() : _drawList{nullptr}
     passCreateInfo.vertFile = "mesh.vert.spv";
     passCreateInfo.fragFile = "mesh.frag.spv";
     passCreateInfo.debugName = "mesh render";
-    passCreateInfo.execute = [=](vk::CommandBuffer commandBuffer) {
+    passCreateInfo.pushConstantSize = sizeof(Mesh::PushData);
+    passCreateInfo.execute = [=](vk::CommandBuffer commandBuffer, vk::PipelineLayout pipelineLayout) {
         if (_drawList)
         {
             for (Drawable const *drawable : *_drawList)
             {
                 if (ensure(drawable))
                 {
-                    drawable->BindAndDraw(commandBuffer);
+                    drawable->BindAndDraw(commandBuffer, pipelineLayout);
                 }
             }
         }
@@ -216,10 +217,27 @@ void Editor::Update(double dt)
     _viewportCamera->Update(dt);
 }
 
-void Editor::PopulateUbo(GlobalUbo *ubo)
+void Editor::PopulateUbo(ubo::Ubo *ubo)
 {
+    check(ubo);
+
+    check(_viewportCamera);
+    check(_viewportCamera->GetCamera());
+
     ubo->camera.viewProjection =
         _viewportCamera->GetCamera()->GetProjection() * _viewportCamera->GetCamera()->GetView();
+    ubo->camera.view = _viewportCamera->GetCamera()->GetView();
+    ubo->camera.projection = _viewportCamera->GetCamera()->GetProjection();
+    ubo->camera.position = _viewportCamera->GetPosition();
+
+    ubo::Sun sun{};
+    sun.color = glm::vec4{1.f};
+    sun.direction = glm::vec3{1.f, 1.f, 0.f};
+    ubo->light.sun = sun;
+
+    check(_assetsManager);
+
+    memcpy(ubo->materials, _assetsManager->GetMaterialInfos().data(), MAX_MATERIALS);
 }
 
 void Editor::OnClick(double dt, int value)
@@ -412,7 +430,7 @@ void Editor::RenderContentBrowser(bool *show)
                     _viewportCamera->SetOrbitDistance(furthestRadius * 2.5f);
                     _viewportCamera->Refresh();
                 }
-                catch (std::exception exception)
+                catch (std::exception const &exception)
                 {
                     spdlog::critical("ContentBrowser: {}", exception.what());
                 };

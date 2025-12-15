@@ -283,24 +283,33 @@ void Device::CreateLogicalDevice(std::vector<char const *> const &requiredExtens
     float const queuePriority = 1.0f;
     for (uint32_t const queueFamily : uniqueQueueFamilies)
     {
-        vk::DeviceQueueCreateInfo queueCreateInfo = {};
+        vk::DeviceQueueCreateInfo queueCreateInfo{};
         queueCreateInfo.queueFamilyIndex = queueFamily;
         queueCreateInfo.queueCount = 1;
         queueCreateInfo.pQueuePriorities = &queuePriority;
         queueCreateInfos.push_back(queueCreateInfo);
     }
 
-    vk::PhysicalDeviceFeatures deviceFeatures = {};
-    deviceFeatures.samplerAnisotropy = VK_TRUE;
-    deviceFeatures.fillModeNonSolid = VK_TRUE;
+    vk::PhysicalDeviceFeatures deviceFeatures{};
+    deviceFeatures.samplerAnisotropy = vk::True;
+    deviceFeatures.fillModeNonSolid = vk::True;
+    deviceFeatures.shaderSampledImageArrayDynamicIndexing = vk::True;
 
-    vk::DeviceCreateInfo createInfo = {};
+    vk::PhysicalDeviceVulkan12Features vulkan12Features{};
+    vulkan12Features.descriptorIndexing = vk::True;
+    vulkan12Features.runtimeDescriptorArray = vk::True;
+
+    vk::PhysicalDeviceVulkan11Features vulkan11Features{};
+    vulkan11Features.pNext = &vulkan12Features;
+
+    vk::DeviceCreateInfo createInfo{};
     createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
     createInfo.pQueueCreateInfos = queueCreateInfos.data();
 
     createInfo.pEnabledFeatures = &deviceFeatures;
     createInfo.enabledExtensionCount = static_cast<uint32_t>(requiredExtensions.size());
     createInfo.ppEnabledExtensionNames = requiredExtensions.data();
+    createInfo.pNext = &vulkan11Features;
 
     if (vk::Result const result = physicalDevice.createDevice(&createInfo, nullptr, &_device);
         result != vk::Result::eSuccess)
@@ -323,7 +332,7 @@ void Device::CreateCommandPool(vk::PhysicalDevice physicalDevice, vk::SurfaceKHR
 
     QueueFamilyIndices const queueFamilyIndices = FindQueueFamilies(physicalDevice, surface);
 
-    vk::CommandPoolCreateInfo poolInfo = {};
+    vk::CommandPoolCreateInfo poolInfo{};
     poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily;
     poolInfo.flags = vk::CommandPoolCreateFlagBits::eTransient | vk::CommandPoolCreateFlagBits::eResetCommandBuffer;
 

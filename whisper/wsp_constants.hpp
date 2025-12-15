@@ -4,5 +4,8 @@
 #define MAX_FRAMES_IN_FLIGHT 2
 #define MAX_DYNAMIC_TEXTURES 100
 #define MAX_STATIC_TEXTURES 500
+#define MAX_MATERIALS 500
+
+#define INVALID_ID -1
 
 #endif

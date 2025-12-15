@@ -1,3 +1,4 @@
+#include <filesystem>
 #include <wsp_static_textures.hpp>
 
 #include <wsp_device.hpp>
@@ -73,7 +74,9 @@ void StaticTextures::BuildDummy()
 
     _dummySampler = Sampler::Builder{}.Name(_name + "_dummy_sampler").Build(device);
     void *pixels = malloc(sizeof(char));
-    _dummyImage = new Image{device, (char *)pixels, 1u, 1u, 3u, _name + std::string("_dummy_image")};
+    std::filesystem::path const filepath =
+        (std::filesystem::path(WSP_EDITOR_ASSETS) / std::filesystem::path("missing-texture.png")).lexically_normal();
+    _dummyImage = new Image{device, filepath, _name + std::string("_missing")};
 
     _dummyTexture = Texture::Builder{}.SetImage(_dummyImage).SetSampler(_dummySampler).Build(device);
 

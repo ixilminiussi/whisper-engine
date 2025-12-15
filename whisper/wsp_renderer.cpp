@@ -56,7 +56,7 @@ void Renderer::Initialize(size_t width, size_t height)
     ZoneScopedN("initialize (graph generate + compile)");
 
     _graph = std::make_unique<Graph>(width, height);
-    _graph->SetUboSize(sizeof(GlobalUbo));
+    _graph->SetUboSize(sizeof(ubo::Ubo));
 
     spdlog::info("Renderer: new window initialized");
 }

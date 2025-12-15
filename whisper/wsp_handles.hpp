@@ -63,7 +63,7 @@ struct PassCreateInfo
 
     std::string debugName{""};
 
-    std::function<void(vk::CommandBuffer)> execute;
+    std::function<void(vk::CommandBuffer, vk::PipelineLayout)> execute;
     vk::PipelineVertexInputStateCreateInfo vertexInputInfo{{}, 0, nullptr, 0, nullptr};
 
     friend class Graph;

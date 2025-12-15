@@ -1,6 +1,7 @@
 #ifndef WSP_DEVICE
 #define WSP_DEVICE
 
+#include <wsp_constants.hpp>
 #include <wsp_devkit.hpp>
 
 #include <vulkan/vulkan.hpp>
@@ -17,11 +18,11 @@ namespace wsp
 
 struct QueueFamilyIndices
 {
-    int graphicsFamily{-1};
-    int presentFamily{-1};
+    int graphicsFamily{INVALID_ID};
+    int presentFamily{INVALID_ID};
     bool isComplete() const
     {
-        return graphicsFamily != -1 && presentFamily != -1;
+        return graphicsFamily != INVALID_ID && presentFamily != INVALID_ID;
     }
 };
 

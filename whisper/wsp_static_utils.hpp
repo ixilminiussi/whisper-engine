@@ -18,6 +18,11 @@
 namespace wsp
 {
 
+template <typename T> inline bool inbetween(T val, T min, T max)
+{
+    return val >= min && val < max;
+}
+
 inline float decodeSRGB(float c)
 {
     if (c <= 0.04045f)

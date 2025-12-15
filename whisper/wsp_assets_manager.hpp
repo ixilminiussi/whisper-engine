@@ -1,7 +1,9 @@
 #ifndef WSP_ASSETS_MANAGER
 #define WSP_ASSETS_MANAGER
 
+#include <wsp_constants.hpp>
 #include <wsp_custom_types.hpp>
+#include <wsp_global_ubo.hpp>
 
 #include <filesystem>
 #include <map>
@@ -22,6 +24,9 @@ class AssetsManager
     ~AssetsManager();
 
     std::vector<class Mesh *> ImportGlTF(std::filesystem::path const &filepath);
+    std::vector<class Mesh *> ImportPNG(std::filesystem::path const &filepath);
+
+    std::array<ubo::Material, MAX_MATERIALS> const &GetMaterialInfos() const;
 
     friend class Editor;
 
@@ -31,6 +36,7 @@ class AssetsManager
     dictionary<class Image *, std::filesystem::path> _images;
     std::vector<class Sampler *> _samplers;
     std::vector<class Material *> _materials;
+    std::array<ubo::Material, MAX_MATERIALS> _materialInfos;
 
     class Sampler *_defaultSampler;
 

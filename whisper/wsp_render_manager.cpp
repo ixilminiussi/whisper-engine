@@ -50,10 +50,8 @@ TracyVkCtx TRACY_CTX;
 }
 
 RenderManager::RenderManager()
-    : _validationLayers{"VK_LAYER_KHRONOS_validation"}, _deviceExtensions{
-                                                            vk::KHRSwapchainExtensionName,
-                                                            vk::KHRMaintenance2ExtensionName,
-                                                        }
+    : _validationLayers{"VK_LAYER_KHRONOS_validation"},
+      _deviceExtensions{vk::KHRSwapchainExtensionName, vk::KHRMaintenance2ExtensionName}
 
 {
     ZoneScopedN("initialize");
@@ -155,10 +153,10 @@ void RenderManager::CreateInstance()
 
     vk::ApplicationInfo appInfo = {};
     appInfo.pApplicationName = "Whisper App";
-    appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
+    appInfo.applicationVersion = VK_MAKE_VERSION(0, 1, 1);
     appInfo.pEngineName = "Whisper Engine";
-    appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-    appInfo.apiVersion = VK_API_VERSION_1_0;
+    appInfo.engineVersion = VK_MAKE_VERSION(0, 1, 1);
+    appInfo.apiVersion = VK_API_VERSION_1_3;
 
     vk::InstanceCreateInfo createInfo = {};
     createInfo.pApplicationInfo = &appInfo;
@@ -305,8 +303,12 @@ vk::CommandBuffer RenderManager::BeginRender(WindowID windowID, bool blit)
 
     if (blit)
     {
-        windowRenderer.window->SwapchainOpen(commandBuffer,
-                                             windowRenderer.renderer->GetGraph()->GetTargetImage()->GetImage());
+        Image *image = windowRenderer.renderer->GetGraph()->GetTargetImage();
+
+        check(image);
+        check(image->AskForVariant(vk::Format::eB8G8R8A8Srgb));
+
+        windowRenderer.window->SwapchainOpen(commandBuffer, image->GetImage(vk::Format::eB8G8R8A8Srgb));
     }
     else
     {
@@ -332,7 +334,7 @@ static int ImGui_CreateVkSurface(ImGuiViewport *viewport, ImU64 vk_instance, voi
         reinterpret_cast<VkInstance>(vk_instance), static_cast<GLFWwindow *>(viewport->PlatformHandle),
         reinterpret_cast<VkAllocationCallbacks const *>(vk_allocator), reinterpret_cast<VkSurfaceKHR *>(out_surface));
 #else
-    return -1;
+    return INVALID_ID;
 #endif
 }
 

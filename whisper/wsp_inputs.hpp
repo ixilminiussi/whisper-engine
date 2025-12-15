@@ -4,11 +4,10 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
+#include <wsp_constants.hpp>
 #include <wsp_devkit.hpp>
 
-#include <cstring>
 #include <spdlog/spdlog.h>
-#include <string>
 
 namespace wsp
 {
@@ -53,8 +52,8 @@ inline bool operator==(Axis const &a, Axis const &b)
     return (a.code == b.code && a.source == b.source && a.id == b.id);
 }
 
-inline Button WSP_BUTTON_VOID{-1, InputSource::eKeyboard};
-inline Axis WSP_AXIS_VOID{-1, InputSource::eKeyboard};
+inline Button WSP_BUTTON_VOID{INVALID_ID, InputSource::eKeyboard};
+inline Axis WSP_AXIS_VOID{INVALID_ID, InputSource::eKeyboard};
 inline Axis WSP_MOUSE_AXIS_X_ABSOLUTE{0, InputSource::eMouse};
 inline Axis WSP_MOUSE_AXIS_Y_ABSOLUTE{1, InputSource::eMouse};
 inline Axis WSP_MOUSE_AXIS_X_RELATIVE{0, InputSource::eMouse, 1};

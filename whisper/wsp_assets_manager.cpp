@@ -1,7 +1,9 @@
 #include <wsp_device.hpp>
 
 #include <wsp_assets_manager.hpp>
+#include <wsp_constants.hpp>
 #include <wsp_editor.hpp>
+#include <wsp_global_ubo.hpp>
 #include <wsp_graph.hpp>
 #include <wsp_image.hpp>
 #include <wsp_material.hpp>
@@ -145,6 +147,7 @@ std::vector<Mesh *> AssetsManager::ImportGlTF(std::filesystem::path const &relat
 
     check(data);
 
+    // images are "created" but the actual vk::Image depends on the image's usage by materials
     std::vector<Image *> images{};
     for (int i = 0; i < data->images_count; i++)
     {
@@ -174,24 +177,49 @@ std::vector<Mesh *> AssetsManager::ImportGlTF(std::filesystem::path const &relat
         samplers.push_back(_defaultSampler); // make sure there is always ONE sampler available
     }
 
-    std::vector<Texture *> textures{};
+    // similarly we don't finish building the textures yet, the materials themselves build the textures to pick the
+    // appropriate image format
+    std::vector<std::pair<Texture::Builder, Texture *>> textureBuilders{};
     for (int i = 0; i < data->textures_count; i++)
     {
-        Texture *texture =
-            Texture::Builder{}.GlTF(data->textures + i, data->images, images, data->samplers, samplers).Build(device);
+        Texture::Builder textureBuilder =
+            Texture::Builder{}.GlTF(data->textures + i, data->images, images, data->samplers, samplers);
+        ;
 
-        RenderManager::Get()->GetStaticTextures()->Push({texture});
-        _textures.push_back(texture);
-        textures.push_back(texture);
+        textureBuilders.push_back({textureBuilder, nullptr});
     }
 
     std::vector<Material *> materials{};
     for (int i = 0; i < data->materials_count; i++)
     {
-        Material *material = nullptr;
+        Material *material = Material::BuildGlTF(device, data->materials + i, data->textures, &textureBuilders);
 
-        _materials.push_back(material);
         materials.push_back(material);
+    }
+
+    for (auto &[builder, texture] : textureBuilders)
+    {
+        if (texture)
+        {
+            RenderManager::Get()->GetStaticTextures()->Push({texture});
+            _textures.push_back(texture);
+        }
+    }
+
+    for (Material *material : materials)
+    {
+        _materials.push_back(material);
+        material->SetID(_materials.size() - 1);
+
+        if (ensure(_materials.size() < MAX_MATERIALS))
+        {
+            material->GetInfo(&_materialInfos[_materials.size() - 1]);
+        }
+        else
+        {
+            spdlog::critical(
+                "AssetsManager: reached material limit, either increase it in constants.hpp or import less materials");
+        }
     }
 
     std::vector<Mesh *> meshes{};
@@ -203,7 +231,7 @@ std::vector<Mesh *> AssetsManager::ImportGlTF(std::filesystem::path const &relat
         }
         else
         {
-            Mesh *mesh = Mesh::BuildGlTF(device, data->meshes + i, data->materials, materials);
+            Mesh *mesh = Mesh::BuildGlTF(device, data->meshes + i, data->materials, materials, true);
             _meshes[mesh] = filepath;
             meshes.push_back(mesh);
         }
@@ -212,6 +240,10 @@ std::vector<Mesh *> AssetsManager::ImportGlTF(std::filesystem::path const &relat
     cgltf_free(data);
 
     return meshes;
+}
+
+std::vector<class Mesh *> AssetsManager::ImportPNG(std::filesystem::path const &filepath)
+{
 }
 
 #ifndef NDEBUG
@@ -224,9 +256,10 @@ ImTextureID AssetsManager::GetTextureID(Image *image)
 
     if (_previewTextures.find(image) == _previewTextures.end())
     {
+        check(image->AskForVariant(vk::Format::eR8G8B8Srgb));
         vk::ImageViewCreateInfo imageViewInfo{};
         imageViewInfo.viewType = vk::ImageViewType::e2D;
-        imageViewInfo.image = image->GetImage();
+        imageViewInfo.image = image->GetImage(vk::Format::eR8G8B8Srgb);
         imageViewInfo.format = vk::Format::eR8G8B8Srgb;
         imageViewInfo.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
         imageViewInfo.subresourceRange.baseMipLevel = 0;
@@ -247,3 +280,8 @@ ImTextureID AssetsManager::GetTextureID(Image *image)
     return _previewTextures.at(image).first;
 }
 #endif
+
+std::array<ubo::Material, MAX_MATERIALS> const &AssetsManager::GetMaterialInfos() const
+{
+    return _materialInfos;
+}

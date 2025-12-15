@@ -28,10 +28,17 @@ int main()
 
     Editor *editor = new Editor();
 
-    while (!editor->ShouldClose())
+    try
     {
-        editor->Render();
-        editor->Update(GetDeltaTime());
+        while (!editor->ShouldClose())
+        {
+            editor->Render();
+            editor->Update(GetDeltaTime());
+        }
+    }
+    catch (std::exception const &exception)
+    {
+        spdlog::critical("{}", exception.what());
     }
 
     delete editor;

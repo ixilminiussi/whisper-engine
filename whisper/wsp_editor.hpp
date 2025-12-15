@@ -19,6 +19,11 @@ using WindowID = size_t;
 namespace wsp
 {
 
+namespace ubo
+{
+class Ubo;
+}
+
 class Editor
 {
   public:
@@ -32,7 +37,7 @@ class Editor
     void Render();
     void Update(double dt);
 
-    void PopulateUbo(class GlobalUbo *);
+    void PopulateUbo(ubo::Ubo *);
 
     void OnClick(double dt, int);
 

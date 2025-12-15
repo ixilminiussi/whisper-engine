@@ -26,15 +26,17 @@ class Texture
         Builder &GlTF(cgltf_texture const *texture, cgltf_image *const pImage, std::vector<class Image *> const &images,
                       cgltf_sampler *const pSampler, std::vector<class Sampler *> const &samplers);
         Builder &Depth();
-        Builder &SetImage(class Image const *);
+        Builder &SetImage(class Image *);
         Builder &SetSampler(class Sampler const *);
         Builder &Format(vk::Format);
         Builder &Name(std::string const &);
-        Texture *Build(class Device const *);
+        Texture *Build(class Device const *) const;
 
       protected:
-        vk::ImageViewCreateInfo _createInfo;
         class Sampler const *_sampler;
+        class Image *_image;
+        vk::Format _format;
+        bool _depth;
         std::string _name;
     };
 
@@ -44,18 +46,22 @@ class Texture
     Texture &operator=(Texture const &) = delete;
 
     vk::ImageView GetImageView() const;
+    vk::Format GetFormat() const;
     vk::Sampler GetSampler() const;
-    void SetID(size_t);
-    size_t GetID() const;
+    void SetID(int);
+    int GetID() const;
 
   protected:
-    Texture(class Device const *, vk::ImageViewCreateInfo const &, class Sampler const *, std::string const &name);
+    Texture(class Device const *, class Image *, class Sampler const *, vk::Format, bool depth = false,
+            std::string const &name = "");
 
     std::string _name;
 
-    size_t _ID;
+    int _ID;
 
     class Sampler const *_sampler;
+    class Image *_image;
+    vk::Format _format;
 
     vk::ImageView _imageView;
 };

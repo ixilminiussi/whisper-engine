@@ -3,6 +3,8 @@
 
 #include <vulkan/vulkan.hpp>
 
+#include <wsp_transform.hpp>
+
 namespace wsp
 {
 
@@ -12,16 +14,19 @@ class Drawable
     Drawable() = default;
     ~Drawable() = default;
 
-    virtual void Draw(vk::CommandBuffer) const = 0;
+    virtual void Draw(vk::CommandBuffer, vk::PipelineLayout) const = 0;
     virtual void Bind(vk::CommandBuffer) const = 0;
 
-    void BindAndDraw(vk::CommandBuffer commandBuffer) const
+    void BindAndDraw(vk::CommandBuffer commandBuffer, vk::PipelineLayout pipelineLayout) const
     {
         Bind(commandBuffer);
-        Draw(commandBuffer);
+        Draw(commandBuffer, pipelineLayout);
     }
 
     virtual float GetRadius() const = 0;
+
+  protected:
+    Transform _transform;
 };
 
 } // namespace wsp
