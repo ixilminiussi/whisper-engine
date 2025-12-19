@@ -82,7 +82,7 @@ class Device
     void MapMemory(vk::DeviceMemory, void **mappedMemory) const;
     void UnmapMemory(vk::DeviceMemory) const;
     void CopyBufferToImage(vk::Buffer source, vk::Image *destination, uint32_t width, uint32_t height,
-                           uint32_t depth = 1) const;
+                           uint32_t depth = 1, uint32_t layerCount = 1) const;
     void FlushMappedMemoryRange(vk::MappedMemoryRange const &mappedMemoryRange) const;
     void CreateImageView(vk::ImageViewCreateInfo const &, vk::ImageView *, std::string const &name) const;
     vk::Sampler CreateSampler(vk::SamplerCreateInfo const &, std::string const &name) const;

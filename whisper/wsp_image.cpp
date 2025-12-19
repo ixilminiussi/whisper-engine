@@ -10,62 +10,40 @@
 
 using namespace wsp;
 
-Image::Image(Device const *device, CreateInfo const &createInfo) : _device{device}, _filepath{createInfo.filepath}
+Image::Image(Device const *device, CreateInfo const &createInfo)
+    : _device{device}, _name{createInfo.filepath.filename()}
 {
     check(device);
-
-    BuildImage(createInfo.format);
-}
-
-Image::Image(Device const *device, vk::ImageCreateInfo const &createInfo, std::string const &name)
-    : _device{device}, _filepath{std::nullopt}
-{
-    check(device);
-
-    device->CreateImageAndBindMemory(createInfo, &_image, &_deviceMemory, name);
-}
-
-std::string Image::GetName() const
-{
-    if (_filepath.has_value())
-    {
-        return _filepath.value().filename().string();
-    }
-
-    return std::string("");
-}
-
-vk::Image Image::BuildImage(vk::Format format, bool cubemap)
-{
-    if (!ensure(_filepath.has_value()))
-    {
-        return {};
-    }
 
     ZoneScopedN("build image");
 
     int width, height, channels;
-    stbi_uc *pixels = stbi_load(_filepath.value().c_str(), &width, &height, &channels, STBI_rgb);
+    stbi_uc *pixels = stbi_load(createInfo.filepath.c_str(), &width, &height, &channels, STBI_rgb);
+
+    int const faceWidth = createInfo.cubemap ? width / 4u : width;
+    int const faceHeight = createInfo.cubemap ? height / 3u : height;
 
     // for now we only support rgb, no alpha
     channels = 3;
 
     if (pixels == nullptr)
     {
-        throw std::invalid_argument(fmt::format("Image: asset '{}' couldn't be imported", _filepath.value().string()));
+        throw std::invalid_argument(
+            fmt::format("Image: asset '{}' couldn't be imported", createInfo.filepath.string()));
     }
 
     vk::ImageCreateInfo imageInfo{};
     imageInfo.imageType = vk::ImageType::e2D;
-    imageInfo.extent = vk::Extent3D{(uint32_t)width, (uint32_t)height, 1u};
-    imageInfo.format = format;
+    imageInfo.extent = vk::Extent3D{(uint32_t)faceWidth, (uint32_t)faceHeight, 1u};
+    imageInfo.format = createInfo.format;
     imageInfo.usage = vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled;
     imageInfo.tiling = vk::ImageTiling::eOptimal;
     imageInfo.mipLevels = 1u;
     imageInfo.arrayLayers = 1u;
-    if (cubemap)
+
+    if (createInfo.cubemap)
     {
-        imageInfo.extent = vk::Extent3D{(uint32_t)width / 4u, (uint32_t)height / 3u, 1u};
+        imageInfo.extent = vk::Extent3D{(uint32_t)faceWidth, (uint32_t)faceHeight, 1u};
         imageInfo.arrayLayers = 6u;
         imageInfo.flags |= vk::ImageCreateFlagBits::eCubeCompatible;
     }
@@ -74,7 +52,11 @@ vk::Image Image::BuildImage(vk::Format format, bool cubemap)
 
     vk::BufferCreateInfo bufferInfo{};
     bufferInfo.usage = vk::BufferUsageFlagBits::eTransferSrc;
-    bufferInfo.size = width * height * channels;
+    bufferInfo.size = faceWidth * faceHeight * channels;
+    if (createInfo.cubemap)
+    {
+        bufferInfo.size *= 6;
+    }
 
     vk::Buffer buffer;
     vk::DeviceMemory deviceMemory;
@@ -86,20 +68,15 @@ vk::Image Image::BuildImage(vk::Format format, bool cubemap)
     void *memory;
     _device->MapMemory(deviceMemory, &memory);
 
-    if (cubemap)
+    if (createInfo.cubemap)
     {
-        int const faceWidth = width / 4u;
-        int const faceHeight = height / 4u;
-
-        stbi_uc *cubePixels = (stbi_uc *)malloc(sizeof(stbi_uc) * faceWidth * faceHeight * 6 * channels);
-
         auto copyFace = [&](int left, int top, int faceID) {
             int const faceGap = faceID * faceWidth * faceHeight * channels;
             for (int y = 0; y < faceHeight; y++)
             {
                 int const leftGap = left * faceWidth * channels;
-                int const topGap = (y + top * faceHeight) * width * channels;
-                memcpy(memory, cubePixels + faceGap + topGap + leftGap, faceWidth * channels);
+                int const topGap = (y + top * faceHeight) * faceWidth * channels;
+                memcpy((stbi_uc *)memory + faceGap, pixels + topGap + leftGap, faceWidth * channels * sizeof(stbi_uc));
             }
         };
 
@@ -112,9 +89,7 @@ vk::Image Image::BuildImage(vk::Format format, bool cubemap)
 
         _device->UnmapMemory(deviceMemory);
 
-        _device->CopyBufferToImage(buffer, &_image, width, height);
-
-        free(cubePixels);
+        _device->CopyBufferToImage(buffer, &_image, width, height, 1, 6);
     }
     else
     {
@@ -129,8 +104,19 @@ vk::Image Image::BuildImage(vk::Format format, bool cubemap)
     spdlog::info("Image: <{}> -> {} width, {} height, {} channels", GetName(), width, height, channels);
 
     stbi_image_free(pixels);
+}
 
-    return _image;
+Image::Image(Device const *device, vk::ImageCreateInfo const &createInfo, std::string const &name)
+    : _device{device}, _name{""}
+{
+    check(device);
+
+    device->CreateImageAndBindMemory(createInfo, &_image, &_deviceMemory, name);
+}
+
+std::string Image::GetName() const
+{
+    return _name;
 }
 
 Image::~Image()

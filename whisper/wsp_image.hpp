@@ -19,7 +19,7 @@ class Image
     struct CreateInfo
     {
         std::filesystem::path filepath{};
-        vk::Format format;
+        vk::Format format{vk::Format::eR8G8B8Srgb};
         bool cubemap = false;
 
         inline bool operator<(CreateInfo const &b) const
@@ -43,9 +43,7 @@ class Image
   protected:
     Image(class Device const *, vk::ImageCreateInfo const &createInfo, std::string const &name);
 
-    vk::Image BuildImage(vk::Format format, bool cubemap = false);
-
-    std::optional<std::filesystem::path> const _filepath;
+    std::string _name;
 
     vk::Image _image;
     vk::DeviceMemory _deviceMemory;

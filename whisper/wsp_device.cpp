@@ -567,7 +567,7 @@ void Device::UnmapMemory(vk::DeviceMemory deviceMemory) const
 }
 
 void Device::CopyBufferToImage(vk::Buffer source, vk::Image *destination, uint32_t width, uint32_t height,
-                               uint32_t depth) const
+                               uint32_t depth, uint32_t layerCount) const
 {
     vk::CommandBuffer const commandBuffer = BeginSingleTimeCommand();
 
@@ -580,7 +580,7 @@ void Device::CopyBufferToImage(vk::Buffer source, vk::Image *destination, uint32
                                                          vk::QueueFamilyIgnored,
                                                          vk::QueueFamilyIgnored,
                                                          *destination,
-                                                         {vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1}});
+                                                         {vk::ImageAspectFlagBits::eColor, 0, 1, 0, layerCount}});
 
     vk::BufferImageCopy copyRegion{};
     copyRegion.bufferOffset = 0;
@@ -589,7 +589,7 @@ void Device::CopyBufferToImage(vk::Buffer source, vk::Image *destination, uint32
     copyRegion.imageSubresource.aspectMask = vk::ImageAspectFlagBits::eColor;
     copyRegion.imageSubresource.mipLevel = 0;
     copyRegion.imageSubresource.baseArrayLayer = 0;
-    copyRegion.imageSubresource.layerCount = 1;
+    copyRegion.imageSubresource.layerCount = layerCount;
 
     commandBuffer.copyBufferToImage(source, *destination, vk::ImageLayout::eTransferDstOptimal, 1, &copyRegion);
 
@@ -602,7 +602,7 @@ void Device::CopyBufferToImage(vk::Buffer source, vk::Image *destination, uint32
                                                          vk::QueueFamilyIgnored,
                                                          vk::QueueFamilyIgnored,
                                                          *destination,
-                                                         {vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1}});
+                                                         {vk::ImageAspectFlagBits::eColor, 0, 1, 0, layerCount}});
 
     EndSingleTimeCommand(commandBuffer);
 }

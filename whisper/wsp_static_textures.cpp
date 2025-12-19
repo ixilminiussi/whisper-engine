@@ -10,7 +10,7 @@
 
 using namespace wsp;
 
-StaticTextures::StaticTextures(uint32_t size, std::string const &name)
+StaticTextures::StaticTextures(uint32_t size, bool cubemap, std::string const &name)
     : _name{name}, _size{size}, _offset{0u}, _descriptorSet{}, _descriptorPool{}
 {
     Device const *device = SafeDeviceAccessor::Get();
@@ -48,7 +48,7 @@ StaticTextures::StaticTextures(uint32_t size, std::string const &name)
 
     device->AllocateDescriptorSet(setAllocInfo, &_descriptorSet, fmt::format("{}<descriptor_set>", name));
 
-    BuildDummy();
+    BuildDummy(cubemap);
     Clear();
 
     spdlog::debug("Graph: built static textures");
@@ -70,18 +70,27 @@ StaticTextures::~StaticTextures()
     spdlog::info("StaticTextures: freed");
 }
 
-void StaticTextures::BuildDummy()
+void StaticTextures::BuildDummy(bool cubemap)
 {
     Device const *device = SafeDeviceAccessor::Get();
     check(device);
 
     void *pixels = malloc(sizeof(char));
-    std::filesystem::path const filepath =
-        (std::filesystem::path(WSP_EDITOR_ASSETS) / std::filesystem::path("missing-texture.png")).lexically_normal();
+    std::filesystem::path filepath;
+    if (cubemap)
+    {
+        filepath = (std::filesystem::path(WSP_EDITOR_ASSETS) / std::filesystem::path("skybox.png")).lexically_normal();
+    }
+    else
+    {
+        filepath = (std::filesystem::path(WSP_EDITOR_ASSETS) / std::filesystem::path("missing-texture.png"))
+                       .lexically_normal();
+    }
 
     Image::CreateInfo imageCreateInfo{};
     imageCreateInfo.filepath = filepath;
     imageCreateInfo.format = vk::Format::eR8G8B8Srgb;
+    imageCreateInfo.cubemap = cubemap;
 
     _dummyImage = new Image{device, imageCreateInfo};
     _dummySampler = new Sampler{device, Sampler::CreateInfo{}};
@@ -90,6 +99,7 @@ void StaticTextures::BuildDummy()
     createInfo.pImage = _dummyImage;
     createInfo.pSampler = _dummySampler;
     createInfo.format = vk::Format::eR8G8B8Srgb;
+    createInfo.cubemap = cubemap;
 
     _dummyTexture = new Texture{device, createInfo};
 

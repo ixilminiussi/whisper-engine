@@ -1,7 +1,7 @@
 #ifndef WSP_STATIC_TEXTURES
 #define WSP_STATIC_TEXTURES
 
-#include "wsp_constants.hpp"
+#include <wsp_constants.hpp>
 #include <wsp_typedefs.hpp>
 #include <wsp_types/dictionary.hpp>
 
@@ -15,10 +15,10 @@ namespace wsp
 class StaticTextures
 {
   public:
-    StaticTextures(uint32_t size, std::string const &name = "");
+    StaticTextures(uint32_t size, bool cubemap = false, std::string const &name = "");
     ~StaticTextures();
 
-    void BuildDummy();
+    void BuildDummy(bool cubemap = false);
     void Push(std::vector<TextureID> const &);
     void Clear();
 

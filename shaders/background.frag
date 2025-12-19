@@ -16,13 +16,7 @@ void main()
     vec3 w_position = (inverse(ubo.camera.projection) * vec4(normalize(in_ndc), 1.0)).xyz;
     vec3 V = normalize(ubo.camera.position.xyz - w_position); // view vec
 
-    int textureID = int(ubo.light.sun.direction.w);
-    if (textureID == INVALID_ID)
-    {
-        discard;
-    }
-
-    out_color = vec4(texture(cubemaps[textureID], V).rgb, 1.0);
+    out_color = vec4(texture(cubemaps[0], V).rgb, 1.0);
 
     return;
 }
