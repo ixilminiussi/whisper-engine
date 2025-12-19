@@ -1,7 +1,7 @@
 #ifndef WSP_IMAGE
 #define WSP_IMAGE
 
-#include <wsp_custom_types.hpp>
+#include <wsp_types/dictionary.hpp>
 
 #include <filesystem>
 #include <optional>
@@ -16,33 +16,39 @@ namespace wsp
 class Image
 {
   public:
-    static Image *BuildGlTF(class Device const *, cgltf_image const *, std::filesystem::path const &parentDirectory);
+    struct CreateInfo
+    {
+        std::filesystem::path filepath{};
+        vk::Format format;
+        bool cubemap = false;
 
-    Image(class Device const *, std::filesystem::path const &, std::string const &name = "");
-    Image(class Device const *, vk::ImageCreateInfo createInfo, std::string const &name = "");
+        inline bool operator<(CreateInfo const &b) const
+        {
+            return std::tie(filepath, format, cubemap) < std::tie(b.filepath, b.format, b.cubemap);
+        }
+    };
+
+    Image(class Device const *, CreateInfo const &createInfo);
+
+  public:
     ~Image();
 
     Image(Image const &) = delete;
     Image &operator=(Image const &) = delete;
+    vk::Image GetImage() const;
+    std::string GetName() const;
 
-    [[nodiscard]] bool AskForVariant(vk::Format format);
-    vk::Image GetImage(vk::Format format) const;
+    friend class Graph;
 
-#ifndef NDEBUG
-#endif
   protected:
-    vk::Image BuildImage(vk::Format format);
+    Image(class Device const *, vk::ImageCreateInfo const &createInfo, std::string const &name);
 
-    std::string _name;
-    std::optional<std::filesystem::path> _filepath;
+    vk::Image BuildImage(vk::Format format, bool cubemap = false);
 
-    struct ImageData
-    {
-        vk::Image image;
-        vk::DeviceMemory deviceMemory;
-    };
+    std::optional<std::filesystem::path> const _filepath;
 
-    dictionary<vk::Format, ImageData> _images;
+    vk::Image _image;
+    vk::DeviceMemory _deviceMemory;
 
     class Device const *_device; // exceptional, typically not done but here we're "lying" to the user so yes
 };

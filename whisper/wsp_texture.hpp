@@ -1,7 +1,9 @@
 #ifndef WSP_TEXTURE_HPP
 #define WSP_TEXTURE_HPP
 
-#include <cstddef>
+#include <wsp_image.hpp>
+#include <wsp_sampler.hpp>
+
 #include <stb_image.h>
 #include <vulkan/vulkan.hpp>
 
@@ -19,26 +21,22 @@ namespace wsp
 class Texture
 {
   public:
-    class Builder
+    struct CreateInfo
     {
-      public:
-        Builder();
-        Builder &GlTF(cgltf_texture const *texture, cgltf_image *const pImage, std::vector<class Image *> const &images,
-                      cgltf_sampler *const pSampler, std::vector<class Sampler *> const &samplers);
-        Builder &Depth();
-        Builder &SetImage(class Image *);
-        Builder &SetSampler(class Sampler const *);
-        Builder &Format(vk::Format);
-        Builder &Name(std::string const &);
-        Texture *Build(class Device const *) const;
+        Sampler::CreateInfo samplerInfo;
+        Image::CreateInfo imageInfo;
+        Sampler *pSampler;
+        Image *pImage;
+        vk::Format format{vk::Format::eR8G8B8Srgb};
+        bool depth{false};
+        bool cubemap{false};
 
-      protected:
-        class Sampler const *_sampler;
-        class Image *_image;
-        vk::Format _format;
-        bool _depth;
-        std::string _name;
+        std::string name;
     };
+
+    static CreateInfo GetCreateInfoFromGlTF(cgltf_texture const *texture, std::filesystem::path const &parentDirectory);
+
+    Texture(class Device const *, CreateInfo const &createInfo);
 
     ~Texture();
 
@@ -46,22 +44,16 @@ class Texture
     Texture &operator=(Texture const &) = delete;
 
     vk::ImageView GetImageView() const;
-    vk::Format GetFormat() const;
     vk::Sampler GetSampler() const;
     void SetID(int);
     int GetID() const;
 
   protected:
-    Texture(class Device const *, class Image *, class Sampler const *, vk::Format, bool depth = false,
-            std::string const &name = "");
-
     std::string _name;
 
     int _ID;
 
     class Sampler const *_sampler;
-    class Image *_image;
-    vk::Format _format;
 
     vk::ImageView _imageView;
 };

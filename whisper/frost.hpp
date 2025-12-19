@@ -6,15 +6,16 @@
 
 #include <imgui.h>
 #include <misc/cpp/imgui_stdlib.h>
+#include <spdlog/spdlog.h>
 
 #include <IconsMaterialSymbols.h>
 
-#include <stdexcept>
 #include <wsp_custom_imgui.hpp>
-#include <wsp_custom_types.hpp>
 #include <wsp_inputs.hpp>
+#include <wsp_typedefs.hpp>
+#include <wsp_types/dictionary.hpp>
 
-#include <spdlog/spdlog.h>
+#include <stdexcept>
 #include <tuple>
 #include <type_traits>
 
@@ -32,7 +33,8 @@ enum Edit
 {
     eDrag,
     eSlider,
-    eInput
+    eInput,
+    eColor
 };
 
 template <typename T> wsp::dictionary<std::string, T> const &EnumDictionary();
@@ -159,6 +161,7 @@ inline bool RenderNode<float>(char const *label, float *address, Edit edit, floa
         return ImGui::SliderFloat(label, address, min, max, format);
         break;
     case eDrag:
+    case eColor:
         return ImGui::DragFloat(label, address, step, min, max, format);
         break;
     }
@@ -179,8 +182,31 @@ inline bool RenderNode<int>(char const *label, int *address, Edit edit, float mi
         return ImGui::SliderInt(label, address, min, max);
         break;
     case eDrag:
+    case eColor:
         return ImGui::DragInt(label, address, step, min, max);
         break;
+    }
+
+    return false;
+}
+
+template <>
+inline bool RenderNode<glm::vec4>(char const *label, glm::vec4 *address, Edit edit, float min, float max, float step,
+                                  char const *format)
+{
+    switch (edit)
+    {
+    case eInput:
+        return ImGui::InputFloat4(label, (float *)address, format);
+        break;
+    case eSlider:
+        return ImGui::SliderFloat4(label, (float *)address, min, max, format);
+        break;
+    case eDrag:
+        return ImGui::DragFloat4(label, (float *)address, step, min, max, format);
+        break;
+    case eColor:
+        return ImGui::ColorEdit4(label, (float *)address);
     }
 
     return false;
@@ -201,6 +227,8 @@ inline bool RenderNode<glm::vec3>(char const *label, glm::vec3 *address, Edit ed
     case eDrag:
         return ImGui::DragFloat3(label, (float *)address, step, min, max, format);
         break;
+    case eColor:
+        return ImGui::ColorEdit3(label, (float *)address);
     }
 
     return false;
@@ -219,6 +247,7 @@ inline bool RenderNode<glm::vec2>(char const *label, glm::vec2 *address, Edit ed
         return ImGui::SliderFloat2(label, (float *)address, min, max, format);
         break;
     case eDrag:
+    case eColor:
         return ImGui::DragFloat2(label, (float *)address, step, min, max, format);
         break;
     }

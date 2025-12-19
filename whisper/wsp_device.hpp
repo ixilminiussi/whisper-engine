@@ -78,11 +78,11 @@ class Device
                                   std::string const &name) const;
     void CreateBufferAndBindMemory(vk::BufferCreateInfo const &, vk::Buffer *, vk::DeviceMemory *,
                                    vk::MemoryPropertyFlags const &, std::string const &name) const;
-    void CopyBuffer(vk::Buffer source, vk::Buffer *destination, size_t size) const;
+    void CopyBuffer(vk::Buffer source, vk::Buffer *destination, uint32_t size) const;
     void MapMemory(vk::DeviceMemory, void **mappedMemory) const;
     void UnmapMemory(vk::DeviceMemory) const;
-    void CopyBufferToImage(vk::Buffer source, vk::Image *destination, size_t width, size_t height,
-                           size_t depth = 1) const;
+    void CopyBufferToImage(vk::Buffer source, vk::Image *destination, uint32_t width, uint32_t height,
+                           uint32_t depth = 1) const;
     void FlushMappedMemoryRange(vk::MappedMemoryRange const &mappedMemoryRange) const;
     void CreateImageView(vk::ImageViewCreateInfo const &, vk::ImageView *, std::string const &name) const;
     vk::Sampler CreateSampler(vk::SamplerCreateInfo const &, std::string const &name) const;

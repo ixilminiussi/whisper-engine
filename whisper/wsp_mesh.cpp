@@ -1,3 +1,4 @@
+#include "wsp_assets_manager.hpp"
 #include <wsp_mesh.hpp>
 
 #include <wsp_device.hpp>
@@ -22,7 +23,7 @@ using namespace wsp;
 
 cgltf_accessor const *FindAccessor(cgltf_primitive const *primitive, cgltf_attribute_type type)
 {
-    for (size_t i = 0; i < primitive->attributes_count; ++i)
+    for (uint32_t i = 0; i < primitive->attributes_count; ++i)
     {
         cgltf_attribute const &attribute = primitive->attributes[i];
         if (attribute.type == type)
@@ -34,7 +35,7 @@ cgltf_accessor const *FindAccessor(cgltf_primitive const *primitive, cgltf_attri
 }
 
 Mesh *Mesh::BuildGlTF(Device const *device, cgltf_mesh const *mesh, cgltf_material const *pMaterial,
-                      std::vector<Material *> materials, bool recenter)
+                      std::vector<MaterialID> const &materials, bool recenter)
 {
     check(device);
     check(mesh);
@@ -51,7 +52,7 @@ Mesh *Mesh::BuildGlTF(Device const *device, cgltf_mesh const *mesh, cgltf_materi
     uint32_t totalVertexCount = 0;
 
     glm::vec3 averageVertex{};
-    for (size_t i = 0; i < mesh->primitives_count; ++i)
+    for (uint32_t i = 0; i < mesh->primitives_count; ++i)
     {
         cgltf_primitive *primitive = &mesh->primitives[i];
         check(primitive);
@@ -79,7 +80,7 @@ Mesh *Mesh::BuildGlTF(Device const *device, cgltf_mesh const *mesh, cgltf_materi
 
         totalVertexCount += vertexCount;
 
-        Material *material = nullptr;
+        MaterialID material;
         if (pMaterial)
         {
             uint32_t const materialID = primitive->material - pMaterial;
@@ -120,7 +121,7 @@ Mesh *Mesh::BuildGlTF(Device const *device, cgltf_mesh const *mesh, cgltf_materi
             averageVertex += position;
         }
 
-        for (size_t j = 0; j < indexCount; j++)
+        for (uint32_t j = 0; j < indexCount; j++)
         {
             cgltf_size index = cgltf_accessor_read_index(primitive->indices, j);
             indices.emplace_back(static_cast<uint32_t>(index));
@@ -156,7 +157,7 @@ Mesh::Mesh(Device const *device, std::vector<Vertex> const &vertices, std::vecto
     }
 
     { // index buffer
-        size_t const bufferSize = sizeof(uint32_t) * indices.size();
+        uint32_t const bufferSize = sizeof(uint32_t) * indices.size();
 
         vk::Buffer stagingBuffer;
         vk::DeviceMemory stagingDeviceMemory;
@@ -188,7 +189,7 @@ Mesh::Mesh(Device const *device, std::vector<Vertex> const &vertices, std::vecto
     }
 
     { // vertex buffer
-        size_t const bufferSize = sizeof(Vertex) * vertices.size();
+        uint32_t const bufferSize = sizeof(Vertex) * vertices.size();
         vk::Buffer stagingBuffer;
         vk::DeviceMemory stagingDeviceMemory;
 
@@ -274,9 +275,9 @@ namespace std
 {
 template <> struct hash<IndexKey>
 {
-    size_t operator()(IndexKey const &k) const noexcept
+    uint32_t operator()(IndexKey const &k) const noexcept
     {
-        size_t const h = (uint64_t(k.v) << 32) ^ (uint64_t(k.n) << 16) ^ (uint64_t(k.t) << 4) ^ uint64_t(k.m & 0xF);
+        uint32_t const h = (uint64_t(k.v) << 32) ^ (uint64_t(k.n) << 16) ^ (uint64_t(k.t) << 4) ^ uint64_t(k.m & 0xF);
         return h;
     }
 };
@@ -314,10 +315,12 @@ float Mesh::GetRadius() const
 void Mesh::PushConstant(Primitive const &primitive, vk::CommandBuffer commandBuffer,
                         vk::PipelineLayout pipelineLayout) const
 {
+    Material const *material = AssetsManager::Get()->GetMaterial(primitive.material);
+
     PushData pushData{};
     pushData.modelMatrix = _transform.GetMatrix();
     pushData.normalMatrix = _transform.GetNormalMatrix();
-    pushData.normalMatrix[3][3] = primitive.material ? primitive.material->GetID() : INVALID_ID;
+    pushData.normalMatrix[3][3] = material ? material->GetID() : INVALID_ID;
 
     commandBuffer.pushConstants(pipelineLayout, vk::ShaderStageFlagBits::eAllGraphics, 0, sizeof(PushData), &pushData);
 }

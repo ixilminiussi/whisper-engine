@@ -32,7 +32,7 @@ class Swapchain
     [[nodiscard]] vk::CommandBuffer NextCommandBuffer();
 
     vk::SwapchainKHR GetHandle() const;
-    size_t GetCurrentFrameIndeex() const;
+    uint32_t GetCurrentFrameIndex() const;
 
     void BeginRenderPass(vk::CommandBuffer, bool isCleared) const;
     void BlitImage(vk::CommandBuffer, vk::Image, vk::Extent2D resolution) const;
@@ -45,16 +45,16 @@ class Swapchain
     static vk::PresentModeKHR ChooseSwapPresentMode(std::vector<vk::PresentModeKHR> const &);
     static vk::Extent2D ChooseSwapExtent(vk::Extent2D, vk::SurfaceCapabilitiesKHR const &);
 
-    void CreateImageViews(size_t count);
+    void CreateImageViews(uint32_t count);
     std::vector<vk::ImageView> _imageViews;
 
     void CreateRenderPass();
     vk::RenderPass _renderPass;
 
-    void CreateFramebuffers(size_t count);
+    void CreateFramebuffers(uint32_t count);
     std::vector<vk::Framebuffer> _framebuffers;
 
-    void CreateSyncObjects(size_t count);
+    void CreateSyncObjects(uint32_t count);
     std::vector<vk::Semaphore> _imageAvailableSemaphores;
     std::vector<vk::Semaphore> _renderFinishedSemaphores;
     std::vector<vk::Fence> _inFlightFences;

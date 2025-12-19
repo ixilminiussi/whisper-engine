@@ -11,6 +11,10 @@ NAMESPACE_REGEX = re.compile(
 CLASS_REGEX = re.compile(
     r"WCLASS\(\)\s*class\s+(\w+)\s*(?:\s*:\s*[\w\s,:<>]+)?\s*\{", re.DOTALL
 )
+# Match WSTRUCT() class <name> {
+STRUCT_REGEX = re.compile(
+    r"WSTRUCT\(\)\s*struct\s+(\w+)\s*(?:\s*:\s*[\w\s,:<>]+)?\s*\{", re.DOTALL
+)
 # Match WENUM() enum <name> {
 ENUM_REGEX = re.compile(
     r"WENUM\(\)\s*enum\s+(\w+)\s*(?:/\*.*?\*/|\s|//[^\n]*\n)*\{", re.DOTALL
@@ -174,6 +178,7 @@ def parse_cpp(text: str, namespace: str, frosted_metas: []):
         # Find all matches from current position
         ns_match = NAMESPACE_REGEX.search(text, cursor)
         cl_match = CLASS_REGEX.search(text, cursor)
+        st_match = STRUCT_REGEX.search(text, cursor)
         en_match = ENUM_REGEX.search(text, cursor)
 
         candidates = []
@@ -181,6 +186,8 @@ def parse_cpp(text: str, namespace: str, frosted_metas: []):
             candidates.append((ns_match.start(), ns_match, "namespace"))
         if cl_match:
             candidates.append((cl_match.start(), cl_match, "class"))
+        if st_match:
+            candidates.append((st_match.start(), st_match, "struct"))
         if en_match:
             candidates.append((en_match.start(), en_match, "enum"))
 
@@ -204,6 +211,21 @@ def parse_cpp(text: str, namespace: str, frosted_metas: []):
             parse_cpp(block[1:-1], namespace + name + "::", frosted_metas)
 
         elif match_type == "class":
+            frost = {
+                "type": match_type,
+                "name": name,
+                "prettified": prettify_var_name(name),
+                "start": match.start(),
+                "end": end_index,
+                "namespace": namespace,
+                "properties": find_properties(block[1:-1]),
+                "refresh": find_refresh(block[1:-1]),
+            }
+            frosted_metas.append(frost)
+
+            parse_cpp(block[1:-1], namespace + name + "::", frosted_metas)
+
+        elif match_type == "struct":
             frost = {
                 "type": match_type,
                 "name": name,
@@ -256,6 +278,9 @@ def generate_meta(frosted_metas: [], filename: str) -> str:
 {%- if meta.type == 'class' %} 
 #define WCLASS_BODY${{- meta.name -}}() friend struct frost::Meta<{{- meta.namespace -}}{{- meta.name }}>; 
 {%- endif -%}
+{%- if meta.type == 'struct' %} 
+#define WSTRUCT_BODY${{- meta.name -}}() friend struct frost::Meta<{{- meta.namespace -}}{{- meta.name }}>; 
+{%- endif -%}
 {%- endfor %}
 
 #undef WGENERATED_META_DATA
@@ -265,10 +290,12 @@ using namespace wsp;
 template <> struct frost::Meta<{{- meta.namespace -}}{{- meta.name -}}> { static constexpr char const * name = "{{- meta.prettified -}}"; static constexpr frost::WhispUsage usage = 
 {%- if meta.type == 'class' -%}
     frost::WhispUsage::eClass; using Type = {{- meta.namespace -}}{{- meta.name -}}; 
+{%- elif meta.type == 'struct' -%}
+    frost::WhispUsage::eStruct; using Type = {{- meta.namespace -}}{{- meta.name -}}; 
 {%- elif meta.type == 'enum' -%}
     frost::WhispUsage::eEnum;
 {%- endif -%}
-{%- if meta.type == 'class' -%}
+{%- if meta.type == 'class' or meta.type == 'struct' -%}
     static constexpr auto fields = std::make_tuple(
 {%- for prop in meta.properties -%}
     frost::Field<Type, {{- prop.type -}}>{"{{- prop.prettified -}}", &Type::{{- prop.name -}}, {{- prop.edit -}}, {%- for arg in prop.args -%}{{- arg -}}{%- if not loop.last -%}, {%- endif -%}{%- endfor -%} }{%- if not loop.last -%}, {%- endif -%}

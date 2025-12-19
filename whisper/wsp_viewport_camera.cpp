@@ -113,7 +113,7 @@ Camera const *ViewportCamera::GetCamera() const
     return &_camera;
 }
 
-void ViewportCamera::OnResizeCallback(void *editorCamera, size_t width, size_t height)
+void ViewportCamera::OnResizeCallback(void *editorCamera, uint32_t width, uint32_t height)
 {
     check(editorCamera);
     reinterpret_cast<ViewportCamera *>(editorCamera)->_camera.SetAspectRatio((float)width / (float)height);

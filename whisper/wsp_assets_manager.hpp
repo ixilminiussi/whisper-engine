@@ -2,8 +2,13 @@
 #define WSP_ASSETS_MANAGER
 
 #include <wsp_constants.hpp>
-#include <wsp_custom_types.hpp>
 #include <wsp_global_ubo.hpp>
+#include <wsp_image.hpp>
+#include <wsp_material.hpp>
+#include <wsp_sampler.hpp>
+#include <wsp_typedefs.hpp>
+#include <wsp_types/dictionary.hpp>
+#include <wsp_types/slot_map.hpp>
 
 #include <filesystem>
 #include <map>
@@ -17,28 +22,55 @@
 namespace wsp
 {
 
+struct ImageKeyChain
+{
+    bool operator()(Image::CreateInfo const &a, Image::CreateInfo const &b) const
+    {
+        return std::tie(a.filepath) < std::tie(b.filepath);
+    }
+};
+
+WCLASS()
 class AssetsManager
 {
   public:
-    AssetsManager();
+    static AssetsManager *Get();
     ~AssetsManager();
 
-    std::vector<class Mesh *> ImportGlTF(std::filesystem::path const &filepath);
-    std::vector<class Mesh *> ImportPNG(std::filesystem::path const &filepath);
+    TextureID LoadTexture(Texture::CreateInfo const &);
+    MaterialID LoadMaterial(Material::CreateInfo const &);
+
+    void UnloadAll();
+
+    std::vector<class Mesh *> ImportGlTF(std::filesystem::path const &relativePath);
 
     std::array<ubo::Material, MAX_MATERIALS> const &GetMaterialInfos() const;
+
+    Image *RequestImage(Image::CreateInfo const &);
+    Sampler *RequestSampler(Sampler::CreateInfo const &);
+    Texture const *GetTexture(TextureID const &) const;
+    Material const *GetMaterial(MaterialID const &) const;
+
+    class StaticTextures *GetStaticTextures() const;
+    class StaticTextures *GetStaticCubemaps() const;
 
     friend class Editor;
 
   protected:
-    dictionary<class Mesh *, std::filesystem::path> _meshes;
-    std::vector<class Texture *> _textures;
-    dictionary<class Image *, std::filesystem::path> _images;
-    std::vector<class Sampler *> _samplers;
-    std::vector<class Material *> _materials;
+    static AssetsManager *_instance;
+    AssetsManager();
+
+    class StaticTextures *_staticTextures;
+    class StaticTextures *_staticCubemaps;
+
+    dod::slot_map32<Texture> _textures;
+    dod::slot_map32<Material> _materials;
     std::array<ubo::Material, MAX_MATERIALS> _materialInfos;
 
-    class Sampler *_defaultSampler;
+    dictionary<class Mesh *, std::filesystem::path, 1024> _meshes;
+
+    std::map<Image::CreateInfo, Image *> _images;
+    std::map<Sampler::CreateInfo, Sampler *> _samplers;
 
 #ifndef NDEBUG
     ImTextureID GetTextureID(class Image *image);

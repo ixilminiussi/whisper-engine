@@ -7,6 +7,8 @@
 #include <glm/vec4.hpp>
 
 #include <wsp_drawable.hpp>
+#include <wsp_typedefs.hpp>
+#include <wsp_types/slot_map.hpp>
 
 #include <vulkan/vulkan.hpp>
 
@@ -43,7 +45,7 @@ class Mesh : public Drawable
 
     struct Primitive
     {
-        class Material *material;
+        MaterialID material;
         uint32_t indexCount;
         uint32_t indexOffset;
         uint32_t vertexCount;
@@ -51,7 +53,7 @@ class Mesh : public Drawable
     };
 
     static Mesh *BuildGlTF(class Device const *, cgltf_mesh const *, cgltf_material const *pMaterial,
-                           std::vector<class Material *>, bool recenter = false);
+                           std::vector<MaterialID> const &materials, bool recenter = false);
 
     Mesh(class Device const *, std::vector<Vertex> const &vertices, std::vector<uint32_t> const &indices,
          std::vector<Primitive> const &primitives, std::string const &name = "");

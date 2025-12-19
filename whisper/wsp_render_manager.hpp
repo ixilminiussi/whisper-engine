@@ -8,7 +8,7 @@
 
 #include <vulkan/vulkan.hpp>
 
-using WindowID = size_t;
+using WindowID = uint32_t;
 
 class GLFWwindow;
 
@@ -34,12 +34,9 @@ class RenderManager
 
     void Free();
 
-    void BindResizeCallback(WindowID, void *pointer, void (*function)(void *, size_t, size_t));
+    void BindResizeCallback(WindowID, void *pointer, void (*function)(void *, uint32_t, uint32_t));
     class Graph *GetGraph(WindowID) const;
-    class StaticTextures *GetStaticTextures() const;
     GLFWwindow *GetGLFWHandle(WindowID) const;
-
-    void BindStaticTexture(class Texture *) const;
 
     vk::CommandBuffer BeginRender(WindowID, bool blit = false);
     void EndRender(vk::CommandBuffer, WindowID);
@@ -67,8 +64,6 @@ class RenderManager
 
     std::map<WindowID, WindowRenderer> _windowRenderers;
     std::map<WindowID, vk::DescriptorPool> _imguiDescriptorPools;
-
-    class StaticTextures *_staticTextures;
 
     static vk::Instance _vkInstance;
 

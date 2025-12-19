@@ -535,7 +535,7 @@ void Device::CreateBufferAndBindMemory(vk::BufferCreateInfo const &createInfo, v
     DebugNameObject(*bufferMemory, vk::ObjectType::eDeviceMemory, name + " device memory");
 }
 
-void Device::CopyBuffer(vk::Buffer source, vk::Buffer *destination, size_t size) const
+void Device::CopyBuffer(vk::Buffer source, vk::Buffer *destination, uint32_t size) const
 {
     vk::CommandBuffer const commandBuffer = BeginSingleTimeCommand();
 
@@ -566,8 +566,8 @@ void Device::UnmapMemory(vk::DeviceMemory deviceMemory) const
     _device.unmapMemory(deviceMemory);
 }
 
-void Device::CopyBufferToImage(vk::Buffer source, vk::Image *destination, size_t width, size_t height,
-                               size_t depth) const
+void Device::CopyBufferToImage(vk::Buffer source, vk::Image *destination, uint32_t width, uint32_t height,
+                               uint32_t depth) const
 {
     vk::CommandBuffer const commandBuffer = BeginSingleTimeCommand();
 

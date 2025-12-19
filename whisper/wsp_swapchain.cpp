@@ -91,7 +91,7 @@ Swapchain::~Swapchain()
     Device const *device = SafeDeviceAccessor::Get();
     check(device);
 
-    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+    for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
     {
         device->DestroySemaphore(&_renderFinishedSemaphores[i]);
         device->DestroySemaphore(&_imageAvailableSemaphores[i]);
@@ -109,7 +109,7 @@ Swapchain::~Swapchain()
 
     device->DestroyRenderPass(&_renderPass);
 
-    for (size_t i = 0; i < _imageViews.size(); i++)
+    for (uint32_t i = 0; i < _imageViews.size(); i++)
     {
         device->DestroyImageView(&_imageViews[i]);
     }
@@ -219,7 +219,7 @@ vk::SwapchainKHR Swapchain::GetHandle() const
     return _swapchain;
 }
 
-size_t Swapchain::GetCurrentFrameIndeex() const
+uint32_t Swapchain::GetCurrentFrameIndex() const
 {
     return _currentFrameIndex;
 }
@@ -374,14 +374,14 @@ vk::Extent2D Swapchain::ChooseSwapExtent(vk::Extent2D windowExtent, vk::SurfaceC
     }
 }
 
-void Swapchain::CreateImageViews(size_t count)
+void Swapchain::CreateImageViews(uint32_t count)
 {
     Device const *device = SafeDeviceAccessor::Get();
     check(device);
     check(_images.size() <= count);
 
     _imageViews.resize(count);
-    for (size_t i = 0; i < count; i++)
+    for (uint32_t i = 0; i < count; i++)
     {
         vk::ImageViewCreateInfo viewInfo{};
         viewInfo.image = _images[i];
@@ -447,7 +447,7 @@ void Swapchain::CreateRenderPass()
     device->CreateRenderPass(renderPassInfo, &_renderPass, "swapchain render pass");
 }
 
-void Swapchain::CreateFramebuffers(size_t count)
+void Swapchain::CreateFramebuffers(uint32_t count)
 {
     Device const *device = SafeDeviceAccessor::Get();
     check(device);
@@ -455,7 +455,7 @@ void Swapchain::CreateFramebuffers(size_t count)
     check(_imageViews.size() <= count);
 
     _framebuffers.resize(count);
-    for (size_t i = 0; i < count; i++)
+    for (uint32_t i = 0; i < count; i++)
     {
         std::array<vk::ImageView, 1> attachments = {_imageViews[i]};
 
@@ -472,7 +472,7 @@ void Swapchain::CreateFramebuffers(size_t count)
     }
 }
 
-void Swapchain::CreateSyncObjects(size_t count)
+void Swapchain::CreateSyncObjects(uint32_t count)
 {
     Device const *device = SafeDeviceAccessor::Get();
     check(device);
@@ -489,7 +489,7 @@ void Swapchain::CreateSyncObjects(size_t count)
     vk::FenceCreateInfo fenceInfo = {};
     fenceInfo.flags = vk::FenceCreateFlagBits::eSignaled;
 
-    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+    for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
     {
         device->CreateSemaphore(semaphoreInfo, &_imageAvailableSemaphores[i],
                                 "swapchain semaphore " + std::to_string(i));

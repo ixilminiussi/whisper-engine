@@ -33,7 +33,7 @@ Renderer::~Renderer()
     spdlog::info("Renderer: freed");
 }
 
-void Renderer::Render(vk::CommandBuffer commandBuffer, size_t frameIndex) const
+void Renderer::Render(vk::CommandBuffer commandBuffer, uint32_t frameIndex) const
 {
     Device const *device = SafeDeviceAccessor::Get();
     check(device);
@@ -51,7 +51,7 @@ Graph *Renderer::GetGraph() const
     return _graph.get();
 }
 
-void Renderer::Initialize(size_t width, size_t height)
+void Renderer::Initialize(uint32_t width, uint32_t height)
 {
     ZoneScopedN("initialize (graph generate + compile)");
 

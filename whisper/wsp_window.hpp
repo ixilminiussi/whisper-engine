@@ -21,7 +21,7 @@ class Window
   public:
     Window(Window &&) = delete;
     Window &operator=(Window &&) = delete;
-    Window(vk::Instance, size_t width, size_t height, std::string name);
+    Window(vk::Instance, uint32_t width, uint32_t height, std::string name);
     ~Window();
 
     Window(Window const &) = delete;
@@ -40,11 +40,11 @@ class Window
 
     vk::SurfaceKHR GetSurface() const;
 
-    vk::CommandBuffer NextCommandBuffer(size_t *frameIndex);
+    vk::CommandBuffer NextCommandBuffer(uint32_t *frameIndex);
     void SwapchainOpen(vk::CommandBuffer, vk::Image blittedImage = VK_NULL_HANDLE) const;
     void SwapchainFlush(vk::CommandBuffer);
 
-    void BindResizeCallback(void *, void (*)(void *, size_t, size_t));
+    void BindResizeCallback(void *, void (*)(void *, uint32_t, uint32_t));
     void UnbindResizeCallback(void *);
 
   private:
@@ -52,10 +52,10 @@ class Window
     void CreateSurface(vk::Instance);
 
     static void FramebufferResizeCallback(GLFWwindow *, int width, int height);
-    void Resize(size_t width, size_t height);
+    void Resize(uint32_t width, uint32_t height);
 
-    size_t _width;
-    size_t _height;
+    uint32_t _width;
+    uint32_t _height;
     std::string _name;
     GLFWwindow *_glfwWindow;
 
@@ -63,7 +63,7 @@ class Window
 
     vk::SurfaceKHR _surface;
 
-    std::map<void *, void (*)(void *, size_t, size_t)> _resizeCallbacks;
+    std::map<void *, void (*)(void *, uint32_t, uint32_t)> _resizeCallbacks;
 
     bool _freed;
 };

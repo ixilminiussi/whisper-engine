@@ -1,6 +1,8 @@
 #include <wsp_material.hpp>
 
+#include <wsp_assets_manager.hpp>
 #include <wsp_devkit.hpp>
+#include <wsp_static_textures.hpp>
 #include <wsp_static_utils.hpp>
 #include <wsp_texture.hpp>
 
@@ -10,93 +12,102 @@
 
 using namespace wsp;
 
-Material *Material::BuildGlTF(Device const *device, cgltf_material const *material, cgltf_texture const *pTexture,
-                              std::vector<std::pair<Texture::Builder, Texture *>> *textureBuilders)
+void Material::PropagateFormatFromGlTF(cgltf_material const *material, cgltf_texture const *pTexture,
+                                       std::vector<Texture::CreateInfo> *createInfos)
 {
     check(material);
 
     // Helper lambda to get or build texture with format validation
-    auto getOrBuildTexture = [&](cgltf_texture const *gltfTexture, vk::Format format) -> Texture * {
-        if (!pTexture || textureBuilders->empty() || !gltfTexture)
+    auto populateInfo = [&](cgltf_texture const *gltfTexture, vk::Format format) -> void {
+        if (!pTexture || createInfos->empty() || !gltfTexture)
         {
-            return nullptr;
+            return;
         }
 
         long const index = gltfTexture - pTexture;
-        if (!inbetween<long>(index, 0, textureBuilders->size()))
+        if (!inbetween<long>(index, 0, createInfos->size()))
         {
             throw std::invalid_argument(fmt::format("Material: gltf material has invalid texture index: {}", index));
         }
 
-        auto &[builder, texture] = textureBuilders->at(index);
+        Texture::CreateInfo &createInfo = createInfos->at(index);
 
-        if (texture)
-        {
-            check(texture->GetFormat() == format);
-        }
-        else
-        {
-            texture = builder.Format(format).Build(device);
-        }
-
-        return texture;
+        createInfo.format = format;
+        createInfo.imageInfo.format = format;
     };
-
-    Texture *albedoTexture = nullptr;
-    Texture *normalTexture = nullptr;
-    Texture *metallicRoughnessTexture = nullptr;
-    Texture *occlusionTexture = nullptr;
-
-    glm::vec3 albedoColor{1.0f};
-    glm::vec3 fresnelColor{1.0f};
-    float roughness = 1.0f;
-    float metallic = 0.0f;
-    float anisotropy = 0.0f;
 
     std::string const name = material->name ? material->name : "";
 
     if (material->has_pbr_metallic_roughness)
     {
-        metallic = material->pbr_metallic_roughness.metallic_factor;
-        roughness = material->pbr_metallic_roughness.roughness_factor;
-        albedoColor = *(glm::vec3 *)(material->pbr_metallic_roughness.base_color_factor);
+        populateInfo(material->pbr_metallic_roughness.metallic_roughness_texture.texture, vk::Format::eR8G8B8Unorm);
+        populateInfo(material->pbr_metallic_roughness.base_color_texture.texture, vk::Format::eR8G8B8Srgb);
+    }
 
-        metallicRoughnessTexture = getOrBuildTexture(
-            material->pbr_metallic_roughness.metallic_roughness_texture.texture, vk::Format::eR8G8B8Unorm);
+    populateInfo(material->normal_texture.texture, vk::Format::eR8G8B8Unorm);
+    populateInfo(material->occlusion_texture.texture, vk::Format::eR8G8B8Unorm);
+}
 
-        albedoTexture =
-            getOrBuildTexture(material->pbr_metallic_roughness.base_color_texture.texture, vk::Format::eR8G8B8Srgb);
+Material::CreateInfo Material::GetCreateInfoFromGlTF(cgltf_material const *material, cgltf_texture const *pTexture,
+                                                     std::vector<TextureID> const &textureIDs)
+{
+    check(material);
+
+    CreateInfo createInfo{};
+
+    // Helper lambda to get or build texture with format validation
+    auto getTexture = [&](cgltf_texture const *gltfTexture) -> TextureID {
+        if (!pTexture || textureIDs.empty() || !gltfTexture)
+        {
+            return {};
+        }
+
+        uint32_t const index = gltfTexture - pTexture;
+        check(textureIDs.size() > index);
+
+        return textureIDs.at(index);
+    };
+
+    createInfo.name = material->name ? material->name : "";
+
+    if (material->has_pbr_metallic_roughness)
+    {
+        createInfo.metallic = material->pbr_metallic_roughness.metallic_factor;
+        createInfo.roughness = material->pbr_metallic_roughness.roughness_factor;
+        createInfo.albedoColor = *(glm::vec3 *)(material->pbr_metallic_roughness.base_color_factor);
+
+        createInfo.metallicRoughness = getTexture(material->pbr_metallic_roughness.metallic_roughness_texture.texture);
+
+        createInfo.albedo = getTexture(material->pbr_metallic_roughness.base_color_texture.texture);
     }
 
     if (material->has_anisotropy)
     {
-        anisotropy = material->anisotropy.anisotropy_strength;
+        createInfo.anisotropy = material->anisotropy.anisotropy_strength;
     }
 
-    normalTexture = getOrBuildTexture(material->normal_texture.texture, vk::Format::eR8G8B8Unorm);
+    createInfo.normal = getTexture(material->normal_texture.texture);
+    createInfo.occlusion = getTexture(material->occlusion_texture.texture);
 
-    occlusionTexture = getOrBuildTexture(material->occlusion_texture.texture, vk::Format::eR8G8B8Unorm);
-
-    return new Material(albedoTexture, normalTexture, metallicRoughnessTexture, occlusionTexture, albedoColor,
-                        fresnelColor, roughness, metallic, anisotropy, name);
+    return createInfo;
 }
 
-Material::Material(Texture *albedo, Texture *normal, Texture *metallicRoughness, Texture *occlusion,
-                   glm::vec3 albedoColor, glm::vec3 fresnelColor, float roughness, float metallic, float anisotropy,
-                   std::string const &name)
-    : _ID{INVALID_ID}, _albedoTexture{albedo}, _normalTexture{normal}, _metallicRoughnessTexture{metallicRoughness},
-      _occlusionTexture{occlusion}, _albedoColor{albedoColor}, _fresnelColor{fresnelColor}, _roughness{roughness},
-      _metallic{metallic}, _anisotropy{anisotropy}, _name{name}
+Material::Material(CreateInfo const &createInfo)
+    : _ID{INVALID_ID}, _albedoTexture{createInfo.albedo}, _normalTexture{createInfo.normal},
+      _metallicRoughnessTexture{createInfo.metallicRoughness}, _occlusionTexture{createInfo.occlusion},
+      _albedoColor{createInfo.albedoColor}, _fresnelColor{createInfo.fresnelColor}, _roughness{createInfo.roughness},
+      _metallic{createInfo.metallic}, _anisotropy{createInfo.anisotropy}, _name{createInfo.name}
 {
 }
 
 void Material::GetInfo(ubo::Material *info) const
 {
+    auto GetID = [](TextureID id) -> size_t { return AssetsManager::Get()->GetStaticTextures()->GetID(id); };
     check(info);
-    info->albedoTex = _albedoTexture ? _albedoTexture->GetID() : INVALID_ID;
-    info->normalMap = _normalTexture ? _normalTexture->GetID() : INVALID_ID;
-    info->metallicRoughnessMap = _metallicRoughnessTexture ? _metallicRoughnessTexture->GetID() : INVALID_ID;
-    info->occlusionMap = _occlusionTexture ? _occlusionTexture->GetID() : INVALID_ID;
+    info->albedoTex = GetID(_albedoTexture);
+    info->normalMap = GetID(_normalTexture);
+    info->metallicRoughnessMap = GetID(_metallicRoughnessTexture);
+    info->occlusionMap = GetID(_occlusionTexture);
     info->albedoColor = _albedoColor;
     info->fresnelColor = _fresnelColor;
     info->roughness = _roughness;
@@ -112,4 +123,9 @@ int Material::GetID() const
 void Material::SetID(int ID)
 {
     _ID = ID;
+}
+
+std::string const &Material::GetName() const
+{
+    return _name;
 }

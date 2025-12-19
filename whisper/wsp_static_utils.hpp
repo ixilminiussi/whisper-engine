@@ -107,7 +107,7 @@ inline std::vector<char> ReadShaderFile(std::string const &filepath)
         throw std::runtime_error("failed to open file: " + filepath);
     }
 
-    size_t const fileSize = static_cast<size_t>(file.tellg());
+    uint32_t const fileSize = static_cast<uint32_t>(file.tellg());
     std::vector<char> buffer(fileSize);
 
     file.seekg(0);

@@ -1,8 +1,6 @@
 #ifndef WSP_SAMPLER
 #define WSP_SAMPLER
 
-#include <filesystem>
-
 #include <vulkan/vulkan.hpp>
 
 class cgltf_sampler;
@@ -13,22 +11,29 @@ namespace wsp
 class Sampler
 {
   public:
-    class Builder
+    struct CreateInfo
     {
-      public:
-        Builder();
-        Builder &GlTF(cgltf_sampler const *);
-        Builder &AddressMode(vk::SamplerAddressMode);
-        Builder &Depth();
-        Builder &Name(std::string const &);
-        Sampler *Build(class Device const *);
+        vk::Filter magFilter{vk::Filter::eLinear};
+        vk::Filter minFilter{vk::Filter::eLinear};
+        vk::SamplerAddressMode addressModeU{vk::SamplerAddressMode::eClampToEdge};
+        vk::SamplerAddressMode addressModeV{vk::SamplerAddressMode::eClampToEdge};
+        vk::SamplerAddressMode addressModeW{vk::SamplerAddressMode::eClampToEdge};
+        bool compareEnable{false};
+        vk::SamplerMipmapMode mipmapMode{vk::SamplerMipmapMode::eLinear};
+        bool depth{false};
 
-      protected:
-        vk::SamplerCreateInfo _createInfo;
-        std::string _name;
+        inline bool operator<(CreateInfo const &b) const
+        {
+            return std::tie(magFilter, minFilter, addressModeU, addressModeV, addressModeW, compareEnable, mipmapMode,
+                            depth) < std::tie(b.magFilter, b.minFilter, b.addressModeU, b.addressModeV, b.addressModeW,
+                                              b.compareEnable, b.mipmapMode, b.depth);
+        }
     };
 
+    static CreateInfo GetCreateInfoFromGlTF(cgltf_sampler const *);
+
     ~Sampler();
+    Sampler(class Device const *, Sampler::CreateInfo const &createInfo);
 
     Sampler(Sampler const &) = delete;
     Sampler &operator=(Sampler const &) = delete;
@@ -36,13 +41,7 @@ class Sampler
     vk::Sampler GetSampler() const;
 
   protected:
-    Sampler(class Device const *, vk::SamplerCreateInfo const &createInfo, std::string const &name = "");
-
-    std::string _name;
-
     vk::Sampler _sampler;
-
-    std::filesystem::path _path; // used for comparaison
 };
 
 } // namespace wsp

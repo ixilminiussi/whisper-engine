@@ -1,7 +1,6 @@
 #ifndef WSP_HANDLES
 #define WSP_HANDLES
 
-#include <cstddef>
 #include <functional>
 #include <vector>
 
@@ -13,8 +12,8 @@ namespace wsp
 
 struct Pass
 {
-    size_t index;
-    constexpr explicit Pass(size_t i) : index(i) {};
+    uint32_t index;
+    constexpr explicit Pass(uint32_t i) : index(i) {};
 
     constexpr bool operator<(Pass const &other) const
     {
@@ -32,8 +31,8 @@ struct Pass
 
 struct Resource
 {
-    size_t index;
-    constexpr explicit Resource(size_t i) : index(i) {};
+    uint32_t index;
+    constexpr explicit Resource(uint32_t i) : index(i) {};
 
     constexpr bool operator<(Resource const &other) const
     {
@@ -51,12 +50,12 @@ struct Resource
 
 struct PassCreateInfo
 {
-    class StaticTextures const *staticTextures{nullptr};
+    std::vector<class StaticTextures const *> staticTextures{};
     std::vector<Resource> reads;
     std::vector<Resource> writes;
     bool readsUniform;
 
-    size_t pushConstantSize{0};
+    uint32_t pushConstantSize{0};
 
     std::string vertFile;
     std::string fragFile;
@@ -111,7 +110,7 @@ class StaticTextureAllocator
     vk::DescriptorSet const *_descriptorSet;
     class Device const *_device;
 
-    size_t _ID;
+    uint32_t _ID;
 };
 
 } // namespace wsp

@@ -1,5 +1,5 @@
-#ifndef WSP_CUSTOM_TYPES
-#define WSP_CUSTOM_TYPES
+#ifndef DICTIONARY
+#define DICTIONARY
 
 #include <algorithm>
 #include <stdexcept>
@@ -9,11 +9,11 @@
 namespace wsp // custom types
 {
 
-template <typename Key, typename Val> struct dictionary
+template <typename Key, typename Val, size_t RESERVESIZE = 0> struct dictionary
 {
     std::vector<std::pair<Key, Val>> data;
 
-    dictionary() : data{} {};
+    dictionary() : data{RESERVESIZE} {};
     dictionary(std::vector<std::pair<Key, Val>> const &initial) : data{initial}
     {
         if (!std::is_default_constructible_v<Val>)

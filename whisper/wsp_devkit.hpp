@@ -40,7 +40,7 @@
         if (!_ens_once)                                                                                                \
         {                                                                                                              \
             _ens_once = true;                                                                                          \
-            spdlog::critical("ensure failed at {}:{}: condition ({}) not met!", __FILE__, __LINE__, #expr);            \
+            spdlog::error("ensure failed at {}:{}: condition ({}) not met!", __FILE__, __LINE__, #expr);               \
             DEBUG_BREAK();                                                                                             \
         }                                                                                                              \
         return false;                                                                                                  \
@@ -53,6 +53,7 @@
 
 #define WPROPERTY(...) /* WPROPERTY */
 #define WCLASS(...)    /* WCLASS */
+#define WSTRUCT(...)   /* WSTRUCT */
 #define WENUM(...)     /* WENUM */
 #define REFRESH(...)   /* REFRESH */
 

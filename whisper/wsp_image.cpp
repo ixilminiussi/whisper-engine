@@ -1,51 +1,54 @@
-#include <optional>
-#include <spdlog/spdlog.h>
 #include <wsp_image.hpp>
 
 #include <wsp_device.hpp>
 #include <wsp_devkit.hpp>
+
+#include <spdlog/spdlog.h>
 
 #include <cgltf.h>
 #include <stb_image.h>
 
 using namespace wsp;
 
-Image *Image::BuildGlTF(Device const *device, cgltf_image const *image, std::filesystem::path const &parentDirectory)
+Image::Image(Device const *device, CreateInfo const &createInfo) : _device{device}, _filepath{createInfo.filepath}
 {
     check(device);
-    check(image);
 
-    ZoneScopedN("load image");
-
-    if (image->uri && strncmp(image->uri, "data:", 5) != 0) // we're referencing a path
-    {
-        std::filesystem::path const filepath = (parentDirectory / image->uri).lexically_normal();
-
-        std::string const name = image->name ? std::string(image->name) : "";
-
-        return new Image{device, filepath, name};
-    }
-    else if (image->uri && strncmp(image->uri, "data:", 5) == 0) // we're on base64
-    {
-    }
-    else if (image->buffer_view) // embedded in buffer
-    {
-    }
-    else // invalid or extension-defined
-    {
-    }
-
-    return nullptr;
+    BuildImage(createInfo.format);
 }
 
-vk::Image Image::BuildImage(vk::Format format)
+Image::Image(Device const *device, vk::ImageCreateInfo const &createInfo, std::string const &name)
+    : _device{device}, _filepath{std::nullopt}
 {
-    ZoneScopedN("build image");
+    check(device);
 
-    check(_filepath.has_value());
+    device->CreateImageAndBindMemory(createInfo, &_image, &_deviceMemory, name);
+}
+
+std::string Image::GetName() const
+{
+    if (_filepath.has_value())
+    {
+        return _filepath.value().filename().string();
+    }
+
+    return std::string("");
+}
+
+vk::Image Image::BuildImage(vk::Format format, bool cubemap)
+{
+    if (!ensure(_filepath.has_value()))
+    {
+        return {};
+    }
+
+    ZoneScopedN("build image");
 
     int width, height, channels;
     stbi_uc *pixels = stbi_load(_filepath.value().c_str(), &width, &height, &channels, STBI_rgb);
+
+    // for now we only support rgb, no alpha
+    channels = 3;
 
     if (pixels == nullptr)
     {
@@ -60,10 +63,14 @@ vk::Image Image::BuildImage(vk::Format format)
     imageInfo.tiling = vk::ImageTiling::eOptimal;
     imageInfo.mipLevels = 1u;
     imageInfo.arrayLayers = 1u;
+    if (cubemap)
+    {
+        imageInfo.extent = vk::Extent3D{(uint32_t)width / 4u, (uint32_t)height / 3u, 1u};
+        imageInfo.arrayLayers = 6u;
+        imageInfo.flags |= vk::ImageCreateFlagBits::eCubeCompatible;
+    }
 
-    ImageData &data = _images[format];
-
-    _device->CreateImageAndBindMemory(imageInfo, &data.image, &data.deviceMemory, _name + std::string("_texture"));
+    _device->CreateImageAndBindMemory(imageInfo, &_image, &_deviceMemory, fmt::format("{}<texture>", GetName()));
 
     vk::BufferCreateInfo bufferInfo{};
     bufferInfo.usage = vk::BufferUsageFlagBits::eTransferSrc;
@@ -74,37 +81,56 @@ vk::Image Image::BuildImage(vk::Format format)
     _device->CreateBufferAndBindMemory(bufferInfo, &buffer, &deviceMemory,
                                        vk::MemoryPropertyFlagBits::eHostVisible |
                                            vk::MemoryPropertyFlagBits::eHostCoherent,
-                                       _name + std::string("_texture_buffer"));
+                                       fmt::format("{}<texture_buffer>", GetName()));
 
     void *memory;
     _device->MapMemory(deviceMemory, &memory);
-    memcpy(memory, pixels, width * height * channels);
-    _device->UnmapMemory(deviceMemory);
 
-    _device->CopyBufferToImage(buffer, &data.image, width, height);
+    if (cubemap)
+    {
+        int const faceWidth = width / 4u;
+        int const faceHeight = height / 4u;
+
+        stbi_uc *cubePixels = (stbi_uc *)malloc(sizeof(stbi_uc) * faceWidth * faceHeight * 6 * channels);
+
+        auto copyFace = [&](int left, int top, int faceID) {
+            int const faceGap = faceID * faceWidth * faceHeight * channels;
+            for (int y = 0; y < faceHeight; y++)
+            {
+                int const leftGap = left * faceWidth * channels;
+                int const topGap = (y + top * faceHeight) * width * channels;
+                memcpy(memory, cubePixels + faceGap + topGap + leftGap, faceWidth * channels);
+            }
+        };
+
+        copyFace(1, 0, 0);
+        copyFace(0, 1, 1);
+        copyFace(1, 1, 2);
+        copyFace(2, 1, 3);
+        copyFace(3, 1, 4);
+        copyFace(1, 2, 5);
+
+        _device->UnmapMemory(deviceMemory);
+
+        _device->CopyBufferToImage(buffer, &_image, width, height);
+
+        free(cubePixels);
+    }
+    else
+    {
+        memcpy(memory, pixels, width * height * channels);
+        _device->UnmapMemory(deviceMemory);
+
+        _device->CopyBufferToImage(buffer, &_image, width, height);
+    }
     _device->DestroyBuffer(&buffer);
     _device->FreeDeviceMemory(&deviceMemory);
 
-    spdlog::info("Image: <{}> -> {} width, {} height, {} channels", _name, width, height, channels);
+    spdlog::info("Image: <{}> -> {} width, {} height, {} channels", GetName(), width, height, channels);
 
     stbi_image_free(pixels);
 
-    return data.image;
-}
-
-Image::Image(Device const *device, std::filesystem::path const &filepath, std::string const &name)
-    : _device{device}, _filepath{filepath}, _name{name}
-{
-    check(device);
-}
-
-Image::Image(Device const *device, vk::ImageCreateInfo createInfo, std::string const &name)
-    : _device{device}, _name{name}, _filepath{std::nullopt}
-{
-    check(device);
-
-    ImageData &data = _images[createInfo.format];
-    device->CreateImageAndBindMemory(createInfo, &data.image, &data.deviceMemory, name);
+    return _image;
 }
 
 Image::~Image()
@@ -112,32 +138,13 @@ Image::~Image()
     Device const *device = SafeDeviceAccessor::Get();
     check(device);
 
-    for (auto &[format, imageData] : _images)
-    {
-        device->DestroyImage(&imageData.image);
-        device->FreeDeviceMemory(&imageData.deviceMemory);
-    }
+    device->DestroyImage(&_image);
+    device->FreeDeviceMemory(&_deviceMemory);
 
-    spdlog::debug("Image: <{}> freed", _name);
+    spdlog::debug("Image: <{}> freed", GetName());
 }
 
-bool Image::AskForVariant(vk::Format format)
+vk::Image Image::GetImage() const
 {
-    if (!_filepath.has_value() && !_images.contains(format))
-    {
-        return false;
-    }
-
-    if (!_images.contains(format))
-    {
-        BuildImage(format);
-    }
-    return true;
-}
-
-vk::Image Image::GetImage(vk::Format format) const
-{
-    check(_images.contains(format));
-
-    return _images.at(format).image;
+    return _image;
 }

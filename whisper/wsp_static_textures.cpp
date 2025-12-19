@@ -1,3 +1,5 @@
+#include "wsp_assets_manager.hpp"
+#include <fcntl.h>
 #include <filesystem>
 #include <wsp_static_textures.hpp>
 
@@ -8,7 +10,8 @@
 
 using namespace wsp;
 
-StaticTextures::StaticTextures(size_t size, std::string const &name) : _name{name}, _size{size}, _offset{0u}
+StaticTextures::StaticTextures(uint32_t size, std::string const &name)
+    : _name{name}, _size{size}, _offset{0u}, _descriptorSet{}, _descriptorPool{}
 {
     Device const *device = SafeDeviceAccessor::Get();
     check(device);
@@ -23,7 +26,7 @@ StaticTextures::StaticTextures(size_t size, std::string const &name) : _name{nam
     descriptorPoolInfo.poolSizeCount = 1u;
     descriptorPoolInfo.pPoolSizes = &descriptorPoolSize;
 
-    device->CreateDescriptorPool(descriptorPoolInfo, &_descriptorPool, name + std::string("_descriptor_pool"));
+    device->CreateDescriptorPool(descriptorPoolInfo, &_descriptorPool, fmt::format("{}<descriptor_pool>", name));
 
     vk::DescriptorSetLayoutBinding descriptorSetLayoutBinding{};
     descriptorSetLayoutBinding.descriptorCount = size;
@@ -36,14 +39,14 @@ StaticTextures::StaticTextures(size_t size, std::string const &name) : _name{nam
     descriptorSetLayoutInfo.pNext = nullptr;
 
     device->CreateDescriptorSetLayout(descriptorSetLayoutInfo, &_descriptorSetLayout,
-                                      name + std::string("_descriptor_set_layout"));
+                                      fmt::format("{}<descriptor_set_layout>", name));
 
     vk::DescriptorSetAllocateInfo setAllocInfo{};
     setAllocInfo.descriptorPool = _descriptorPool;
     setAllocInfo.descriptorSetCount = 1u;
     setAllocInfo.pSetLayouts = &_descriptorSetLayout;
 
-    device->AllocateDescriptorSet(setAllocInfo, &_descriptorSet, name + std::string("_descriptor_set"));
+    device->AllocateDescriptorSet(setAllocInfo, &_descriptorSet, fmt::format("{}<descriptor_set>", name));
 
     BuildDummy();
     Clear();
@@ -60,9 +63,9 @@ StaticTextures::~StaticTextures()
     device->DestroyDescriptorPool(&_descriptorPool);
     device->DestroyDescriptorSetLayout(&_descriptorSetLayout);
 
-    delete _dummyTexture;
-    delete _dummyImage;
     delete _dummySampler;
+    delete _dummyImage;
+    delete _dummyTexture;
 
     spdlog::info("StaticTextures: freed");
 }
@@ -72,22 +75,32 @@ void StaticTextures::BuildDummy()
     Device const *device = SafeDeviceAccessor::Get();
     check(device);
 
-    _dummySampler = Sampler::Builder{}.Name(_name + "_dummy_sampler").Build(device);
     void *pixels = malloc(sizeof(char));
     std::filesystem::path const filepath =
         (std::filesystem::path(WSP_EDITOR_ASSETS) / std::filesystem::path("missing-texture.png")).lexically_normal();
-    _dummyImage = new Image{device, filepath, _name + std::string("_missing")};
 
-    _dummyTexture = Texture::Builder{}.SetImage(_dummyImage).SetSampler(_dummySampler).Build(device);
+    Image::CreateInfo imageCreateInfo{};
+    imageCreateInfo.filepath = filepath;
+    imageCreateInfo.format = vk::Format::eR8G8B8Srgb;
 
-    spdlog::debug("Graph: built dummy image");
+    _dummyImage = new Image{device, imageCreateInfo};
+    _dummySampler = new Sampler{device, Sampler::CreateInfo{}};
+
+    Texture::CreateInfo createInfo{};
+    createInfo.pImage = _dummyImage;
+    createInfo.pSampler = _dummySampler;
+    createInfo.format = vk::Format::eR8G8B8Srgb;
+
+    _dummyTexture = new Texture{device, createInfo};
+
+    spdlog::debug("Graph: built dummy texture");
 }
 
 void StaticTextures::Clear()
 {
-    std::vector<Texture *> textures{};
+    std::vector<TextureID> textures{};
 
-    textures.resize(_size, _dummyTexture);
+    textures.resize(_size, 0);
 
     _offset = 0u;
 
@@ -96,7 +109,7 @@ void StaticTextures::Clear()
     _offset = 0u;
 }
 
-void StaticTextures::Push(std::vector<Texture *> const &textures)
+void StaticTextures::Push(std::vector<TextureID> const &textures)
 {
     check(_offset + textures.size() <= _size);
 
@@ -106,14 +119,28 @@ void StaticTextures::Push(std::vector<Texture *> const &textures)
     std::vector<vk::DescriptorImageInfo> imageInfos{};
     for (int i = 0; i < textures.size(); i++)
     {
-        vk::DescriptorImageInfo imageInfo{};
-        imageInfo.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
-        imageInfo.imageView = textures[i]->GetImageView();
-        imageInfo.sampler = textures[i]->GetSampler();
+        if (textures[i] == 0)
+        {
+            vk::DescriptorImageInfo imageInfo{};
+            imageInfo.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+            imageInfo.imageView = _dummyTexture->GetImageView();
+            imageInfo.sampler = _dummySampler->GetSampler();
 
-        textures[i]->SetID(_offset + i);
+            imageInfos.push_back(imageInfo);
+        }
+        else
+        {
+            Texture const *texture = AssetsManager::Get()->GetTexture(textures[i]);
 
-        imageInfos.push_back(imageInfo);
+            vk::DescriptorImageInfo imageInfo{};
+            imageInfo.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+            imageInfo.imageView = texture->GetImageView();
+            imageInfo.sampler = texture->GetSampler();
+
+            imageInfos.push_back(imageInfo);
+
+            _staticTextures[textures[i]] = _offset + i;
+        }
     }
 
     vk::WriteDescriptorSet writeDescriptor{};
@@ -137,4 +164,16 @@ vk::DescriptorSetLayout StaticTextures::GetDescriptorSetLayout() const
 vk::DescriptorSet StaticTextures::GetDescriptorSet() const
 {
     return _descriptorSet;
+}
+
+int StaticTextures::GetID(TextureID textureID) const
+{
+    if (textureID == 0)
+    {
+        return INVALID_ID;
+    }
+
+    check(_staticTextures.find(textureID) != _staticTextures.end());
+
+    return (int)_staticTextures.at(textureID);
 }

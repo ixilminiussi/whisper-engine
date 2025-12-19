@@ -1,8 +1,9 @@
 #ifndef WSP_INPUT_MANAGER
 #define WSP_INPUT_MANAGER
 
-#include "wsp_custom_types.hpp"
 #include <wsp_input_action.hpp>
+#include <wsp_typedefs.hpp>
+#include <wsp_types/dictionary.hpp>
 
 #include <spdlog/spdlog.h>
 
@@ -22,8 +23,6 @@ class GLFWwindow;
 
 namespace wsp
 {
-
-using WindowID = size_t;
 
 WCLASS()
 class InputManager

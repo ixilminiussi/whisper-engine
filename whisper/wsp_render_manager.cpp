@@ -80,8 +80,6 @@ RenderManager::RenderManager()
 
     window->Free(_vkInstance);
     delete window;
-
-    _staticTextures = new StaticTextures(MAX_DYNAMIC_TEXTURES, "global static textures");
 }
 
 RenderManager::~RenderManager()
@@ -119,8 +117,6 @@ void RenderManager::Free()
         delete pair.renderer.release();
     }
     _windowRenderers.clear();
-
-    delete _staticTextures;
 
     auto func = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(static_cast<VkInstance>(_vkInstance),
                                                                            "vkDestroyDebugUtilsMessengerEXT");
@@ -259,7 +255,7 @@ bool RenderManager::Validate(WindowID windowID) const
     return (_windowRenderers.find(windowID) != _windowRenderers.end());
 }
 
-void RenderManager::BindResizeCallback(WindowID windowID, void *pointer, void (*function)(void *, size_t, size_t))
+void RenderManager::BindResizeCallback(WindowID windowID, void *pointer, void (*function)(void *, uint32_t, uint32_t))
 {
     if (ensure(Validate(windowID)))
     {
@@ -272,13 +268,6 @@ Graph *RenderManager::GetGraph(WindowID windowID) const
     check(Validate(windowID));
 
     return _windowRenderers.at(windowID).renderer->GetGraph();
-}
-
-StaticTextures *RenderManager::GetStaticTextures() const
-{
-    check(_staticTextures);
-
-    return _staticTextures;
 }
 
 GLFWwindow *RenderManager::GetGLFWHandle(WindowID windowID) const
@@ -294,7 +283,7 @@ vk::CommandBuffer RenderManager::BeginRender(WindowID windowID, bool blit)
 
     WindowRenderer &windowRenderer = _windowRenderers.at(windowID);
 
-    size_t frameIndex{0};
+    uint32_t frameIndex{0};
     vk::CommandBuffer const commandBuffer = windowRenderer.window->NextCommandBuffer(&frameIndex);
 
     TracyVkZone(TRACY_CTX, commandBuffer, "frame");
@@ -306,9 +295,8 @@ vk::CommandBuffer RenderManager::BeginRender(WindowID windowID, bool blit)
         Image *image = windowRenderer.renderer->GetGraph()->GetTargetImage();
 
         check(image);
-        check(image->AskForVariant(vk::Format::eB8G8R8A8Srgb));
 
-        windowRenderer.window->SwapchainOpen(commandBuffer, image->GetImage(vk::Format::eB8G8R8A8Srgb));
+        windowRenderer.window->SwapchainOpen(commandBuffer, image->GetImage());
     }
     else
     {
@@ -386,10 +374,10 @@ void RenderManager::InitImGui(WindowID windowID)
     platform_io.Platform_CreateVkSurface = &ImGui_CreateVkSurface;
 
     ImGui_ImplVulkan_InitInfo initInfo = {};
-#ifndef NDEBUG
+
     device->PopulateImGuiInitInfo(&initInfo);
     window->GetSwapchain()->PopulateImGuiInitInfo(&initInfo);
-#endif
+
     initInfo.Instance = _vkInstance;
     initInfo.DescriptorPool = _imguiDescriptorPools[windowID].operator VkDescriptorPool();
     initInfo.PipelineRenderingCreateInfo = pipelineRenderingCreateInfo;

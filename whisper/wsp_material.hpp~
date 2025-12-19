@@ -4,7 +4,6 @@
 #include <wsp_devkit.hpp>
 #include <wsp_global_ubo.hpp>
 #include <wsp_texture.hpp>
-#include <wsp_typedefs.hpp>
 
 #include <string>
 #include <vector>
@@ -23,10 +22,10 @@ class Material
   public:
     struct CreateInfo
     {
-        TextureID albedo{};
-        TextureID normal{};
-        TextureID metallicRoughness{};
-        TextureID occlusion{};
+        class Texture *albedo{nullptr};
+        class Texture *normal{nullptr};
+        class Texture *metallicRoughness{nullptr};
+        class Texture *occlusion{nullptr};
 
         glm::vec3 albedoColor{};
         glm::vec3 fresnelColor{};
@@ -38,10 +37,10 @@ class Material
         std::string name{""};
     };
 
-    static void PropagateFormatFromGlTF(cgltf_material const *, cgltf_texture const *pTexture,
-                                        std::vector<Texture::CreateInfo> *);
+    static void PopulateTextureCreateInfo(cgltf_material const *, cgltf_texture const *pTexture,
+                                          std::vector<Texture::CreateInfo> *);
     static CreateInfo GetCreateInfoFromGlTF(cgltf_material const *, cgltf_texture const *pTexture,
-                                            std::vector<TextureID> const &);
+                                            std::vector<Texture *> const &);
 
     Material(CreateInfo const &);
 
@@ -59,10 +58,10 @@ class Material
 
     int _ID;
 
-    TextureID _albedoTexture;
-    TextureID _normalTexture;
-    TextureID _metallicRoughnessTexture;
-    TextureID _occlusionTexture;
+    class Texture *_albedoTexture;
+    class Texture *_normalTexture;
+    class Texture *_metallicRoughnessTexture;
+    class Texture *_occlusionTexture;
 
     WPROPERTY(eColor)
     glm::vec3 _albedoColor;

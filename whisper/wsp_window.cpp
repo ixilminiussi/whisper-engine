@@ -15,7 +15,7 @@
 
 using namespace wsp;
 
-Window::Window(vk::Instance instance, size_t width, size_t height, std::string name)
+Window::Window(vk::Instance instance, uint32_t width, uint32_t height, std::string name)
     : _width{width}, _height{height}, _name{name}, _freed{false}, _glfwWindow{}, _swapchain{}
 {
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
@@ -63,7 +63,7 @@ void Window::FramebufferResizeCallback(GLFWwindow *glfwWindow, int width, int he
     window->Resize(width, height);
 }
 
-void Window::Resize(size_t width, size_t height)
+void Window::Resize(uint32_t width, uint32_t height)
 {
     if (width == 0 || height == 0)
     {
@@ -117,11 +117,11 @@ void Window::BuildSwapchain()
     }
 }
 
-vk::CommandBuffer Window::NextCommandBuffer(size_t *frameIndex)
+vk::CommandBuffer Window::NextCommandBuffer(uint32_t *frameIndex)
 {
     check(frameIndex);
 
-    *frameIndex = _swapchain->GetCurrentFrameIndeex();
+    *frameIndex = _swapchain->GetCurrentFrameIndex();
     return _swapchain->NextCommandBuffer();
 }
 
@@ -161,7 +161,7 @@ bool Window::ShouldClose() const
     return glfwWindowShouldClose(_glfwWindow);
 }
 
-void Window::BindResizeCallback(void *pointer, void (*function)(void *, size_t, size_t))
+void Window::BindResizeCallback(void *pointer, void (*function)(void *, uint32_t, uint32_t))
 {
     _resizeCallbacks[pointer] = function;
     function(pointer, _width, _height);

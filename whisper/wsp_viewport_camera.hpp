@@ -48,7 +48,7 @@ class ViewportCamera
 
     Camera const *GetCamera() const;
 
-    static void OnResizeCallback(void *camera, size_t width, size_t height);
+    static void OnResizeCallback(void *camera, uint32_t width, uint32_t height);
 
     void Update(double dt);
 

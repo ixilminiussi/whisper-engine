@@ -30,13 +30,14 @@
 
 using namespace wsp;
 
-size_t const Graph::SAMPLER_DEPTH{0};
-size_t const Graph::SAMPLER_COLOR_CLAMPED{1};
-size_t const Graph::SAMPLER_COLOR_REPEATED{2};
+uint32_t const Graph::SAMPLER_DEPTH{0};
+uint32_t const Graph::SAMPLER_COLOR_CLAMPED{1};
+uint32_t const Graph::SAMPLER_COLOR_REPEATED{2};
 
-Graph::Graph(size_t width, size_t height)
+Graph::Graph(uint32_t width, uint32_t height)
     : _passInfos{}, _resourceInfos{}, _images{}, _textures{}, _framebuffers{}, _descriptorSets{}, _target{0},
-      _width{width}, _height{height}, _uboSize{0}, _uboDescriptorSets{}, _uboBuffers{}, _uboDeviceMemories{}
+      _width{width}, _height{height}, _uboSize{0}, _uboDescriptorSets{}, _uboBuffers{}, _uboDeviceMemories{},
+      _currentFrameIndex{0}
 {
     Device const *device = SafeDeviceAccessor::Get();
     check(device);
@@ -49,8 +50,14 @@ void Graph::BuildSamplers(Device const *device)
 {
     check(device);
 
-    _depthSampler = Sampler::Builder{}.Depth().Name("graph depth sampler").Build(device);
-    _colorSampler = Sampler::Builder{}.Name("graph color sampler").Build(device);
+    Sampler::CreateInfo createInfo{};
+    createInfo.depth = true;
+
+    _depthSampler = new Sampler{device, createInfo};
+
+    createInfo.depth = false;
+
+    _colorSampler = new Sampler{device, createInfo};
 
     spdlog::debug("Graph: built samplers");
 }
@@ -103,16 +110,16 @@ Graph::~Graph()
 Resource Graph::NewResource(ResourceCreateInfo const &createInfo)
 {
     _resourceInfos.push_back(createInfo);
-    return Resource{_resourceInfos.size() - 1};
+    return Resource{(uint32_t)_resourceInfos.size() - 1};
 }
 
 Pass Graph::NewPass(PassCreateInfo const &createInfo)
 {
     _passInfos.push_back(createInfo);
-    return Pass{_passInfos.size() - 1};
+    return Pass{(uint32_t)_passInfos.size() - 1};
 }
 
-void Graph::SetUboSize(size_t const size)
+void Graph::SetUboSize(uint32_t const size)
 {
     _uboSize = size;
 }
@@ -189,7 +196,7 @@ void Graph::Compile(Resource target, GraphUsage usage)
 
     Reset();
 
-    for (size_t pass = 0; pass < _passInfos.size(); pass++)
+    for (uint32_t pass = 0; pass < _passInfos.size(); pass++)
     {
         PassCreateInfo const &passInfo = GetPassInfo(Pass{pass});
 
@@ -421,13 +428,13 @@ void Graph::BuildPipeline(Pass pass)
     {
         descriptorSetLayouts.push_back(_uboDescriptorSetLayout);
     }
-    for (size_t i = 0; i < passInfo.reads.size(); ++i)
+    for (uint32_t i = 0; i < passInfo.reads.size(); ++i)
     {
         descriptorSetLayouts.push_back(_descriptorSetLayout);
     }
-    if (passInfo.staticTextures)
+    for (StaticTextures const *staticTextures : passInfo.staticTextures)
     {
-        descriptorSetLayouts.push_back(passInfo.staticTextures->GetDescriptorSetLayout());
+        descriptorSetLayouts.push_back(staticTextures->GetDescriptorSetLayout());
     }
 
     vk::PipelineLayoutCreateInfo pipelineLayoutInfo{};
@@ -448,7 +455,7 @@ void Graph::BuildPipeline(Pass pass)
     }
 
     device->CreatePipelineLayout(pipelineLayoutInfo, &pipelineHolder.pipelineLayout,
-                                 passInfo.debugName + "_pipeline_layout");
+                                 passInfo.debugName + "<pipeline_layout>");
 
     vk::GraphicsPipelineCreateInfo pipelineInfo{};
     pipelineInfo.stageCount = 2u;
@@ -474,7 +481,7 @@ void Graph::BuildPipeline(Pass pass)
     spdlog::debug("Graph: built {0} pipeline", passInfo.debugName);
 }
 
-void Graph::FlushUbo(void *ubo, size_t frameIndex)
+void Graph::FlushUbo(void *ubo, uint32_t frameIndex)
 {
     if (!_requestsUniform)
     {
@@ -503,7 +510,7 @@ void Graph::FlushUbo(void *ubo, size_t frameIndex)
     _currentFrameIndex = frameIndex;
 }
 
-void Graph::Render(vk::CommandBuffer commandBuffer, size_t frameIndex)
+void Graph::Render(vk::CommandBuffer commandBuffer, uint32_t frameIndex)
 {
     extern TracyVkCtx TRACY_CTX;
     TracyVkZone(TRACY_CTX, commandBuffer, "graph");
@@ -555,7 +562,7 @@ void Graph::Render(vk::CommandBuffer commandBuffer, size_t frameIndex)
         commandBuffer.setViewport(0, 1, &viewport);
         commandBuffer.setScissor(0, 1, &scissor);
 
-        size_t offset = 0;
+        uint32_t offset = 0;
 
         if (passInfo.readsUniform)
         {
@@ -579,11 +586,12 @@ void Graph::Render(vk::CommandBuffer commandBuffer, size_t frameIndex)
             offset += passInfo.reads.size();
         }
 
-        if (passInfo.staticTextures)
+        for (StaticTextures const *staticTextures : passInfo.staticTextures)
         {
-            vk::DescriptorSet const staticDescriptorSet = passInfo.staticTextures->GetDescriptorSet();
+            vk::DescriptorSet const staticDescriptorSet = staticTextures->GetDescriptorSet();
             commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, _pipelines.at(pass).pipelineLayout,
                                              offset, 1u, &staticDescriptorSet, 0u, nullptr);
+            offset++;
         }
 
         commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, _pipelines.at(pass).pipeline);
@@ -834,19 +842,19 @@ void Graph::Build(Resource resource)
     {
         _images[resource][i] = new Image(device, imageInfo, createInfo.debugName + std::string("_image"));
 
-        Texture::Builder textureBuilder = Texture::Builder{}
-                                              .SetImage(_images[resource][i])
-                                              .SetSampler(_colorSampler)
-                                              .Name(createInfo.debugName + std::string("_texture"))
-                                              .Format(createInfo.format);
+        Texture::CreateInfo textureCreateInfo{};
+        textureCreateInfo.pImage = _images[resource][i];
+        textureCreateInfo.format = createInfo.format;
+        textureCreateInfo.name = createInfo.debugName;
+        textureCreateInfo.pSampler = _colorSampler;
 
         if (createInfo.usage == ResourceUsage::eDepth)
         {
-            textureBuilder.Depth();
-            textureBuilder.SetSampler(_depthSampler);
+            textureCreateInfo.depth = true;
+            textureCreateInfo.pSampler = _depthSampler;
         }
 
-        _textures[resource][i] = textureBuilder.Build(device);
+        _textures[resource][i] = new Texture(device, textureCreateInfo);
     }
 
     if (IsSampled(resource))
@@ -935,7 +943,7 @@ void Graph::Build(Pass pass)
     renderPassInfo.pSubpasses = &subpass;
 
     vk::RenderPass renderPass;
-    device->CreateRenderPass(renderPassInfo, &renderPass, createInfo.debugName + " render pass");
+    device->CreateRenderPass(renderPassInfo, &renderPass, createInfo.debugName + "<render_pass>");
     _renderPasses[pass] = renderPass;
 
     for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
@@ -956,7 +964,7 @@ void Graph::Build(Pass pass)
         framebufferInfo.layers = 1;
 
         vk::Framebuffer framebuffer;
-        device->CreateFramebuffer(framebufferInfo, &framebuffer, createInfo.debugName + "_framebuffer");
+        device->CreateFramebuffer(framebufferInfo, &framebuffer, createInfo.debugName + "<framebuffer>");
         _framebuffers[pass][i] = framebuffer;
     }
 
@@ -978,7 +986,7 @@ void Graph::BuildUbo()
     descriptorPoolInfo.poolSizeCount = (uint32_t)descriptorPoolSizes.size();
     descriptorPoolInfo.pPoolSizes = descriptorPoolSizes.data();
 
-    device->CreateDescriptorPool(descriptorPoolInfo, &_uboDescriptorPool, "graph ubo descriptor pool");
+    device->CreateDescriptorPool(descriptorPoolInfo, &_uboDescriptorPool, "<graph_ubo_descriptor_pool>");
 
     std::vector<vk::DescriptorSetLayoutBinding> descriptorSetLayoutBindings{
         {0, vk::DescriptorType::eUniformBuffer, 1, {vk::ShaderStageFlagBits::eAllGraphics}}};
@@ -988,10 +996,10 @@ void Graph::BuildUbo()
     descriptorSetLayoutInfo.pBindings = descriptorSetLayoutBindings.data();
 
     device->CreateDescriptorSetLayout(descriptorSetLayoutInfo, &_uboDescriptorSetLayout,
-                                      "_graph_ubo_descriptor_set_layout");
+                                      "<graph_ubo_descriptor_set_layout>");
 
     std::vector<vk::WriteDescriptorSet> writeDescriptors{};
-    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+    for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
     {
         vk::Buffer uboBuffer;
         vk::DeviceMemory uboDeviceMemory;
@@ -1003,7 +1011,7 @@ void Graph::BuildUbo()
 
         device->CreateBufferAndBindMemory(createInfo, &uboBuffer, &uboDeviceMemory,
                                           {vk::MemoryPropertyFlagBits::eHostVisible},
-                                          "_ubo_buffer " + std::to_string(i));
+                                          fmt::format("<ubo_buffer>({})", i));
 
         _uboBuffers[i] = uboBuffer;
         _uboDeviceMemories[i] = uboDeviceMemory;
@@ -1019,7 +1027,7 @@ void Graph::BuildUbo()
         setAllocInfo.descriptorSetCount = 1u;
         setAllocInfo.pSetLayouts = &_uboDescriptorSetLayout;
 
-        device->AllocateDescriptorSet(setAllocInfo, &descriptorSet, "_ubo_descriptor_set " + std::to_string(i));
+        device->AllocateDescriptorSet(setAllocInfo, &descriptorSet, "<ubo_descriptor_set>" + std::to_string(i));
 
         vk::DescriptorBufferInfo bufferInfo{};
         bufferInfo.offset = 0u;
@@ -1088,7 +1096,7 @@ void Graph::BuildDescriptors(Resource resource)
         setAllocInfo.descriptorSetCount = 1u;
         setAllocInfo.pSetLayouts = &_descriptorSetLayout;
 
-        device->AllocateDescriptorSet(setAllocInfo, &descriptorSet, resourceInfo.debugName + " descriptor set");
+        device->AllocateDescriptorSet(setAllocInfo, &descriptorSet, resourceInfo.debugName + "<descriptor_set>");
 
         check(_textures.find(resource) != _textures.end());
 
@@ -1121,7 +1129,7 @@ void Graph::BuildDescriptors(Resource resource)
     spdlog::debug("Graph: built descriptors for '{}'", resourceInfo.debugName);
 }
 
-void Graph::Resize(size_t width, size_t height)
+void Graph::Resize(uint32_t width, uint32_t height)
 {
     spdlog::debug("Graph: resizing from {}x{} to {}x{}", _width, _height, width, height);
 
@@ -1171,7 +1179,7 @@ void Graph::Resize(size_t width, size_t height)
     spdlog::debug("Graph: resized to {}x{}", _width, _height, width, height);
 }
 
-void Graph::OnResizeCallback(void *graph, size_t width, size_t height)
+void Graph::OnResizeCallback(void *graph, uint32_t width, uint32_t height)
 {
     check(graph);
     reinterpret_cast<Graph *>(graph)->Resize(width, height);

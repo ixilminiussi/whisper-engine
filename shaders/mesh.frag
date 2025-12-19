@@ -9,6 +9,7 @@ layout(location = 0) in v_info i;
 layout(location = 0) out vec4 out_color;
 
 layout(set = 1, binding = 0) uniform sampler2D textures[];
+layout(set = 2, binding = 0) uniform samplerCube cubemaps[];
 
 #include "ubo.glsl"
 

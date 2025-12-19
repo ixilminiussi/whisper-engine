@@ -7,9 +7,11 @@
 #include <wsp_assets_manager.hpp>
 #include <wsp_camera.hpp>
 #include <wsp_custom_imgui.hpp>
+#include <wsp_drawable.hpp>
 #include <wsp_engine.hpp>
 #include <wsp_global_ubo.hpp>
 #include <wsp_graph.hpp>
+#include <wsp_handles.hpp>
 #include <wsp_input_manager.hpp>
 #include <wsp_inputs.hpp>
 #include <wsp_mesh.hpp>
@@ -70,7 +72,7 @@ Editor::Editor() : _drawList{nullptr}
 
     ResourceCreateInfo colorInfo{};
     colorInfo.usage = ResourceUsage::eColor;
-    colorInfo.format = vk::Format::eR8G8B8A8Unorm;
+    colorInfo.format = vk::Format::eR8G8B8A8Srgb;
     glm::vec4 const clearColor = decodeSRGB(glm::vec4{24.f / 255.f, 24 / 255.f, 37 / 255.f, 1.f});
     colorInfo.clear.color = vk::ClearColorValue{clearColor.r, clearColor.g, clearColor.b, 1.0f};
     colorInfo.debugName = "color";
@@ -84,43 +86,55 @@ Editor::Editor() : _drawList{nullptr}
     Resource const colorResource = graph->NewResource(colorInfo);
     Resource const depthResource = graph->NewResource(depthInfo);
 
-    _assetsManager = std::make_unique<AssetsManager>();
+    PassCreateInfo backgroundPassInfo{};
+    backgroundPassInfo.writes = {colorResource, depthResource};
+    backgroundPassInfo.readsUniform = true;
+    backgroundPassInfo.staticTextures = {AssetsManager::Get()->GetStaticTextures(),
+                                         AssetsManager::Get()->GetStaticCubemaps()};
+    backgroundPassInfo.vertFile = "background.vert.spv";
+    backgroundPassInfo.fragFile = "background.frag.spv";
+    backgroundPassInfo.debugName = "background render";
+    backgroundPassInfo.execute = [](vk::CommandBuffer commandBuffer, vk::PipelineLayout) {
+        commandBuffer.draw(6u, 1u, 0u, 0u);
+    };
 
-    PassCreateInfo passCreateInfo{};
-    passCreateInfo.writes = {colorResource, depthResource};
-    passCreateInfo.readsUniform = true;
-    passCreateInfo.staticTextures = renderManager->GetStaticTextures();
-    passCreateInfo.vertexInputInfo = Mesh::Vertex::GetVertexInputInfo();
-    passCreateInfo.vertFile = "mesh.vert.spv";
-    passCreateInfo.fragFile = "mesh.frag.spv";
-    passCreateInfo.debugName = "mesh render";
-    passCreateInfo.pushConstantSize = sizeof(Mesh::PushData);
-    passCreateInfo.execute = [=](vk::CommandBuffer commandBuffer, vk::PipelineLayout pipelineLayout) {
+    graph->NewPass(backgroundPassInfo);
+
+    PassCreateInfo meshPassInfo{};
+    meshPassInfo.writes = {colorResource, depthResource};
+    meshPassInfo.readsUniform = true;
+    meshPassInfo.staticTextures = {AssetsManager::Get()->GetStaticTextures(),
+                                   AssetsManager::Get()->GetStaticCubemaps()};
+    meshPassInfo.vertexInputInfo = Mesh::Vertex::GetVertexInputInfo();
+    meshPassInfo.pushConstantSize = sizeof(Mesh::PushData);
+    meshPassInfo.vertFile = "mesh.vert.spv";
+    meshPassInfo.fragFile = "mesh.frag.spv";
+    meshPassInfo.debugName = "mesh render";
+    meshPassInfo.execute = [=](vk::CommandBuffer commandBuffer, vk::PipelineLayout pipelineLayout) {
         if (_drawList)
         {
             for (Drawable const *drawable : *_drawList)
             {
-                if (ensure(drawable))
-                {
-                    drawable->BindAndDraw(commandBuffer, pipelineLayout);
-                }
+                drawable->BindAndDraw(commandBuffer, pipelineLayout);
             }
         }
     };
 
-    graph->NewPass(passCreateInfo);
-    graph->Compile(colorResource, Graph::eToDescriptorSet);
+    graph->NewPass(meshPassInfo);
+
+    _rebuild = [graph, colorResource]() { graph->Compile(colorResource, Graph::eToDescriptorSet); };
+
+    _rebuild();
 }
 
 Editor::~Editor()
 {
-    delete _assetsManager.release();
-
     ImGui_ImplVulkan_Shutdown();
     ImGui_ImplGlfw_Shutdown();
 
     ImGui::DestroyContext();
 
+    AssetsManager::Get()->UnloadAll();
     RenderManager::Get()->Free();
 
     spdlog::info("Editor: shut down");
@@ -150,6 +164,7 @@ void Editor::Render()
         static bool showContentBrowser = true;
 
         static bool showEditorSettings = false;
+        static bool showGraphicsSettings = true;
 
         if (ImGui::BeginMainMenuBar())
         {
@@ -185,6 +200,11 @@ void Editor::Render()
         if (showContentBrowser)
         {
             RenderContentBrowser(&showContentBrowser);
+        }
+
+        if (showGraphicsSettings)
+        {
+            RenderGraphicsManager(&showGraphicsSettings);
         }
 
         if (showEditorSettings)
@@ -233,11 +253,10 @@ void Editor::PopulateUbo(ubo::Ubo *ubo)
     ubo::Sun sun{};
     sun.color = glm::vec4{1.f};
     sun.direction = glm::vec3{1.f, 1.f, 0.f};
+    sun.skybox = _cubemapTexture ? _cubemapTexture->GetID() : INVALID_ID;
     ubo->light.sun = sun;
 
-    check(_assetsManager);
-
-    memcpy(ubo->materials, _assetsManager->GetMaterialInfos().data(), MAX_MATERIALS);
+    memcpy(ubo->materials, AssetsManager::Get()->GetMaterialInfos().data(), MAX_MATERIALS);
 }
 
 void Editor::OnClick(double dt, int value)
@@ -328,7 +347,7 @@ void Editor::RenderViewport(bool *show)
     {
         _deferredQueue.push_back([=]() {
             check(graph);
-            graph->Resize((size_t)size.x, (size_t)size.y);
+            graph->Resize((uint32_t)size.x, (uint32_t)size.y);
             check(_viewportCamera);
             _viewportCamera->SetAspectRatio((float)size.x / (float)size.y);
         });
@@ -340,106 +359,174 @@ void Editor::RenderViewport(bool *show)
 
 void Editor::RenderContentBrowser(bool *show)
 {
-    if (!ensure(_assetsManager.get()))
-    {
-        return;
-    }
+    AssetsManager *assetsManager = AssetsManager::Get();
 
     ImGui::Begin("Content Browser", show);
-    static std::filesystem::path _currentDirectory = _assetsManager->_fileRoot;
 
-    static float const padding = 16.f;
-    static float const thumbnailSize = 128.f;
-    float const cellSize = padding + thumbnailSize;
+    ImGui::BeginTabBar("ContentTab");
 
-    float const panelWidth = ImGui::GetContentRegionAvail().x;
-    int const columnCount = std::max(1, (int)(panelWidth / cellSize));
-
-    if (std::filesystem::canonical(_currentDirectory).compare(std::filesystem::canonical(_assetsManager->_fileRoot)) !=
-        0)
+    if (ImGui::BeginTabItem("files"))
     {
-        if (wsp::VanillaButton("../"))
-        {
-            _currentDirectory = std::filesystem::path(_currentDirectory).parent_path();
-        }
-        ImGui::SameLine();
-        if (wsp::VanillaButton("/"))
-        {
-            _currentDirectory = std::filesystem::path(_assetsManager->_fileRoot);
-        }
-    }
+        static std::filesystem::path _currentDirectory = assetsManager->_fileRoot;
 
-    ImGui::Columns(columnCount, 0, false);
+        static float const padding = 16.f;
+        static float const thumbnailSize = 128.f;
+        float const cellSize = padding + thumbnailSize;
 
-    int id = 0;
-    for (auto &directory : std::filesystem::directory_iterator(_currentDirectory))
-    {
-        ImGui::PushID(id++);
+        float const panelWidth = ImGui::GetContentRegionAvail().x;
+        int const columnCount = std::max(1, (int)(panelWidth / cellSize));
 
-        if (directory.is_directory())
+        if (std::filesystem::canonical(_currentDirectory)
+                .compare(std::filesystem::canonical(assetsManager->_fileRoot)) != 0)
         {
-            std::filesystem::path const path = directory.path().c_str();
-            if (wsp::ThumbnailButton(ICON_MS_FOLDER))
+            if (wsp::VanillaButton("../"))
             {
-                _currentDirectory = directory.path();
+                _currentDirectory = std::filesystem::path(_currentDirectory).parent_path();
             }
-            ImGui::Text("%s", path.filename().c_str());
-        }
-        else
-        {
-            std::filesystem::path const path = directory.path();
-
-            bool r = false;
-            if (_assetsManager->_images.contains(path)) // if the image is loaded, put an image button
+            ImGui::SameLine();
+            if (wsp::VanillaButton("/"))
             {
-                std::vector<Image *> images = _assetsManager->_images.from(path);
-                ImTextureID const textureID = _assetsManager->GetTextureID(images.at(0));
+                _currentDirectory = std::filesystem::path(assetsManager->_fileRoot);
+            }
+        }
 
-                r = wsp::ThumbnailButton(textureID);
-            } // else a regular icon
+        ImGui::Columns(columnCount, 0, false);
+
+        int id = 0;
+        for (auto &directory : std::filesystem::directory_iterator(_currentDirectory))
+        {
+            ImGui::PushID(id++);
+
+            if (directory.is_directory())
+            {
+                std::filesystem::path const path = directory.path().c_str();
+                if (wsp::ThumbnailButton(ICON_MS_FOLDER))
+                {
+                    _currentDirectory = directory.path();
+                }
+                ImGui::Text("%s", path.filename().c_str());
+            }
             else
             {
-                r = wsp::ThumbnailButton(ICON_MS_DESCRIPTION);
-            }
+                std::filesystem::path const path = directory.path();
 
-            if (r)
-            {
-                try
+                bool r = false;
+                Image::CreateInfo imageInfo{};
+                imageInfo.filepath = path;
+                if (assetsManager->_images.find(imageInfo) !=
+                    assetsManager->_images.end()) // if the image is loaded, put an image button
                 {
-                    std::filesystem::path const relativePath =
-                        std::filesystem::relative(path, _assetsManager->_fileRoot);
+                    Image *images = assetsManager->_images.at(imageInfo);
+                    ImTextureID const textureID = assetsManager->GetTextureID(images);
 
-                    if (_drawList)
-                    {
-                        _drawList->clear();
-                    }
-                    else
-                    {
-                        _drawList = new std::vector<Drawable const *>{};
-                    }
-
-                    float furthestRadius = 0.f;
-
-                    for (Drawable const *drawable : _assetsManager->ImportGlTF(relativePath))
-                    {
-                        furthestRadius = std::max(furthestRadius, drawable->GetRadius());
-                        _drawList->push_back((Drawable const *)drawable);
-                    }
-
-                    _viewportCamera->SetOrbitTarget({0.f, 0.f, 0.f});
-                    _viewportCamera->SetOrbitDistance(furthestRadius * 2.5f);
-                    _viewportCamera->Refresh();
+                    r = wsp::ThumbnailButton(textureID);
+                } // else a regular icon
+                else
+                {
+                    r = wsp::ThumbnailButton(ICON_MS_DESCRIPTION);
                 }
-                catch (std::exception const &exception)
+
+                if (r)
                 {
-                    spdlog::critical("ContentBrowser: {}", exception.what());
-                };
+                    try
+                    {
+                        std::filesystem::path const relativePath =
+                            std::filesystem::relative(path, assetsManager->_fileRoot);
+
+                        if (relativePath.extension().compare(".gltf") == 0)
+                        {
+                            if (_drawList)
+                            {
+                                _drawList->clear();
+                            }
+                            else
+                            {
+                                _drawList = new std::vector<Drawable const *>{};
+                            }
+
+                            float furthestRadius = 0.f;
+
+                            for (Drawable const *drawable : assetsManager->ImportGlTF(relativePath))
+                            {
+                                furthestRadius = std::max(furthestRadius, drawable->GetRadius());
+                                _drawList->push_back((Drawable const *)drawable);
+                            }
+
+                            _viewportCamera->SetOrbitTarget({0.f, 0.f, 0.f});
+                            _viewportCamera->SetOrbitDistance(furthestRadius * 2.5f);
+                            _viewportCamera->Refresh();
+                        }
+                        else if (relativePath.extension().compare(".png") == 0 && _skyboxFlag)
+                        {
+                            // assetsManager->ImportCubemap(relativePath);
+                            _skyboxFlag = false;
+                        }
+                    }
+                    catch (std::exception const &exception)
+                    {
+                        spdlog::critical("ContentBrowser: {}", exception.what());
+                    };
+                }
+                ImGui::Text("%s", path.filename().c_str());
             }
-            ImGui::Text("%s", path.filename().c_str());
+            ImGui::NextColumn();
+            ImGui::PopID();
         }
-        ImGui::NextColumn();
-        ImGui::PopID();
+
+        ImGui::Columns(1);
+
+        ImGui::EndTabItem();
     }
+
+    if (ImGui::BeginTabItem("materials"))
+    {
+        static float const columnSize = 256.f;
+
+        float const panelWidth = ImGui::GetContentRegionAvail().x;
+        int const columnCount = std::max(1, (int)(panelWidth / columnSize));
+
+        ImGui::Columns(columnCount, 0, false);
+
+        for (auto &material : assetsManager->_materials)
+        {
+            ImGui::BeginChild(material.GetName().c_str());
+            ImGui::Text("%s", material.GetName().c_str());
+            frost::RenderEditor(frost::Meta<Material>{}, &material);
+            ImGui::EndChild();
+
+            ImGui::NextColumn();
+        }
+
+        ImGui::Columns(1);
+
+        ImGui::EndTabItem();
+    }
+
+    ImGui::EndTabBar();
+    ImGui::End();
+}
+
+void Editor::RenderGraphicsManager(bool *show)
+{
+    RenderManager *renderManager = RenderManager::Get();
+    check(renderManager);
+
+    check(show);
+
+    ImGui::Begin("Graphics Manager", show);
+
+    if (wsp::VanillaButton("Rebuild"))
+    {
+        _rebuild();
+    }
+
+    ImGui::BeginDisabled(_skyboxFlag);
+    if (wsp::GreenButton("Select Skybox"))
+    {
+        _skyboxFlag = true;
+    }
+    ImGui::EndDisabled();
+
     ImGui::End();
 }
 

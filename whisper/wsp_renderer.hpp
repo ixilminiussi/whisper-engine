@@ -19,8 +19,8 @@ class Renderer
     Renderer(Renderer const &) = delete;
     Renderer &operator=(Renderer const &) = delete;
 
-    void Initialize(size_t width, size_t height);
-    void Render(vk::CommandBuffer, size_t frameIndex) const;
+    void Initialize(uint32_t width, uint32_t height);
+    void Render(vk::CommandBuffer, uint32_t frameIndex) const;
 
     class Graph *GetGraph() const;
 

@@ -1,3 +1,4 @@
+#include "imgui.h"
 #include <wsp_device.hpp>
 
 #include <wsp_assets_manager.hpp>
@@ -16,6 +17,7 @@
 #include <IconsMaterialSymbols.h>
 
 #include <cgltf.h>
+#include <fcntl.h>
 #include <spdlog/spdlog.h>
 
 #include <filesystem>
@@ -28,59 +30,32 @@
 
 using namespace wsp;
 
+AssetsManager *AssetsManager::_instance{nullptr};
+
+AssetsManager *AssetsManager::Get()
+{
+    if (!_instance)
+    {
+        _instance = new AssetsManager();
+    }
+
+    return _instance;
+}
+
 AssetsManager::AssetsManager() : _fileRoot{WSP_ASSETS}
 {
 #ifndef NDEBUG
     Device const *device = SafeDeviceAccessor::Get();
     check(device);
-
-    _defaultSampler =
-        Sampler::Builder{}.Name("preview sampler").AddressMode(vk::SamplerAddressMode::eClampToEdge).Build(device);
 #endif
+
+    _staticTextures = new StaticTextures(MAX_DYNAMIC_TEXTURES, "static 2d textures");
+    _staticCubemaps = new StaticTextures(MAX_DYNAMIC_TEXTURES, "static cube textures");
 }
 
 AssetsManager::~AssetsManager()
 {
-    spdlog::info("AssetsManager: began termination");
-
-    Device const *device = SafeDeviceAccessor::Get();
-    check(device);
-
-    delete _defaultSampler;
-
-#ifndef NDEBUG
-    for (auto &[image, pair] : _previewTextures)
-    {
-        ImGui_ImplVulkan_RemoveTexture((VkDescriptorSet)pair.first);
-        device->DestroyImageView(&pair.second);
-    }
-#endif
-
-    for (auto const &[mesh, path] : _meshes)
-    {
-        delete mesh;
-    }
-    _meshes.clear();
-
-    for (Texture *texture : _textures)
-    {
-        delete texture;
-    }
-    _textures.clear();
-
-    for (Sampler *sampler : _samplers)
-    {
-        delete sampler;
-    }
-    _samplers.clear();
-
-    for (auto &[image, path] : _images)
-    {
-        delete image;
-    }
-    _images.clear();
-
-    spdlog::info("AssetsManager: terminated");
+    UnloadAll();
 }
 
 std::string ToString(cgltf_result result)
@@ -111,6 +86,60 @@ std::string ToString(cgltf_result result)
         return "unknown";
     }
 };
+
+TextureID AssetsManager::LoadTexture(Texture::CreateInfo const &createInfo)
+{
+    Device const *device = SafeDeviceAccessor::Get();
+    check(device);
+    return _textures.emplace(device, createInfo).raw;
+}
+
+MaterialID AssetsManager::LoadMaterial(Material::CreateInfo const &createInfo)
+{
+    return _materials.emplace(createInfo).raw;
+}
+
+void AssetsManager::UnloadAll()
+{
+    spdlog::info("AssetsManager: began termination");
+
+    Device const *device = SafeDeviceAccessor::Get();
+    check(device);
+
+#ifndef NDEBUG
+    for (auto &[image, pair] : _previewTextures)
+    {
+        ImGui_ImplVulkan_RemoveTexture((VkDescriptorSet)pair.first);
+        device->DestroyImageView(&pair.second);
+    }
+#endif
+
+    for (auto &[info, image] : _images)
+    {
+        delete image;
+    }
+    _images.clear();
+
+    for (auto &[key, sampler] : _samplers)
+    {
+        delete sampler;
+    }
+    _samplers.clear();
+
+    _textures.clear();
+    _materials.clear();
+
+    for (auto const &[mesh, path] : _meshes)
+    {
+        delete mesh;
+    }
+    _meshes.clear();
+
+    delete _staticTextures;
+    delete _staticCubemaps;
+
+    spdlog::info("AssetsManager: terminated");
+}
 
 std::vector<Mesh *> AssetsManager::ImportGlTF(std::filesystem::path const &relativePath)
 {
@@ -147,81 +176,61 @@ std::vector<Mesh *> AssetsManager::ImportGlTF(std::filesystem::path const &relat
 
     check(data);
 
-    // images are "created" but the actual vk::Image depends on the image's usage by materials
-    std::vector<Image *> images{};
-    for (int i = 0; i < data->images_count; i++)
-    {
-        std::filesystem::path const imagePath = (_fileRoot / data->images[i].uri).lexically_normal();
-        if (_images.contains(imagePath))
-        {
-            images.push_back(_images.from(imagePath).at(0));
-        }
-        else
-        {
-            Image *image = Image::BuildGlTF(device, data->images + i, _fileRoot);
-            _images[image] = imagePath;
-            images.push_back(image);
-        }
-    }
-
-    std::vector<Sampler *> samplers{};
-    for (int i = 0; i < data->samplers_count; i++)
-    {
-        Sampler *sampler = Sampler::Builder{}.GlTF(data->samplers + i).Build(device);
-        _samplers.push_back(sampler);
-        samplers.push_back(sampler);
-    }
-
-    if (samplers.size() == 0)
-    {
-        samplers.push_back(_defaultSampler); // make sure there is always ONE sampler available
-    }
-
-    // similarly we don't finish building the textures yet, the materials themselves build the textures to pick the
-    // appropriate image format
-    std::vector<std::pair<Texture::Builder, Texture *>> textureBuilders{};
+    // Textures BEGIN ==================================
+    std::vector<Texture::CreateInfo> textureCreateInfos{};
     for (int i = 0; i < data->textures_count; i++)
     {
-        Texture::Builder textureBuilder =
-            Texture::Builder{}.GlTF(data->textures + i, data->images, images, data->samplers, samplers);
-        ;
-
-        textureBuilders.push_back({textureBuilder, nullptr});
+        Texture::CreateInfo const createInfo =
+            Texture::GetCreateInfoFromGlTF(data->textures + i, filepath.parent_path());
+        textureCreateInfos.push_back(createInfo);
     }
 
-    std::vector<Material *> materials{};
     for (int i = 0; i < data->materials_count; i++)
     {
-        Material *material = Material::BuildGlTF(device, data->materials + i, data->textures, &textureBuilders);
-
-        materials.push_back(material);
+        Material::PropagateFormatFromGlTF(data->materials + i, data->textures, &textureCreateInfos);
     }
 
-    for (auto &[builder, texture] : textureBuilders)
+    std::vector<TextureID> textures;
+    for (Texture::CreateInfo const &createInfo : textureCreateInfos)
     {
-        if (texture)
-        {
-            RenderManager::Get()->GetStaticTextures()->Push({texture});
-            _textures.push_back(texture);
-        }
+        textures.push_back(LoadTexture(createInfo));
     }
 
-    for (Material *material : materials)
-    {
-        _materials.push_back(material);
-        material->SetID(_materials.size() - 1);
+    _staticTextures->Push(textures);
+    // Textures END ====================================
 
-        if (ensure(_materials.size() < MAX_MATERIALS))
+    // Materials BEGIN =================================
+    std::vector<MaterialID> materials{};
+
+    for (int i = 0; i < data->materials_count; i++)
+    {
+        Material::CreateInfo const createInfo =
+            Material::GetCreateInfoFromGlTF(data->materials + i, data->textures, textures);
+
+        materials.push_back(LoadMaterial(createInfo));
+    }
+
+    // TODO: do something better here, this is so fucking dumb holy shit ("too bad")
+    int i = 0;
+    for (auto &material : _materials)
+    {
+        if (i < MAX_MATERIALS)
         {
-            material->GetInfo(&_materialInfos[_materials.size() - 1]);
+            material.SetID(i);
+
+            material.GetInfo(&_materialInfos[i]);
         }
         else
         {
             spdlog::critical(
                 "AssetsManager: reached material limit, either increase it in constants.hpp or import less materials");
+            break;
         }
+        i++;
     }
+    // Materials END ===================================
 
+    // Meshes BEGIN ====================================
     std::vector<Mesh *> meshes{};
     for (int i = 0; i < data->meshes_count; i++)
     {
@@ -236,14 +245,11 @@ std::vector<Mesh *> AssetsManager::ImportGlTF(std::filesystem::path const &relat
             meshes.push_back(mesh);
         }
     }
+    // Meshes END ======================================
 
     cgltf_free(data);
 
     return meshes;
-}
-
-std::vector<class Mesh *> AssetsManager::ImportPNG(std::filesystem::path const &filepath)
-{
 }
 
 #ifndef NDEBUG
@@ -256,10 +262,9 @@ ImTextureID AssetsManager::GetTextureID(Image *image)
 
     if (_previewTextures.find(image) == _previewTextures.end())
     {
-        check(image->AskForVariant(vk::Format::eR8G8B8Srgb));
         vk::ImageViewCreateInfo imageViewInfo{};
         imageViewInfo.viewType = vk::ImageViewType::e2D;
-        imageViewInfo.image = image->GetImage(vk::Format::eR8G8B8Srgb);
+        imageViewInfo.image = image->GetImage();
         imageViewInfo.format = vk::Format::eR8G8B8Srgb;
         imageViewInfo.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
         imageViewInfo.subresourceRange.baseMipLevel = 0;
@@ -271,7 +276,7 @@ ImTextureID AssetsManager::GetTextureID(Image *image)
         device->CreateImageView(imageViewInfo, &imageView, "preview image");
 
         _previewTextures[image] = {(ImTextureID)ImGui_ImplVulkan_AddTexture(
-                                       static_cast<VkSampler>(_defaultSampler->GetSampler()),
+                                       static_cast<VkSampler>(RequestSampler({})->GetSampler()),
                                        static_cast<VkImageView>(imageView),
                                        static_cast<VkImageLayout>(vk::ImageLayout::eShaderReadOnlyOptimal)),
                                    imageView};
@@ -284,4 +289,52 @@ ImTextureID AssetsManager::GetTextureID(Image *image)
 std::array<ubo::Material, MAX_MATERIALS> const &AssetsManager::GetMaterialInfos() const
 {
     return _materialInfos;
+}
+
+Image *AssetsManager::RequestImage(Image::CreateInfo const &createInfo)
+{
+    Device const *device = SafeDeviceAccessor::Get();
+    check(device);
+
+    if (_images.find(createInfo) == _images.end())
+    {
+        _images[createInfo] = new Image{device, createInfo};
+    }
+
+    return _images[createInfo];
+}
+
+Sampler *AssetsManager::RequestSampler(Sampler::CreateInfo const &createInfo)
+{
+    Device const *device = SafeDeviceAccessor::Get();
+    check(device);
+
+    if (_samplers.find(createInfo) == _samplers.end())
+    {
+        _samplers[createInfo] = new Sampler{device, createInfo};
+    }
+
+    return _samplers[createInfo];
+}
+
+Texture const *AssetsManager::GetTexture(TextureID const &id) const
+{
+    dod::slot_map_key32<Texture> const restoredID{id};
+    return _textures.get(restoredID);
+}
+
+Material const *AssetsManager::GetMaterial(MaterialID const &id) const
+{
+    dod::slot_map_key32<Material> const restoredID{id};
+    return _materials.get(restoredID);
+}
+
+StaticTextures *AssetsManager::GetStaticTextures() const
+{
+    return _staticTextures;
+}
+
+StaticTextures *AssetsManager::GetStaticCubemaps() const
+{
+    return _staticCubemaps;
 }

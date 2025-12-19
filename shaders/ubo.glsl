@@ -11,7 +11,7 @@ struct Camera
 struct Sun
 {
     vec4 color;
-    vec3 direction;
+    vec4 direction;
 };
 
 struct Light

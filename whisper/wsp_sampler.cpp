@@ -8,47 +8,11 @@
 
 using namespace wsp;
 
-Sampler::Builder::Builder()
+Sampler::CreateInfo Sampler::GetCreateInfoFromGlTF(cgltf_sampler const *sampler)
 {
-    _createInfo.magFilter = vk::Filter::eLinear;
-    _createInfo.minFilter = vk::Filter::eLinear;
-    _createInfo.addressModeU = vk::SamplerAddressMode::eClampToEdge;
-    _createInfo.addressModeV = vk::SamplerAddressMode::eClampToEdge;
-    _createInfo.addressModeW = vk::SamplerAddressMode::eClampToEdge;
-    _createInfo.borderColor = vk::BorderColor::eIntOpaqueBlack;
-    _createInfo.unnormalizedCoordinates = false;
-    _createInfo.compareEnable = false;
-    _createInfo.mipmapMode = vk::SamplerMipmapMode::eLinear;
-}
+    CreateInfo createInfo{};
 
-Sampler::Builder &Sampler::Builder::AddressMode(vk::SamplerAddressMode addressMode)
-{
-    _createInfo.addressModeU = addressMode;
-    _createInfo.addressModeV = addressMode;
-    _createInfo.addressModeW = addressMode;
-
-    return *this;
-}
-
-Sampler::Builder &Sampler::Builder::Depth()
-{
-    _createInfo.compareEnable = true;
-
-    return *this;
-}
-
-Sampler::Builder &Sampler::Builder::Name(std::string const &name)
-{
-    _name = name;
-
-    return *this;
-}
-
-Sampler::Builder &Sampler::Builder::GlTF(cgltf_sampler const *sampler)
-{
     check(sampler);
-
-    _name = std::string(sampler->name);
 
     auto SetFilter = [](cgltf_filter_type type, vk::Filter *filter, vk::SamplerMipmapMode *mipMapMode) {
         check(filter);
@@ -100,27 +64,31 @@ Sampler::Builder &Sampler::Builder::GlTF(cgltf_sampler const *sampler)
         }
     };
 
-    SetFilter(sampler->min_filter, &_createInfo.minFilter, &_createInfo.mipmapMode);
-    SetFilter(sampler->min_filter, &_createInfo.magFilter, &_createInfo.mipmapMode);
+    SetFilter(sampler->min_filter, &createInfo.minFilter, &createInfo.mipmapMode);
+    SetFilter(sampler->min_filter, &createInfo.magFilter, &createInfo.mipmapMode);
 
-    SetAddressMode(sampler->wrap_s, &_createInfo.addressModeU);
-    SetAddressMode(sampler->wrap_t, &_createInfo.addressModeV);
+    SetAddressMode(sampler->wrap_s, &createInfo.addressModeU);
+    SetAddressMode(sampler->wrap_t, &createInfo.addressModeV);
 
-    return *this;
+    return createInfo;
 }
 
-Sampler *Sampler::Builder::Build(Device const *device)
+Sampler::Sampler(Device const *device, Sampler::CreateInfo const &createInfo)
 {
     check(device);
 
-    return new Sampler(device, _createInfo, _name);
-}
+    vk::SamplerCreateInfo samplerCreateInfo{};
+    samplerCreateInfo.magFilter = createInfo.magFilter;
+    samplerCreateInfo.minFilter = createInfo.minFilter;
+    samplerCreateInfo.addressModeU = createInfo.addressModeU;
+    samplerCreateInfo.addressModeV = createInfo.addressModeV;
+    samplerCreateInfo.addressModeW = createInfo.addressModeW;
+    samplerCreateInfo.borderColor = vk::BorderColor::eIntOpaqueBlack;
+    samplerCreateInfo.unnormalizedCoordinates = false;
+    samplerCreateInfo.compareEnable = createInfo.depth;
+    samplerCreateInfo.mipmapMode = createInfo.mipmapMode;
 
-Sampler::Sampler(Device const *device, vk::SamplerCreateInfo const &createInfo, std::string const &name) : _name{name}
-{
-    check(device);
-
-    _sampler = device->CreateSampler(createInfo, _name + std::string("_sampler"));
+    _sampler = device->CreateSampler(samplerCreateInfo, "sampler");
 }
 
 Sampler::~Sampler()

@@ -3,6 +3,7 @@
 #define WSP_EDITOR
 
 #include <wsp_handles.hpp>
+#include <wsp_typedefs.hpp>
 
 #include <vulkan/vulkan.hpp>
 
@@ -13,8 +14,6 @@
 #define THUMBNAILS_FONT 1u
 
 struct ImFont;
-
-using WindowID = size_t;
 
 namespace wsp
 {
@@ -49,16 +48,21 @@ class Editor
     bool _isHoveringViewport;
 
     void RenderContentBrowser(bool *show);
+    void RenderGraphicsManager(bool *show);
 
     std::unique_ptr<class ViewportCamera> _viewportCamera;
-    std::unique_ptr<class AssetsManager> _assetsManager;
     std::unique_ptr<class InputManager> _inputManager;
 
     std::vector<std::function<void()>> _deferredQueue;
 
     std::vector<class Drawable const *> *_drawList;
 
+    bool _skyboxFlag;
     class Sampler *_previewSampler;
+
+    std::function<void()> _rebuild;
+
+    Texture *_cubemapTexture;
 
     WindowID _windowID;
 };

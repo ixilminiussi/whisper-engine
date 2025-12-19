@@ -1,3 +1,4 @@
+#include "wsp_assets_manager.hpp"
 #include <wsp_texture.hpp>
 
 #include <wsp_constants.hpp>
@@ -17,114 +18,66 @@
 
 using namespace wsp;
 
-Texture::Builder::Builder() : _sampler{nullptr}
+Texture::CreateInfo Texture::GetCreateInfoFromGlTF(cgltf_texture const *texture,
+                                                   std::filesystem::path const &parentDirectory)
 {
-    _format = vk::Format::eR8G8B8Srgb;
-    _depth = false;
-    _image = nullptr;
-    _sampler = nullptr;
-}
+    CreateInfo createInfo{};
 
-Texture::Builder &Texture::Builder::Depth()
-{
-    _depth = true;
+    AssetsManager *assetsManager = AssetsManager::Get();
 
-    return *this;
-}
-
-Texture::Builder &Texture::Builder::SetImage(Image *image)
-{
-    check(image);
-
-    _image = image;
-
-    return *this;
-}
-
-Texture::Builder &Texture::Builder::SetSampler(Sampler const *sampler)
-{
-    _sampler = sampler;
-
-    return *this;
-}
-
-Texture::Builder &Texture::Builder::Format(vk::Format format)
-{
-    _format = format;
-
-    return *this;
-}
-
-Texture::Builder &Texture::Builder::Name(std::string const &name)
-{
-    _name = name;
-
-    return *this;
-}
-
-Texture::Builder &Texture::Builder::GlTF(cgltf_texture const *texture, cgltf_image *const pImage,
-                                         std::vector<Image *> const &images, cgltf_sampler *const pSampler,
-                                         std::vector<Sampler *> const &samplers)
-{
     check(texture);
-    check(pImage);
-
-    check(samplers.size() > 0 && "Texture: you must provide at least one candidate sampler, regardless of GlTF specs");
 
     cgltf_image *image = texture->image;
-    size_t const imageID = image - pImage;
 
-    check(images.size() > imageID);
-
-    _image = images.at(imageID);
+    if (image)
+    {
+        check(image->uri && strncmp(image->uri, "data:", 5) != 0); // we do not support embedded images yet
+        Image::CreateInfo imageInfo{};
+        imageInfo.filepath = (parentDirectory / image->uri).lexically_normal();
+        imageInfo.format = createInfo.format;
+        createInfo.imageInfo = imageInfo;
+    }
 
     if (texture->sampler)
     {
-        check(pSampler);
-        size_t const samplerID = texture->sampler - pSampler;
-
-        check(samplers.size() > samplerID);
-        _sampler = samplers.at(samplerID);
+        Sampler::CreateInfo samplerInfo{};
+        samplerInfo = Sampler::GetCreateInfoFromGlTF(texture->sampler);
+        createInfo.samplerInfo = samplerInfo;
     }
     else
     {
-        _sampler = samplers.at(0);
+        createInfo.samplerInfo = Sampler::CreateInfo{};
     }
 
     if (texture->name)
     {
-        _name = std::string(texture->name);
+        createInfo.name = std::string(texture->name);
     }
 
-    return *this;
+    return createInfo;
 }
 
-Texture *Texture::Builder::Build(Device const *device) const
-{
-    check(_sampler);
-    check(_image);
-
-    return new Texture{device, _image, _sampler, _format, _depth, _name};
-}
-
-Texture::Texture(Device const *device, Image *image, Sampler const *sampler, vk::Format format, bool depth,
-                 std::string const &name)
-    : _name{name}, _image{image}, _sampler{sampler}, _ID{INVALID_ID}
+Texture::Texture(Device const *device, CreateInfo const &createInfo)
+    : _name{createInfo.name}, _ID{INVALID_ID}, _imageView{}
 {
     check(device);
-    check(image->AskForVariant(format));
 
-    vk::ImageViewCreateInfo createInfo;
-    createInfo.viewType = vk::ImageViewType::e2D;
-    createInfo.format = format;
-    createInfo.image = image->GetImage(format);
-    createInfo.subresourceRange.aspectMask = depth ? vk::ImageAspectFlagBits::eDepth : vk::ImageAspectFlagBits::eColor;
-    createInfo.subresourceRange.baseMipLevel = 0;
-    createInfo.subresourceRange.levelCount = 1;
-    createInfo.subresourceRange.baseArrayLayer = 0;
-    createInfo.subresourceRange.layerCount = 1;
+    Image *image = createInfo.pImage ? createInfo.pImage : AssetsManager::Get()->RequestImage(createInfo.imageInfo);
 
-    device->CreateImageView(createInfo, &_imageView, "_image_view");
+    vk::ImageViewCreateInfo viewCreateInfo;
+    viewCreateInfo.viewType = createInfo.cubemap ? vk::ImageViewType::eCube : vk::ImageViewType::e2D;
+    viewCreateInfo.format = createInfo.format;
+    viewCreateInfo.image = image->GetImage();
+    viewCreateInfo.subresourceRange.aspectMask =
+        createInfo.depth ? vk::ImageAspectFlagBits::eDepth : vk::ImageAspectFlagBits::eColor;
+    viewCreateInfo.subresourceRange.baseMipLevel = 0u;
+    viewCreateInfo.subresourceRange.levelCount = 1u;
+    viewCreateInfo.subresourceRange.baseArrayLayer = 0u;
+    viewCreateInfo.subresourceRange.layerCount = createInfo.cubemap ? 6u : 1u;
+
+    _sampler = createInfo.pSampler ? createInfo.pSampler : AssetsManager::Get()->RequestSampler(createInfo.samplerInfo);
+
+    device->CreateImageView(viewCreateInfo, &_imageView, fmt::format("{}<image_view>", image->GetName()));
 }
 
 Texture::~Texture()
@@ -140,11 +93,6 @@ Texture::~Texture()
 vk::ImageView Texture::GetImageView() const
 {
     return _imageView;
-}
-
-vk::Format Texture::GetFormat() const
-{
-    return _format;
 }
 
 vk::Sampler Texture::GetSampler() const

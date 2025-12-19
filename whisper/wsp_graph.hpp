@@ -23,34 +23,34 @@ class Graph
         eToDescriptorSet = 1
     };
 
-    static size_t const SAMPLER_DEPTH;
-    static size_t const SAMPLER_COLOR_CLAMPED;
-    static size_t const SAMPLER_COLOR_REPEATED;
-    static size_t const MAX_SAMPLER_SETS;
+    static uint32_t const SAMPLER_DEPTH;
+    static uint32_t const SAMPLER_COLOR_CLAMPED;
+    static uint32_t const SAMPLER_COLOR_REPEATED;
+    static uint32_t const MAX_SAMPLER_SETS;
 
-    Graph(size_t width, size_t height);
+    Graph(uint32_t width, uint32_t height);
     ~Graph();
 
     Graph(Graph const &) = delete;
     Graph &operator=(Graph const &) = delete;
 
-    void SetUboSize(size_t uboSize);
+    void SetUboSize(uint32_t uboSize);
     void SetPopulateUboFunction(std::function<void *()>);
     [[nodiscard]] Resource NewResource(const struct ResourceCreateInfo &);
     Pass NewPass(const struct PassCreateInfo &);
 
     void Compile(Resource target, GraphUsage);
-    void Render(vk::CommandBuffer, size_t frameIndex);
+    void Render(vk::CommandBuffer, uint32_t frameIndex);
 
     class Image *GetTargetImage() const;
     vk::DescriptorSet GetTargetDescriptorSet() const;
 
     void ChangeUsage(GraphUsage);
-    void Resize(size_t width, size_t height);
-    static void OnResizeCallback(void *, size_t width, size_t height);
+    void Resize(uint32_t width, uint32_t height);
+    static void OnResizeCallback(void *, uint32_t width, uint32_t height);
 
   protected:
-    void FlushUbo(void *ubo, size_t frameIndex);
+    void FlushUbo(void *ubo, uint32_t frameIndex);
 
     struct PipelineHolder
     {
@@ -111,7 +111,7 @@ class Graph
     std::map<Resource, std::array<vk::DescriptorSet, MAX_FRAMES_IN_FLIGHT>> _descriptorSets;
 
     bool _requestsUniform;
-    size_t _uboSize;
+    uint32_t _uboSize;
     std::array<vk::Buffer, MAX_FRAMES_IN_FLIGHT> _uboBuffers;
     std::array<vk::DeviceMemory, MAX_FRAMES_IN_FLIGHT> _uboDeviceMemories;
     std::array<vk::DescriptorSet, MAX_FRAMES_IN_FLIGHT> _uboDescriptorSets;
@@ -123,8 +123,8 @@ class Graph
     std::set<Resource> _validResources;
     std::set<Pass> _validPasses;
 
-    size_t _width, _height;
-    size_t _currentFrameIndex; // only accurate when calling FlushUbo to update
+    uint32_t _width, _height;
+    uint32_t _currentFrameIndex; // only accurate when calling FlushUbo to update
 };
 
 } // namespace wsp

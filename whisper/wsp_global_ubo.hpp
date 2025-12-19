@@ -25,7 +25,7 @@ struct Sun
 {
     glm::vec4 color;
     glm::vec3 direction;
-    float _pad0;
+    int skybox; // in ubo.glsl, would be at direction.w
 };
 
 struct Light
