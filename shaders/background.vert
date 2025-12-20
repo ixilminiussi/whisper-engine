@@ -1,14 +1,17 @@
 #version 450
 #extension GL_GOOGLE_include_directive : require
 
-vec2 points[6] = {{-1., -1.}, {-1., 1.}, {1., -1.}, {-1., 1.}, {1., 1.}, {1., -1.}};
+vec2 points[6] = {{1., 1.}, {1., -1.}, {-1., 1.}, {-1., -1.}, {-1., 1.}, {1., -1.}};
 
 #include "ubo.glsl"
 
-layout(location = 0) out vec3 out_ndc;
+layout(location = 0) out vec3 out_ray;
 
 void main()
 {
-    out_ndc = vec3(points[gl_VertexIndex], .99999);
-    gl_Position = vec4(out_ndc, 1.);
+    vec4 clip = vec4(points[gl_VertexIndex], 1.0, 1.0);
+    vec4 view = inverse(ubo.camera.projection) * clip;
+    vec3 viewDir = view.xyz / view.w;
+    out_ray = (inverse(ubo.camera.view) * vec4(viewDir, 1.0)).xyz;
+    gl_Position = vec4(clip.xy, 0.999, 1.);
 }

@@ -50,7 +50,7 @@ class Graph
     static void OnResizeCallback(void *, uint32_t width, uint32_t height);
 
   protected:
-    void FlushUbo(void *ubo, uint32_t frameIndex);
+    void FlushUbo(void *ubo);
 
     struct PipelineHolder
     {
@@ -102,6 +102,7 @@ class Graph
     std::map<Resource, std::array<class Texture *, MAX_FRAMES_IN_FLIGHT>> _textures;
 
     std::map<Pass, std::array<vk::Framebuffer, MAX_FRAMES_IN_FLIGHT>> _framebuffers;
+    std::map<Pass, std::vector<std::array<vk::ImageMemoryBarrier, MAX_FRAMES_IN_FLIGHT>>> _imageMemoryBarriers;
     std::map<Pass, vk::RenderPass> _renderPasses;
     std::map<Pass, PipelineHolder> _pipelines; // in future, maybe point to an array of pipelines..? Or focus on the ONE
                                                // GIGA SHADER Unity approach?

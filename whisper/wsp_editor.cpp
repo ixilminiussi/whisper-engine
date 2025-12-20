@@ -89,8 +89,7 @@ Editor::Editor() : _drawList{nullptr}
     PassCreateInfo backgroundPassInfo{};
     backgroundPassInfo.writes = {colorResource, depthResource};
     backgroundPassInfo.readsUniform = true;
-    backgroundPassInfo.staticTextures = {AssetsManager::Get()->GetStaticTextures(),
-                                         AssetsManager::Get()->GetStaticCubemaps()};
+    backgroundPassInfo.staticTextures = {AssetsManager::Get()->GetStaticCubemaps()};
     backgroundPassInfo.vertFile = "background.vert.spv";
     backgroundPassInfo.fragFile = "background.frag.spv";
     backgroundPassInfo.debugName = "background render";
@@ -129,12 +128,13 @@ Editor::Editor() : _drawList{nullptr}
 
 Editor::~Editor()
 {
+    AssetsManager::Get()->UnloadAll();
+
     ImGui_ImplVulkan_Shutdown();
     ImGui_ImplGlfw_Shutdown();
 
     ImGui::DestroyContext();
 
-    AssetsManager::Get()->UnloadAll();
     RenderManager::Get()->Free();
 
     spdlog::info("Editor: shut down");
@@ -413,14 +413,20 @@ void Editor::RenderContentBrowser(bool *show)
                 bool r = false;
                 Image::CreateInfo imageInfo{};
                 imageInfo.filepath = path;
-                if (assetsManager->_images.find(imageInfo) !=
-                    assetsManager->_images.end()) // if the image is loaded, put an image button
+                if (path.extension().compare(".png") == 0)
                 {
-                    Image *images = assetsManager->_images.at(imageInfo);
-                    ImTextureID const textureID = assetsManager->GetTextureID(images);
+                    try
+                    {
+                        Image *image = assetsManager->RequestImage(imageInfo);
+                        ImTextureID const textureID = assetsManager->GetTextureID(image);
 
-                    r = wsp::ThumbnailButton(textureID);
-                } // else a regular icon
+                        r = wsp::ThumbnailButton(textureID);
+                    }
+                    catch (std::exception const &exception)
+                    {
+                        r = wsp::ThumbnailButton(ICON_MS_ERROR_CIRCLE_ROUNDED);
+                    }
+                }
                 else
                 {
                     r = wsp::ThumbnailButton(ICON_MS_DESCRIPTION);

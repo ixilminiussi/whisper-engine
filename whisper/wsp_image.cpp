@@ -75,21 +75,22 @@ Image::Image(Device const *device, CreateInfo const &createInfo)
             for (int y = 0; y < faceHeight; y++)
             {
                 int const leftGap = left * faceWidth * channels;
-                int const topGap = (y + top * faceHeight) * faceWidth * channels;
-                memcpy((stbi_uc *)memory + faceGap, pixels + topGap + leftGap, faceWidth * channels * sizeof(stbi_uc));
+                int const topGap = (y + top * faceHeight) * width * channels;
+                int const strip = faceWidth * channels;
+                memcpy((stbi_uc *)memory + faceGap + (y * strip), pixels + topGap + leftGap, strip * sizeof(stbi_uc));
             }
         };
 
-        copyFace(1, 0, 0);
-        copyFace(0, 1, 1);
-        copyFace(1, 1, 2);
-        copyFace(2, 1, 3);
-        copyFace(3, 1, 4);
-        copyFace(1, 2, 5);
+        copyFace(2, 1, 0); // right
+        copyFace(0, 1, 1); // left
+        copyFace(1, 0, 2); // top
+        copyFace(1, 2, 3); // bottom
+        copyFace(1, 1, 4); // front
+        copyFace(3, 1, 5); // back
 
         _device->UnmapMemory(deviceMemory);
 
-        _device->CopyBufferToImage(buffer, &_image, width, height, 1, 6);
+        _device->CopyBufferToImage(buffer, &_image, faceWidth, faceHeight, 1, 6);
     }
     else
     {

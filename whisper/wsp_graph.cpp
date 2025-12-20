@@ -481,7 +481,7 @@ void Graph::BuildPipeline(Pass pass)
     spdlog::debug("Graph: built {0} pipeline", passInfo.debugName);
 }
 
-void Graph::FlushUbo(void *ubo, uint32_t frameIndex)
+void Graph::FlushUbo(void *ubo)
 {
     if (!_requestsUniform)
     {
@@ -498,31 +498,48 @@ void Graph::FlushUbo(void *ubo, uint32_t frameIndex)
     Device const *device = SafeDeviceAccessor::Get();
     check(device);
 
-    memcpy(_uboMappedMemories[frameIndex], ubo, _uboSize);
+    memcpy(_uboMappedMemories[_currentFrameIndex], ubo, _uboSize);
 
     vk::MappedMemoryRange mappedRange = {};
-    mappedRange.memory = _uboDeviceMemories[frameIndex];
+    mappedRange.memory = _uboDeviceMemories[_currentFrameIndex];
     mappedRange.offset = 0u;
     mappedRange.size = _uboSize;
 
     device->FlushMappedMemoryRange(mappedRange);
-
-    _currentFrameIndex = frameIndex;
 }
 
 void Graph::Render(vk::CommandBuffer commandBuffer, uint32_t frameIndex)
 {
+    _currentFrameIndex = 1;
+
     extern TracyVkCtx TRACY_CTX;
     TracyVkZone(TRACY_CTX, commandBuffer, "graph");
 
     if (_populateUbo)
     {
         void *ubo = _populateUbo();
-        FlushUbo(ubo, frameIndex);
+        FlushUbo(ubo);
     }
 
     for (Pass const pass : _orderedPasses)
     {
+        if (_imageMemoryBarriers.find(pass) != _imageMemoryBarriers.end())
+        {
+            int i = 0;
+            for (std::array<vk::ImageMemoryBarrier, MAX_FRAMES_IN_FLIGHT> const &barriers :
+                 _imageMemoryBarriers.at(pass))
+            {
+                vk::ImageMemoryBarrier const &barrier = barriers[_currentFrameIndex];
+
+                commandBuffer.pipelineBarrier(
+                    vk::PipelineStageFlagBits::eLateFragmentTests | vk::PipelineStageFlagBits::eColorAttachmentOutput,
+                    vk::PipelineStageFlagBits::eColorAttachmentOutput | vk::PipelineStageFlagBits::eEarlyFragmentTests,
+                    vk::DependencyFlagBits::eByRegion, 0, nullptr, 0, nullptr, 1, &barrier);
+
+                i++;
+            }
+        }
+
         vk::RenderPassBeginInfo renderPassInfo{};
         renderPassInfo.renderPass = _renderPasses.at(pass);
         renderPassInfo.framebuffer = _framebuffers.at(pass)[_currentFrameIndex];
@@ -637,6 +654,7 @@ void Graph::Reset()
     _textures.clear();
     _framebuffers.clear();
     _renderPasses.clear();
+    _imageMemoryBarriers.clear();
 
     spdlog::debug("Graph: resetting complete...");
 }
@@ -679,6 +697,12 @@ void Graph::Free(Pass pass)
 {
     Device const *device = SafeDeviceAccessor::Get();
     check(device);
+
+    auto it = _imageMemoryBarriers.find(pass);
+    if (it != _imageMemoryBarriers.end())
+    {
+        _imageMemoryBarriers.erase(it);
+    }
 
     check(_validPasses.find(pass) != _validPasses.end());
 
@@ -862,7 +886,7 @@ void Graph::Build(Resource resource)
         BuildDescriptors(resource);
     }
 
-    spdlog::debug("Graph: built {0} resource", createInfo.debugName);
+    spdlog::debug("Graph: built <{0}> resource", createInfo.debugName);
 }
 
 void Graph::Build(Pass pass)
@@ -891,6 +915,73 @@ void Graph::Build(Pass pass)
             outResolution = resourceInfo.extent;
         }
 
+        // if we aren't the only one to write to a resource, instead of clearing it, we want to load it and create an
+        // imagebarrier to ensure it is only cleared once at the start
+        std::vector<Pass> orderedWriters;
+        orderedWriters.reserve(resourceInfo.writers.size());
+
+        for (Pass const potentialWriter : _orderedPasses)
+        {
+            if (std::find(resourceInfo.writers.begin(), resourceInfo.writers.end(), potentialWriter) !=
+                resourceInfo.writers.end())
+            {
+                orderedWriters.push_back(potentialWriter);
+            }
+        }
+
+        int pos = 0;
+        for (Pass const writer : orderedWriters)
+        {
+            if (writer == pass)
+            {
+                break;
+            }
+            pos++;
+        }
+
+        // if we're not the first to write to a resource, we need to create a barrier to ensure the correct order of
+        // operations
+        if (pos != 0)
+        {
+            std::array<vk::ImageMemoryBarrier, MAX_FRAMES_IN_FLIGHT> imageMemoryBarriers;
+            vk::ImageMemoryBarrier imageMemoryBarrier{};
+
+            imageMemoryBarrier.subresourceRange.baseMipLevel = 0;
+            imageMemoryBarrier.subresourceRange.levelCount = 1;
+            imageMemoryBarrier.subresourceRange.baseArrayLayer = 0;
+            imageMemoryBarrier.subresourceRange.layerCount = 1;
+
+            if (resourceInfo.usage == ResourceUsage::eDepth)
+            {
+                imageMemoryBarrier.srcQueueFamilyIndex = vk::QueueFamilyIgnored;
+                imageMemoryBarrier.dstQueueFamilyIndex = vk::QueueFamilyIgnored;
+                imageMemoryBarrier.oldLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
+                imageMemoryBarrier.newLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
+                imageMemoryBarrier.srcAccessMask = vk::AccessFlagBits::eDepthStencilAttachmentWrite;
+                imageMemoryBarrier.dstAccessMask = vk::AccessFlagBits::eDepthStencilAttachmentWrite;
+                imageMemoryBarrier.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eDepth;
+            }
+            if (resourceInfo.usage == ResourceUsage::eColor)
+            {
+                imageMemoryBarrier.srcQueueFamilyIndex = vk::QueueFamilyIgnored;
+                imageMemoryBarrier.dstQueueFamilyIndex = vk::QueueFamilyIgnored;
+                imageMemoryBarrier.oldLayout = vk::ImageLayout::eColorAttachmentOptimal;
+                imageMemoryBarrier.newLayout = vk::ImageLayout::eColorAttachmentOptimal;
+                imageMemoryBarrier.srcAccessMask = vk::AccessFlagBits::eColorAttachmentWrite;
+                imageMemoryBarrier.dstAccessMask = vk::AccessFlagBits::eColorAttachmentWrite;
+                imageMemoryBarrier.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
+            }
+
+            for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+            {
+                imageMemoryBarrier.image = _images.at(resource)[i]->GetImage();
+
+                imageMemoryBarriers[i] = imageMemoryBarrier;
+            }
+
+            _imageMemoryBarriers[pass].push_back(imageMemoryBarriers);
+        }
+
         vk::AttachmentDescription attachment = {};
         attachment.format = resourceInfo.format;
         attachment.samples = vk::SampleCountFlagBits::e1;
@@ -903,16 +994,34 @@ void Graph::Build(Pass pass)
         switch (resourceInfo.usage)
         {
         case ResourceUsage::eColor:
+            if (pos != 0)
+            {
+                attachment.loadOp = vk::AttachmentLoadOp::eLoad;
+                attachment.initialLayout = vk::ImageLayout::eColorAttachmentOptimal;
+            }
             attachment.storeOp = vk::AttachmentStoreOp::eStore;
-            attachment.finalLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+            attachment.finalLayout = vk::ImageLayout::eColorAttachmentOptimal;
+            if (pos == orderedWriters.size() - 1 && IsSampled(resource))
+            {
+                attachment.finalLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+            }
 
             attachmentRef.layout = vk::ImageLayout::eColorAttachmentOptimal;
 
             colorAttachmentReferences.push_back(attachmentRef);
             break;
         case ResourceUsage::eDepth:
+            if (pos != 0)
+            {
+                attachment.loadOp = vk::AttachmentLoadOp::eLoad;
+                attachment.initialLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
+            }
             attachment.storeOp = vk::AttachmentStoreOp::eDontCare;
             attachment.finalLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
+            if (pos == orderedWriters.size() - 1 && IsSampled(resource))
+            {
+                attachment.finalLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+            }
 
             attachmentRef.layout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
 
