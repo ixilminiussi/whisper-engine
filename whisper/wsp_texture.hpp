@@ -46,13 +46,9 @@ class Texture
 
     vk::ImageView GetImageView() const;
     vk::Sampler GetSampler() const;
-    void SetID(int);
-    int GetID() const;
 
   protected:
     std::string _name;
-
-    int _ID;
 
     class Sampler const *_sampler;
 

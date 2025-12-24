@@ -250,12 +250,6 @@ void Editor::PopulateUbo(ubo::Ubo *ubo)
     ubo->camera.projection = _viewportCamera->GetCamera()->GetProjection();
     ubo->camera.position = _viewportCamera->GetPosition();
 
-    ubo::Sun sun{};
-    sun.color = glm::vec4{1.f};
-    sun.direction = glm::vec3{1.f, 1.f, 0.f};
-    sun.skybox = _cubemapTexture ? _cubemapTexture->GetID() : INVALID_ID;
-    ubo->light.sun = sun;
-
     memcpy(ubo->materials, AssetsManager::Get()->GetMaterialInfos().data(), MAX_MATERIALS);
 }
 

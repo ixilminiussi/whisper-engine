@@ -10,8 +10,7 @@ struct Camera
 
 struct Sun
 {
-    vec4 color;
-    vec4 direction;
+    int skybox;
 };
 
 struct Light
@@ -37,7 +36,7 @@ struct Material
 layout(set = 0, binding = 0) uniform Ubo
 {
     Camera camera;
-    Light light;
+    // Light light;
     Material materials[500];
 }
 ubo;

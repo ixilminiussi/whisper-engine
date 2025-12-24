@@ -46,8 +46,8 @@ vec3 getPBRParams(in Material material, in vec2 uv)
 
     if (metallicRoughnessTexID != INVALID_ID)
     {
-        params.r = saturate(max(material.roughness + EPS, texture(textures[metallicRoughnessTexID], uv).r));
-        params.g = saturate(max(material.metallic + EPS, texture(textures[metallicRoughnessTexID], uv).g));
+        params.r *= texture(textures[metallicRoughnessTexID], uv).g;
+        params.g *= texture(textures[metallicRoughnessTexID], uv).b;
     }
 
     return params;
@@ -92,23 +92,22 @@ void main()
 
     mat3 tangentMatrix = transpose(mat3(normalize(i.w_tangent), normalize(i.w_bitangent), normalize(i.w_normal)));
     // FOUNDATION parameters
-    vec3 L = normalize(ubo.light.sun.direction.xyz); // light vec
-
     vec3 V = normalize(ubo.camera.position.xyz - i.w_position); // view vec
-    vec3 H = normalize(L + V);                                  // half vec
 
     vec3 N = getNormal(material, uv, tangentMatrix); // normal
 
     // DOT PRODUCTS
-    float NdotL = max(dot(N, L), 0.0);
     float NdotV = max(dot(N, V), 0.0);
-    float NdotH = max(dot(N, H), 0.0);
-    float VdotH = max(dot(V, H), 0.0);
     float NdotUp = saturate(dot(N, vec3(0, 1, 0)));
 
-    vec4 irradiance = texture(cubemaps[1], N); // temporary
-    vec3 diffuse = albedo * (1.0 - metallic) * irradiance.rgb * irradiance.a;
+    vec3 R = reflect(-V, N);
 
-    out_color = vec4(diffuse, 1.0);
+    vec4 irradiance = texture(cubemaps[1], N); // temporary
+    vec3 specular = texture(cubemaps[0], R).rgb * metallic;
+    vec3 diffuse = albedo * max(1.0 - metallic, EPS) * irradiance.rgb * irradiance.a;
+
+    vec3 color = specular + diffuse;
+
+    out_color = vec4(color, 1.0);
     return;
 }

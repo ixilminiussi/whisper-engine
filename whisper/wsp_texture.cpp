@@ -58,8 +58,7 @@ Texture::CreateInfo Texture::GetCreateInfoFromGlTF(cgltf_texture const *texture,
     return createInfo;
 }
 
-Texture::Texture(Device const *device, CreateInfo const &createInfo)
-    : _name{createInfo.name}, _ID{INVALID_ID}, _imageView{}
+Texture::Texture(Device const *device, CreateInfo const &createInfo) : _name{createInfo.name}, _imageView{}
 {
     check(device);
 
@@ -128,14 +127,4 @@ vk::Sampler Texture::GetSampler() const
     check(_sampler);
 
     return _sampler->GetSampler();
-}
-
-int Texture::GetID() const
-{
-    return _ID;
-}
-
-void Texture::SetID(int ID)
-{
-    _ID = ID;
 }

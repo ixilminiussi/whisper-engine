@@ -212,13 +212,13 @@ std::vector<Mesh *> AssetsManager::ImportGlTF(std::filesystem::path const &relat
 
     // TODO: do something better here, this is so fucking dumb holy shit ("too bad")
     int i = 0;
-    for (auto &material : _materials)
+    for (Material &material : _materials)
     {
         if (i < MAX_MATERIALS)
         {
             material.SetID(i);
 
-            material.GetInfo(&_materialInfos[i]);
+            // material.GetInfo(&_materialInfos[i]);
         }
         else
         {
@@ -288,7 +288,15 @@ ImTextureID AssetsManager::GetTextureID(Image *image)
 
 std::array<ubo::Material, MAX_MATERIALS> const &AssetsManager::GetMaterialInfos() const
 {
-    return _materialInfos;
+    static std::array<ubo::Material, MAX_MATERIALS> materialInfos{};
+
+    size_t i = 0;
+    for (Material const &material : _materials)
+    {
+        material.GetInfo(&materialInfos[i]);
+        i++;
+    }
+    return materialInfos;
 }
 
 Image *AssetsManager::RequestImage(Image::CreateInfo const &createInfo)

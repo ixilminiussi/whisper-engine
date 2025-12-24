@@ -65,7 +65,7 @@ class AssetsManager
 
     dod::slot_map32<Texture> _textures;
     dod::slot_map32<Material> _materials;
-    std::array<ubo::Material, MAX_MATERIALS> _materialInfos;
+    // std::array<ubo::Material, MAX_MATERIALS> _materialInfos;
 
     dictionary<class Mesh *, std::filesystem::path, 1024> _meshes;
 

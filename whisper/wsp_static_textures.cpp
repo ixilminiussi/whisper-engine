@@ -1,4 +1,5 @@
 #include "wsp_assets_manager.hpp"
+#include "wsp_constants.hpp"
 #include <fcntl.h>
 #include <filesystem>
 #include <wsp_static_textures.hpp>

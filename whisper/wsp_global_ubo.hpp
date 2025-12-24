@@ -23,9 +23,7 @@ struct Camera
 
 struct Sun
 {
-    glm::vec4 color;
-    glm::vec3 direction;
-    int skybox; // in ubo.glsl, would be at direction.w
+    int skybox;
 };
 
 struct Light
@@ -54,7 +52,7 @@ struct Material
 struct Ubo
 {
     Camera camera;
-    Light light;
+    // Light light;
     Material materials[MAX_MATERIALS];
 };
 
