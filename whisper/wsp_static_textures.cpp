@@ -64,8 +64,18 @@ StaticTextures::~StaticTextures()
     device->DestroyDescriptorSetLayout(&_descriptorSetLayout);
 
     delete _dummySampler;
-    delete _dummyImage;
-    delete _dummyTexture;
+
+    for (Image *image : _dummyImages)
+    {
+        delete image;
+    }
+    _dummyImages.clear();
+
+    for (Texture *texture : _dummyTextures)
+    {
+        delete texture;
+    }
+    _dummyTextures.clear();
 
     spdlog::info("StaticTextures: freed");
 }
@@ -75,33 +85,65 @@ void StaticTextures::BuildDummy(bool cubemap)
     Device const *device = SafeDeviceAccessor::Get();
     check(device);
 
-    void *pixels = malloc(sizeof(char));
-    std::filesystem::path filepath;
+    _dummySampler = new Sampler{device, Sampler::CreateInfo{}};
+
     if (cubemap)
     {
-        filepath = (std::filesystem::path(WSP_EDITOR_ASSETS) / std::filesystem::path("skybox.png")).lexically_normal();
+        {
+            Image::CreateInfo imageCreateInfo{};
+            imageCreateInfo.filepath =
+                (std::filesystem::path(WSP_EDITOR_ASSETS) / std::filesystem::path("skybox.exr")).lexically_normal();
+            Image *image = new Image{device, imageCreateInfo, true};
+
+            Texture::CreateInfo createInfo{};
+            createInfo.pImage = image;
+            createInfo.pSampler = _dummySampler;
+            createInfo.cubemap = true;
+            createInfo.name = "skybox";
+
+            Texture *texture = new Texture{device, createInfo};
+
+            _dummyImages.push_back(image);
+            _dummyTextures.push_back(texture);
+        }
+
+        {
+            Image::CreateInfo imageCreateInfo{};
+            imageCreateInfo.filepath =
+                (std::filesystem::path(WSP_EDITOR_ASSETS) / std::filesystem::path("irradiance.exr")).lexically_normal();
+            Image *image = new Image{device, imageCreateInfo, true};
+
+            Texture::CreateInfo createInfo{};
+            createInfo.pImage = image;
+            createInfo.pSampler = _dummySampler;
+            createInfo.cubemap = true;
+            createInfo.name = "irradiance";
+
+            Texture *texture = new Texture{device, createInfo};
+
+            _dummyImages.push_back(image);
+            _dummyTextures.push_back(texture);
+        }
     }
     else
     {
-        filepath = (std::filesystem::path(WSP_EDITOR_ASSETS) / std::filesystem::path("missing-texture.png"))
-                       .lexically_normal();
+        Image::CreateInfo imageCreateInfo{};
+        imageCreateInfo.filepath =
+            (std::filesystem::path(WSP_EDITOR_ASSETS) / std::filesystem::path("missing-texture.png"))
+                .lexically_normal();
+        Image *image = new Image{device, imageCreateInfo, false};
+
+        Texture::CreateInfo createInfo{};
+        createInfo.pImage = image;
+        createInfo.pSampler = _dummySampler;
+        createInfo.name = "missing";
+        createInfo.cubemap = false;
+
+        Texture *texture = new Texture{device, createInfo};
+
+        _dummyImages.push_back(image);
+        _dummyTextures.push_back(texture);
     }
-
-    Image::CreateInfo imageCreateInfo{};
-    imageCreateInfo.filepath = filepath;
-    imageCreateInfo.format = vk::Format::eR8G8B8Srgb;
-    imageCreateInfo.cubemap = cubemap;
-
-    _dummyImage = new Image{device, imageCreateInfo};
-    _dummySampler = new Sampler{device, Sampler::CreateInfo{}};
-
-    Texture::CreateInfo createInfo{};
-    createInfo.pImage = _dummyImage;
-    createInfo.pSampler = _dummySampler;
-    createInfo.format = vk::Format::eR8G8B8Srgb;
-    createInfo.cubemap = cubemap;
-
-    _dummyTexture = new Texture{device, createInfo};
 
     spdlog::debug("Graph: built dummy texture");
 }
@@ -133,7 +175,7 @@ void StaticTextures::Push(std::vector<TextureID> const &textures)
         {
             vk::DescriptorImageInfo imageInfo{};
             imageInfo.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
-            imageInfo.imageView = _dummyTexture->GetImageView();
+            imageInfo.imageView = _dummyTextures[i % _dummyTextures.size()]->GetImageView();
             imageInfo.sampler = _dummySampler->GetSampler();
 
             imageInfos.push_back(imageInfo);

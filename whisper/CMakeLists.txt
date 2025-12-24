@@ -23,6 +23,7 @@ target_link_libraries(
           cgltf
           spdlog
           stb_image
+          tinyexr
           glm::glm
           glfw
           ${Vulkan_LIBRARIES})

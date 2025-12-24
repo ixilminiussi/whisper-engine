@@ -32,8 +32,8 @@ class StaticTextures
     uint32_t _size;
     uint32_t _offset;
 
-    class Texture *_dummyTexture;
-    class Image *_dummyImage;
+    std::vector<class Texture *> _dummyTextures;
+    std::vector<class Image *> _dummyImages;
     class Sampler *_dummySampler;
 
     std::unordered_map<TextureID, size_t> _staticTextures;

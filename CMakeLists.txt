@@ -3,6 +3,14 @@ project(Whisper CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_BUILD_TYPE
+    Debug
+    CACHE STRING "" FORCE)
+
+find_program(CCACHE_PROGRAM ccache)
+if(CCACHE_PROGRAM)
+  set(CMAKE_CXX_COMPILER_LAUNCHER ${CCACHE_PROGRAM})
+endif()
 
 include(FetchContent)
 
@@ -63,6 +71,20 @@ FetchContent_MakeAvailable(stb_image)
 
 add_library(stb_image INTERFACE)
 target_include_directories(stb_image INTERFACE ${stb_image_SOURCE_DIR})
+
+# -- tinyexr: Try to use system tinyexr first
+find_package(tinyexr QUIET)
+message(CHECK_START "Find tinyexr")
+if(NOT tinyexr_FOUND)
+  message(STATUS "System tinyexr not found, fetching from GitHub")
+  FetchContent_Declare(
+    tinyexr URL https://github.com/syoyo/tinyexr/archive/refs/tags/v1.0.12.zip)
+  FetchContent_MakeAvailable(tinyexr)
+else()
+  message(CHECK_PASS "Found system tinyexr")
+endif()
+
+target_include_directories(tinyexr INTERFACE ${tinyexr_SOURCE_DIR})
 
 # -- cgltf
 FetchContent_Declare(

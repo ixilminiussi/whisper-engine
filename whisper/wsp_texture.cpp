@@ -1,3 +1,4 @@
+#include <stdexcept>
 #include <wsp_texture.hpp>
 
 #include <wsp_assets_manager.hpp>
@@ -34,19 +35,19 @@ Texture::CreateInfo Texture::GetCreateInfoFromGlTF(cgltf_texture const *texture,
         check(image->uri && strncmp(image->uri, "data:", 5) != 0); // we do not support embedded images yet
         Image::CreateInfo imageInfo{};
         imageInfo.filepath = (parentDirectory / image->uri).lexically_normal();
-        imageInfo.format = createInfo.format;
         createInfo.imageInfo = imageInfo;
+        createInfo.deferredImageCreation = true;
     }
 
     if (texture->sampler)
     {
         Sampler::CreateInfo samplerInfo{};
         samplerInfo = Sampler::GetCreateInfoFromGlTF(texture->sampler);
-        createInfo.samplerInfo = samplerInfo;
+        createInfo.pSampler = AssetsManager::Get()->RequestSampler(samplerInfo);
     }
     else
     {
-        createInfo.samplerInfo = Sampler::CreateInfo{};
+        createInfo.pSampler = AssetsManager::Get()->RequestSampler({});
     }
 
     if (texture->name)
@@ -62,11 +63,38 @@ Texture::Texture(Device const *device, CreateInfo const &createInfo)
 {
     check(device);
 
-    Image *image = createInfo.pImage ? createInfo.pImage : AssetsManager::Get()->RequestImage(createInfo.imageInfo);
+    Image *image;
+
+    if (createInfo.deferredImageCreation)
+    {
+        image = AssetsManager::Get()->RequestImage(createInfo.imageInfo);
+    }
+    else
+    {
+        image = createInfo.pImage;
+    }
+
+    check(image);
+    check(createInfo.pSampler);
+
+    vk::Format format;
+    if (createInfo.format == vk::Format::eUndefined)
+    {
+        format = image->GetFormat();
+    }
+    else
+    {
+        format = createInfo.format;
+        if (format != image->GetFormat())
+        {
+            throw std::invalid_argument(fmt::format("Texture: pImage <{}> is incompatible with format of Texture <{}>",
+                                                    image->GetName(), _name));
+        }
+    }
 
     vk::ImageViewCreateInfo viewCreateInfo;
     viewCreateInfo.viewType = createInfo.cubemap ? vk::ImageViewType::eCube : vk::ImageViewType::e2D;
-    viewCreateInfo.format = createInfo.format;
+    viewCreateInfo.format = format;
     viewCreateInfo.image = image->GetImage();
     viewCreateInfo.subresourceRange.aspectMask =
         createInfo.depth ? vk::ImageAspectFlagBits::eDepth : vk::ImageAspectFlagBits::eColor;
@@ -75,7 +103,7 @@ Texture::Texture(Device const *device, CreateInfo const &createInfo)
     viewCreateInfo.subresourceRange.baseArrayLayer = 0u;
     viewCreateInfo.subresourceRange.layerCount = createInfo.cubemap ? 6u : 1u;
 
-    _sampler = createInfo.pSampler ? createInfo.pSampler : AssetsManager::Get()->RequestSampler(createInfo.samplerInfo);
+    _sampler = createInfo.pSampler;
 
     device->CreateImageView(viewCreateInfo, &_imageView, fmt::format("{}<image_view>", image->GetName()));
 }

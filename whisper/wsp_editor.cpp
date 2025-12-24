@@ -470,7 +470,7 @@ void Editor::RenderContentBrowser(bool *show)
                     }
                     catch (std::exception const &exception)
                     {
-                        spdlog::critical("ContentBrowser: {}", exception.what());
+                        spdlog::critical("{}", exception.what());
                     };
                 }
                 ImGui::Text("%s", path.filename().c_str());

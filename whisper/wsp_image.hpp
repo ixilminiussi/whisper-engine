@@ -4,11 +4,8 @@
 #include <wsp_types/dictionary.hpp>
 
 #include <filesystem>
-#include <optional>
 
 #include <vulkan/vulkan.hpp>
-
-class cgltf_image;
 
 namespace wsp
 {
@@ -19,23 +16,22 @@ class Image
     struct CreateInfo
     {
         std::filesystem::path filepath{};
-        vk::Format format{vk::Format::eR8G8B8Srgb};
-        bool cubemap = false;
+        vk::Format format{vk::Format::eUndefined};
 
         inline bool operator<(CreateInfo const &b) const
         {
-            return std::tie(filepath, format, cubemap) < std::tie(b.filepath, b.format, b.cubemap);
+            return std::tie(filepath, format) < std::tie(b.filepath, b.format);
         }
     };
 
-    Image(class Device const *, CreateInfo const &createInfo);
-
-  public:
+    Image(class Device const *, CreateInfo const &createInfo, bool cubemap = false);
     ~Image();
 
     Image(Image const &) = delete;
     Image &operator=(Image const &) = delete;
+
     vk::Image GetImage() const;
+    vk::Format GetFormat() const;
     std::string GetName() const;
 
     friend class Graph;
@@ -43,14 +39,25 @@ class Image
   protected:
     Image(class Device const *, vk::ImageCreateInfo const &createInfo, std::string const &name);
 
+    void BuildImage(class Device const *, void *pixels, uint32_t width, uint32_t height, size_t size, uint32_t channels,
+                    vk::Format format);
+    void BuildCubemap(class Device const *, void *pixels, uint32_t width, uint32_t height, size_t size,
+                      uint32_t channels, vk::Format format);
+
+    static void CopyFaceToFace(uint32_t left, uint32_t top, uint32_t faceID, void *source, uint32_t s_width,
+                               uint32_t s_height, uint32_t s_channels, size_t s_size, void *target, uint32_t t_width,
+                               uint32_t t_height, uint32_t t_channels, size_t t_size);
+
     std::string _name;
 
     vk::Image _image;
     vk::DeviceMemory _deviceMemory;
+    vk::Format _format;
 
-    class Device const *_device; // exceptional, typically not done but here we're "lying" to the user so yes
+    bool _cubemap;
 };
 
 } // namespace wsp
 
 #endif
+

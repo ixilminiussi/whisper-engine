@@ -6,6 +6,7 @@
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 #include <spdlog/spdlog.h>
+#include <stdexcept>
 #include <vulkan/vulkan.h>
 #include <vulkan/vulkan.hpp>
 #include <vulkan/vulkan_core.h>
@@ -115,6 +116,242 @@ inline std::vector<char> ReadShaderFile(std::string const &filepath)
 
     file.close();
     return buffer;
+}
+
+inline vk::Format SelectFormat(uint32_t channels, size_t size, bool normalized = false)
+{
+    if (size == 1 && channels == 4)
+    {
+        return !normalized ? vk::Format::eR8G8B8A8Srgb : vk::Format::eR8G8B8A8Snorm;
+    }
+    if (size == 2 && channels == 4)
+    {
+        return !normalized ? vk::Format::eR16G16B16A16Sfloat : vk::Format::eR16G16B16A16Snorm;
+    }
+    if (size == 4 && channels == 4)
+    {
+        return vk::Format::eR32G32B32A32Sfloat;
+    }
+    if (size == 8 && channels == 4)
+    {
+        return vk::Format::eR64G64B64A64Sfloat;
+    }
+    if (size == 1 && channels == 3)
+    {
+        return !normalized ? vk::Format::eR8G8B8Srgb : vk::Format::eR8G8B8Snorm;
+    }
+    if (size == 2 && channels == 3)
+    {
+        return !normalized ? vk::Format::eR16G16B16Sfloat : vk::Format::eR16G16B16Snorm;
+    }
+    if (size == 4 && channels == 3)
+    {
+        return vk::Format::eR32G32B32Sfloat;
+    }
+    if (size == 8 && channels == 3)
+    {
+        return vk::Format::eR64G64B64Sfloat;
+    }
+    if (size == 1 && channels == 2)
+    {
+        return !normalized ? vk::Format::eR8G8Srgb : vk::Format::eR8G8Snorm;
+    }
+    if (size == 2 && channels == 2)
+    {
+        return !normalized ? vk::Format::eR16G16Sfloat : vk::Format::eR16G16Snorm;
+    }
+    if (size == 4 && channels == 2)
+    {
+        return vk::Format::eR32G32Sfloat;
+    }
+    if (size == 8 && channels == 2)
+    {
+        return vk::Format::eR64G64Sfloat;
+    }
+    if (size == 1 && channels == 1)
+    {
+        return !normalized ? vk::Format::eR8Srgb : vk::Format::eR8Snorm;
+    }
+    if (size == 2 && channels == 1)
+    {
+        return !normalized ? vk::Format::eR16Sfloat : vk::Format::eR16Snorm;
+    }
+    if (size == 4 && channels == 1)
+    {
+        return !normalized ? vk::Format::eR32Sfloat : vk::Format::eD32Sfloat;
+    }
+    if (size == 8 && channels == 1)
+    {
+        return vk::Format::eR64Sfloat;
+    }
+
+    return vk::Format::eUndefined;
+}
+
+inline void DecomposeFormat(vk::Format format, uint32_t *channels, size_t *size)
+{
+    switch (format)
+    {
+    case vk::Format::eR8G8B8A8Sint:
+    case vk::Format::eR8G8B8A8Snorm:
+    case vk::Format::eR8G8B8A8Srgb:
+    case vk::Format::eR8G8B8A8Sscaled:
+    case vk::Format::eR8G8B8A8Uint:
+    case vk::Format::eR8G8B8A8Unorm:
+    case vk::Format::eR8G8B8A8Uscaled:
+    case vk::Format::eB8G8R8A8Sint:
+    case vk::Format::eB8G8R8A8Snorm:
+    case vk::Format::eB8G8R8A8Srgb:
+    case vk::Format::eB8G8R8A8Sscaled:
+    case vk::Format::eB8G8R8A8Uint:
+    case vk::Format::eB8G8R8A8Unorm:
+    case vk::Format::eB8G8R8A8Uscaled:
+    case vk::Format::eA8B8G8R8UnormPack32:
+    case vk::Format::eA8B8G8R8SnormPack32:
+    case vk::Format::eA8B8G8R8UscaledPack32:
+    case vk::Format::eA8B8G8R8SscaledPack32:
+    case vk::Format::eA8B8G8R8UintPack32:
+    case vk::Format::eA8B8G8R8SintPack32:
+    case vk::Format::eA8B8G8R8SrgbPack32:
+        *size = 1;
+        *channels = 4;
+        break;
+    case vk::Format::eR16G16B16A16Sint:
+    case vk::Format::eR16G16B16A16Snorm:
+    case vk::Format::eR16G16B16A16Sfloat:
+    case vk::Format::eR16G16B16A16Sscaled:
+    case vk::Format::eR16G16B16A16Uint:
+    case vk::Format::eR16G16B16A16Unorm:
+    case vk::Format::eR16G16B16A16Uscaled:
+        *size = 2;
+        *channels = 4;
+        break;
+    case vk::Format::eR32G32B32A32Sint:
+    case vk::Format::eR32G32B32A32Sfloat:
+    case vk::Format::eR32G32B32A32Uint:
+        *size = 4;
+        *channels = 4;
+        break;
+    case vk::Format::eR64G64B64A64Uint:
+    case vk::Format::eR64G64B64A64Sint:
+    case vk::Format::eR64G64B64A64Sfloat:
+        *size = 8;
+        *channels = 4;
+        break;
+    case vk::Format::eR8G8B8Sint:
+    case vk::Format::eR8G8B8Snorm:
+    case vk::Format::eR8G8B8Srgb:
+    case vk::Format::eR8G8B8Sscaled:
+    case vk::Format::eR8G8B8Uint:
+    case vk::Format::eR8G8B8Unorm:
+    case vk::Format::eR8G8B8Uscaled:
+    case vk::Format::eB8G8R8Sint:
+    case vk::Format::eB8G8R8Snorm:
+    case vk::Format::eB8G8R8Srgb:
+    case vk::Format::eB8G8R8Sscaled:
+    case vk::Format::eB8G8R8Uint:
+    case vk::Format::eB8G8R8Unorm:
+    case vk::Format::eB8G8R8Uscaled:
+        *size = 1;
+        *channels = 3;
+        break;
+    case vk::Format::eR16G16B16Sint:
+    case vk::Format::eR16G16B16Snorm:
+    case vk::Format::eR16G16B16Sfloat:
+    case vk::Format::eR16G16B16Sscaled:
+    case vk::Format::eR16G16B16Uint:
+    case vk::Format::eR16G16B16Unorm:
+    case vk::Format::eR16G16B16Uscaled:
+        *size = 2;
+        *channels = 3;
+        break;
+    case vk::Format::eR32G32B32Sint:
+    case vk::Format::eR32G32B32Sfloat:
+    case vk::Format::eR32G32B32Uint:
+        *size = 4;
+        *channels = 3;
+        break;
+    case vk::Format::eR64G64B64Uint:
+    case vk::Format::eR64G64B64Sint:
+    case vk::Format::eR64G64B64Sfloat:
+        *size = 8;
+        *channels = 3;
+        break;
+    case vk::Format::eR8G8Sint:
+    case vk::Format::eR8G8Snorm:
+    case vk::Format::eR8G8Srgb:
+    case vk::Format::eR8G8Sscaled:
+    case vk::Format::eR8G8Uint:
+    case vk::Format::eR8G8Unorm:
+    case vk::Format::eR8G8Uscaled:
+        *size = 1;
+        *channels = 2;
+        break;
+    case vk::Format::eR16G16Sint:
+    case vk::Format::eR16G16Snorm:
+    case vk::Format::eR16G16Sfloat:
+    case vk::Format::eR16G16Sscaled:
+    case vk::Format::eR16G16Uint:
+    case vk::Format::eR16G16Unorm:
+    case vk::Format::eR16G16Uscaled:
+        *size = 2;
+        *channels = 2;
+        break;
+    case vk::Format::eR32G32Sint:
+    case vk::Format::eR32G32Sfloat:
+    case vk::Format::eR32G32Uint:
+        *size = 4;
+        *channels = 2;
+        break;
+    case vk::Format::eR64G64Uint:
+    case vk::Format::eR64G64Sint:
+    case vk::Format::eR64G64Sfloat:
+        *size = 8;
+        *channels = 2;
+        break;
+    case vk::Format::eR8Sint:
+    case vk::Format::eR8Snorm:
+    case vk::Format::eR8Srgb:
+    case vk::Format::eR8Sscaled:
+    case vk::Format::eR8Uint:
+    case vk::Format::eR8Unorm:
+    case vk::Format::eR8Uscaled:
+    case vk::Format::eA8UnormKHR:
+    case vk::Format::eS8Uint:
+        *size = 1;
+        *channels = 1;
+        break;
+    case vk::Format::eR16Sint:
+    case vk::Format::eR16Snorm:
+    case vk::Format::eR16Sfloat:
+    case vk::Format::eR16Sscaled:
+    case vk::Format::eR16Uint:
+    case vk::Format::eR16Unorm:
+    case vk::Format::eR16Uscaled:
+    case vk::Format::eD16Unorm:
+        *size = 2;
+        *channels = 1;
+        break;
+    case vk::Format::eR32Sint:
+    case vk::Format::eR32Sfloat:
+    case vk::Format::eR32Uint:
+    case vk::Format::eD32Sfloat:
+        *size = 4;
+        *channels = 1;
+        break;
+    case vk::Format::eR64Uint:
+    case vk::Format::eR64Sint:
+    case vk::Format::eR64Sfloat:
+        *size = 8;
+        *channels = 1;
+        break;
+    case vk::Format::eUndefined:
+        throw std::invalid_argument("Cannot decompose undefined format");
+        break;
+    default:
+        throw std::invalid_argument("Yet to support specific format");
+        break;
+    }
 }
 
 } // namespace wsp

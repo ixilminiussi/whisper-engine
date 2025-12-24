@@ -34,6 +34,7 @@ void Material::PropagateFormatFromGlTF(cgltf_material const *material, cgltf_tex
 
         createInfo.format = format;
         createInfo.imageInfo.format = format;
+        createInfo.deferredImageCreation = true;
     };
 
     std::string const name = material->name ? material->name : "";

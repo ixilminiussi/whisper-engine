@@ -47,7 +47,7 @@ class AssetsManager
     std::array<ubo::Material, MAX_MATERIALS> const &GetMaterialInfos() const;
 
     Image *RequestImage(Image::CreateInfo const &);
-    Sampler *RequestSampler(Sampler::CreateInfo const &);
+    Sampler *RequestSampler(Sampler::CreateInfo const &samplerInfo = {});
     Texture const *GetTexture(TextureID const &) const;
     Material const *GetMaterial(MaterialID const &) const;
 

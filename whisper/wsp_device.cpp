@@ -314,8 +314,8 @@ void Device::CreateLogicalDevice(std::vector<char const *> const &requiredExtens
     if (vk::Result const result = physicalDevice.createDevice(&createInfo, nullptr, &_device);
         result != vk::Result::eSuccess)
     {
-        throw std::runtime_error(
-            fmt::format("failed to create logical device : {}", vk::to_string(static_cast<vk::Result>(result))));
+        throw std::runtime_error(fmt::format("failed to create logical device <{}> : {}", name,
+                                             vk::to_string(static_cast<vk::Result>(result))));
     }
 
     _graphicsQueue = _device.getQueue(indices.graphicsFamily, 0);
@@ -339,8 +339,8 @@ void Device::CreateCommandPool(vk::PhysicalDevice physicalDevice, vk::SurfaceKHR
     if (vk::Result const result = _device.createCommandPool(&poolInfo, nullptr, &_commandPool);
         result != vk::Result::eSuccess)
     {
-        throw std::runtime_error(
-            fmt::format("Device: failed to create command pool : {}", vk::to_string(static_cast<vk::Result>(result))));
+        throw std::runtime_error(fmt::format("Device: failed to create command pool <{}> : {}", name,
+                                             vk::to_string(static_cast<vk::Result>(result))));
     }
 
     DebugNameObject(_commandPool, vk::ObjectType::eCommandPool, name);
@@ -424,8 +424,8 @@ void Device::CreateSemaphore(vk::SemaphoreCreateInfo const &createInfo, vk::Sema
     if (vk::Result const result = _device.createSemaphore(&createInfo, nullptr, semaphore);
         result != vk::Result::eSuccess)
     {
-        throw std::runtime_error(
-            fmt::format("Device: failed to create semaphore : {}", vk::to_string(static_cast<vk::Result>(result))));
+        throw std::runtime_error(fmt::format("Device: failed to create semaphore <{}> : {}", name,
+                                             vk::to_string(static_cast<vk::Result>(result))));
     }
 
     DebugNameObject(*semaphore, vk::ObjectType::eSemaphore, name);
@@ -437,8 +437,8 @@ void Device::CreateFence(vk::FenceCreateInfo const &createInfo, vk::Fence *fence
 
     if (vk::Result const result = _device.createFence(&createInfo, nullptr, fence); result != vk::Result::eSuccess)
     {
-        throw std::runtime_error(
-            fmt::format("Device: failed to create fence : {}", vk::to_string(static_cast<vk::Result>(result))));
+        throw std::runtime_error(fmt::format("Device: failed to create fence <{}> : {}", name,
+                                             vk::to_string(static_cast<vk::Result>(result))));
     }
 
     DebugNameObject(*fence, vk::ObjectType::eFence, name);
@@ -452,8 +452,8 @@ void Device::CreateFramebuffer(vk::FramebufferCreateInfo const &createInfo, vk::
     if (vk::Result const result = _device.createFramebuffer(&createInfo, nullptr, framebuffer);
         result != vk::Result::eSuccess)
     {
-        throw std::runtime_error(
-            fmt::format("Device: failed to create framebuffer : {}", vk::to_string(static_cast<vk::Result>(result))));
+        throw std::runtime_error(fmt::format("Device: failed to create framebuffer <{}> : {}", name,
+                                             vk::to_string(static_cast<vk::Result>(result))));
     }
 
     DebugNameObject(*framebuffer, vk::ObjectType::eFramebuffer, name);
@@ -467,8 +467,8 @@ void Device::CreateRenderPass(vk::RenderPassCreateInfo const &createInfo, vk::Re
     if (vk::Result const result = _device.createRenderPass(&createInfo, nullptr, renderPass);
         result != vk::Result::eSuccess)
     {
-        throw std::runtime_error(
-            fmt::format("Device: failed to create renderPass : {}", vk::to_string(static_cast<vk::Result>(result))));
+        throw std::runtime_error(fmt::format("Device: failed to create renderPass <{}> : {}", name,
+                                             vk::to_string(static_cast<vk::Result>(result))));
     }
 
     DebugNameObject(*renderPass, vk::ObjectType::eRenderPass, name);
@@ -481,8 +481,8 @@ void Device::CreateImageAndBindMemory(vk::ImageCreateInfo const &createInfo, vk:
 
     if (vk::Result const result = _device.createImage(&createInfo, nullptr, image); result != vk::Result::eSuccess)
     {
-        throw std::runtime_error(
-            fmt::format("Device: failed to create imageView : {}", vk::to_string(static_cast<vk::Result>(result))));
+        throw std::runtime_error(fmt::format("Device: failed to create imageView <{}> : {}", name,
+                                             vk::to_string(static_cast<vk::Result>(result))));
     }
 
     vk::MemoryRequirements const memRequirements = _device.getImageMemoryRequirements(*image);
@@ -512,8 +512,8 @@ void Device::CreateBufferAndBindMemory(vk::BufferCreateInfo const &createInfo, v
 
     if (vk::Result const result = _device.createBuffer(&createInfo, nullptr, buffer); result != vk::Result::eSuccess)
     {
-        throw std::runtime_error(
-            fmt::format("Device: failed to create buffer : {}", vk::to_string(static_cast<vk::Result>(result))));
+        throw std::runtime_error(fmt::format("Device: failed to create buffer <{}> : {}", name,
+                                             vk::to_string(static_cast<vk::Result>(result))));
     }
 
     vk::MemoryRequirements const memRequirements = _device.getBufferMemoryRequirements(*buffer);
@@ -621,8 +621,8 @@ void Device::CreateImageView(vk::ImageViewCreateInfo const &createInfo, vk::Imag
     if (vk::Result const result = _device.createImageView(&createInfo, nullptr, imageView);
         result != vk::Result::eSuccess)
     {
-        throw std::runtime_error(
-            fmt::format("Device: failed to create imageView : {}", vk::to_string(static_cast<vk::Result>(result))));
+        throw std::runtime_error(fmt::format("Device: failed to create imageView <{}> : {}", name,
+                                             vk::to_string(static_cast<vk::Result>(result))));
     }
 
     DebugNameObject(*imageView, vk::ObjectType::eImageView, name);
@@ -647,7 +647,7 @@ void Device::AllocateDescriptorSet(vk::DescriptorSetAllocateInfo const &allocInf
     if (vk::Result const result = _device.allocateDescriptorSets(&allocInfo, descriptorSet);
         result != vk::Result::eSuccess)
     {
-        throw std::runtime_error(fmt::format("Device: failed to allocate descriptor set : {}",
+        throw std::runtime_error(fmt::format("Device: failed to allocate descriptor set <{}> : {}", name,
                                              vk::to_string(static_cast<vk::Result>(result))));
     }
 
@@ -683,8 +683,8 @@ void Device::CreateSwapchainKHR(vk::SwapchainCreateInfoKHR const &createInfo, vk
     if (vk::Result const result = _device.createSwapchainKHR(&createInfo, nullptr, swapchain);
         result != vk::Result::eSuccess)
     {
-        throw std::runtime_error(
-            fmt::format("Device: failed to create swapchain : {}", vk::to_string(static_cast<vk::Result>(result))));
+        throw std::runtime_error(fmt::format("Device: failed to create swapchain <{}> : {}", name,
+                                             vk::to_string(static_cast<vk::Result>(result))));
     }
 
     DebugNameObject(*swapchain, vk::ObjectType::eSwapchainKHR, name);
@@ -698,7 +698,7 @@ void Device::CreateDescriptorPool(vk::DescriptorPoolCreateInfo const &createInfo
     if (vk::Result const result = _device.createDescriptorPool(&createInfo, nullptr, descriptorPool);
         result != vk::Result::eSuccess)
     {
-        throw std::runtime_error(fmt::format("Device: failed to create descriptor pool : {}",
+        throw std::runtime_error(fmt::format("Device: failed to create descriptor pool <{}> : {}", name,
                                              vk::to_string(static_cast<vk::Result>(result))));
     }
 
@@ -713,7 +713,7 @@ void Device::CreateDescriptorSetLayout(vk::DescriptorSetLayoutCreateInfo const &
     if (vk::Result const result = _device.createDescriptorSetLayout(&createInfo, nullptr, descriptorSetLayout);
         result != vk::Result::eSuccess)
     {
-        throw std::runtime_error(fmt::format("Device: failed to create descriptor set layout : {}",
+        throw std::runtime_error(fmt::format("Device: failed to create descriptor set layout <{}> : {}", name,
                                              vk::to_string(static_cast<vk::Result>(result))));
     }
 
@@ -730,8 +730,8 @@ void Device::CreateShaderModule(std::vector<char> const &code, vk::ShaderModule 
     if (vk::Result const result = _device.createShaderModule(&createInfo, nullptr, shaderModule);
         result != vk::Result::eSuccess)
     {
-        throw std::runtime_error(
-            fmt::format("Device: failed to create shader module : {}", vk::to_string(static_cast<vk::Result>(result))));
+        throw std::runtime_error(fmt::format("Device: failed to create shader module <{}> : {}", name,
+                                             vk::to_string(static_cast<vk::Result>(result))));
     }
 }
 
@@ -743,7 +743,7 @@ void Device::CreatePipelineLayout(vk::PipelineLayoutCreateInfo const &createInfo
     if (vk::Result const result = _device.createPipelineLayout(&createInfo, nullptr, pipelineLayout);
         result != vk::Result::eSuccess)
     {
-        throw std::runtime_error(fmt::format("Device: failed to create pipeline layout : {}",
+        throw std::runtime_error(fmt::format("Device: failed to create pipeline layout <{}> : {}", name,
                                              vk::to_string(static_cast<vk::Result>(result))));
     }
 
@@ -758,7 +758,7 @@ void Device::CreateGraphicsPipeline(vk::GraphicsPipelineCreateInfo const &create
     if (vk::Result const result = _device.createGraphicsPipelines(VK_NULL_HANDLE, 1, &createInfo, nullptr, pipeline);
         result != vk::Result::eSuccess)
     {
-        throw std::runtime_error(fmt::format("Device: failed to create pipeline layout : {}",
+        throw std::runtime_error(fmt::format("Device: failed to create pipeline layout <{}> : {}", name,
                                              vk::to_string(static_cast<vk::Result>(result))));
     }
 

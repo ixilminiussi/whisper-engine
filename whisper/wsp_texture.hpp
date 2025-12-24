@@ -23,13 +23,14 @@ class Texture
   public:
     struct CreateInfo
     {
-        Sampler::CreateInfo samplerInfo;
-        Image::CreateInfo imageInfo;
-        Sampler *pSampler;
-        Image *pImage;
-        vk::Format format{vk::Format::eR8G8B8Srgb};
+        Sampler *pSampler{nullptr};
+        Image *pImage{nullptr};
+        vk::Format format{vk::Format::eUndefined};
         bool depth{false};
         bool cubemap{false};
+
+        Image::CreateInfo imageInfo{};
+        bool deferredImageCreation{false};
 
         std::string name;
     };

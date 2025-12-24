@@ -67,30 +67,6 @@ float getOcclusion(in Material material, in vec2 uv)
     return occlusion;
 }
 
-float D_GGX(float NdotH, float roughness)
-{
-    float r4 = pow(roughness, 4);
-    float d = (NdotH * NdotH) * (r4 - 1.0) + 1.0;
-    return r4 / (PI * d * d);
-}
-
-vec3 fresnelSchlick(float cosTheta, vec3 F0)
-{
-    return F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);
-}
-
-float G_SchlickGGX(float NdotV, float roughness)
-{
-    float r = roughness + 1.0;
-    float k = (r * r) / 8.0;
-    return NdotV / (NdotV * (1.0 - k) + k);
-}
-
-float G_Smith(float NdotV, float NdotL, float roughness)
-{
-    return G_SchlickGGX(NdotV, roughness) * G_SchlickGGX(NdotL, roughness);
-}
-
 void main()
 {
     vec2 uv = i.uv.xy;
@@ -130,27 +106,9 @@ void main()
     float VdotH = max(dot(V, H), 0.0);
     float NdotUp = saturate(dot(N, vec3(0, 1, 0)));
 
-    // PBR
-    vec3 F0 = mix(vec3(0.04), albedo, metallic);
-    vec3 F = fresnelSchlick(VdotH, F0);
-    float D = D_GGX(NdotH, roughness);
-    float G = G_Smith(NdotV, NdotL, roughness);
+    vec4 irradiance = texture(cubemaps[1], N); // temporary
+    vec3 diffuse = albedo * (1.0 - metallic) * irradiance.rgb * irradiance.a;
 
-    // diffuse
-    vec3 diffuse = albedo / PI;
-
-    vec3 kS = F;
-    vec3 kD = (1.0 - kS) * (1.0 - metallic);
-
-    // specular
-    vec3 specular = (D * F * G) / max(4.0 * NdotV * NdotL, EPS);
-
-    // ambient
-    vec3 ambient = kD * diffuse * 0.1 * ubo.light.sun.color.rgb;
-
-    // combination
-    vec3 color = (kD * diffuse + specular) * ubo.light.sun.color.rgb * NdotL + ambient;
-
-    out_color = vec4(N, 1.0);
+    out_color = vec4(diffuse, 1.0);
     return;
 }

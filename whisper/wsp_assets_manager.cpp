@@ -50,7 +50,7 @@ AssetsManager::AssetsManager() : _fileRoot{WSP_ASSETS}
 #endif
 
     _staticTextures = new StaticTextures(MAX_DYNAMIC_TEXTURES, false, "static 2d textures");
-    _staticCubemaps = new StaticTextures(1, true, "static cube textures");
+    _staticCubemaps = new StaticTextures(2, true, "static cube textures");
 }
 
 AssetsManager::~AssetsManager()
