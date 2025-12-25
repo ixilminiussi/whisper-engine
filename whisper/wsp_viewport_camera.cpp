@@ -164,15 +164,16 @@ void ViewportCamera::OnMouseScroll(double dt, glm::vec2 value)
 
 void ViewportCamera::OnMouseMovement(double dt, glm::vec2 value)
 {
+    value.x *= -1;
     if (_possessionMode == eOrbit)
     {
-        Orbit(-value * _mouseSensitivity * (float)dt);
+        Orbit(value * _mouseSensitivity * (float)dt);
     }
     else
     {
         if (_possessionMode == eMove)
         {
-            Rotate(-value * _mouseSensitivity * (float)dt);
+            Rotate(value * _mouseSensitivity * (float)dt);
         }
     }
 }

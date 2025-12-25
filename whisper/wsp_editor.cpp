@@ -430,45 +430,47 @@ void Editor::RenderContentBrowser(bool *show)
 
                 if (r)
                 {
-                    try
-                    {
-                        std::filesystem::path const relativePath =
-                            std::filesystem::relative(path, assetsManager->_fileRoot);
-
-                        if (relativePath.extension().compare(".gltf") == 0 ||
-                            relativePath.extension().compare(".glb") == 0)
+                    _deferredQueue.push_back([=]() {
+                        try
                         {
-                            if (_drawList)
-                            {
-                                _drawList->clear();
-                            }
-                            else
-                            {
-                                _drawList = new std::vector<Drawable const *>{};
-                            }
+                            std::filesystem::path const relativePath =
+                                std::filesystem::relative(path, assetsManager->_fileRoot);
 
-                            float furthestRadius = 0.f;
-
-                            for (Drawable const *drawable : assetsManager->ImportGlTF(relativePath))
+                            if (relativePath.extension().compare(".gltf") == 0 ||
+                                relativePath.extension().compare(".glb") == 0)
                             {
-                                furthestRadius = std::max(furthestRadius, drawable->GetRadius());
-                                _drawList->push_back((Drawable const *)drawable);
-                            }
+                                if (_drawList)
+                                {
+                                    _drawList->clear();
+                                }
+                                else
+                                {
+                                    _drawList = new std::vector<Drawable const *>{};
+                                }
 
-                            _viewportCamera->SetOrbitTarget({0.f, 0.f, 0.f});
-                            _viewportCamera->SetOrbitDistance(furthestRadius * 2.5f);
-                            _viewportCamera->Refresh();
+                                float furthestRadius = 0.f;
+
+                                for (Drawable const *drawable : assetsManager->ImportGlTF(relativePath))
+                                {
+                                    furthestRadius = std::max(furthestRadius, drawable->GetRadius());
+                                    _drawList->push_back((Drawable const *)drawable);
+                                }
+
+                                _viewportCamera->SetOrbitTarget({0.f, 0.f, 0.f});
+                                _viewportCamera->SetOrbitDistance(furthestRadius * 2.5f);
+                                _viewportCamera->Refresh();
+                            }
+                            else if (relativePath.extension().compare(".png") == 0 && _skyboxFlag)
+                            {
+                                // assetsManager->ImportCubemap(relativePath);
+                                _skyboxFlag = false;
+                            }
                         }
-                        else if (relativePath.extension().compare(".png") == 0 && _skyboxFlag)
+                        catch (std::exception const &exception)
                         {
-                            // assetsManager->ImportCubemap(relativePath);
-                            _skyboxFlag = false;
-                        }
-                    }
-                    catch (std::exception const &exception)
-                    {
-                        spdlog::critical("{}", exception.what());
-                    };
+                            spdlog::critical("{}", exception.what());
+                        };
+                    });
                 }
                 ImGui::Text("%s", path.filename().c_str());
             }

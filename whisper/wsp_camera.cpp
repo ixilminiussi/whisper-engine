@@ -205,7 +205,7 @@ void Camera::UpdateProjection()
         check(glm::abs(_aspectRatio - std::numeric_limits<float>::epsilon()) > 0.0f);
 
         _projectionMatrix = glm::perspective(glm::radians(_fov), _aspectRatio, _nearPlane, _farPlane);
-        _projectionMatrix[1][1] *= -1.0f;
+        // _projectionMatrix[1][1] *= -1.0f;
         break;
     }
 }

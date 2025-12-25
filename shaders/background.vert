@@ -1,7 +1,7 @@
 #version 450
 #extension GL_GOOGLE_include_directive : require
 
-vec2 points[6] = {{1., 1.}, {1., -1.}, {-1., 1.}, {-1., -1.}, {-1., 1.}, {1., -1.}};
+vec2 points[6] = {{1., 1.}, {-1., 1.}, {1., -1.}, {-1., -1.}, {1., -1.}, {-1., 1.}};
 
 #include "ubo.glsl"
 

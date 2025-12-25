@@ -353,7 +353,7 @@ void Graph::BuildPipeline(Pass pass)
     rasterizationInfo.rasterizerDiscardEnable = vk::False;
     rasterizationInfo.polygonMode = vk::PolygonMode::eFill;
     rasterizationInfo.lineWidth = 1.0f;
-    rasterizationInfo.cullMode = vk::CullModeFlagBits::eFront;
+    rasterizationInfo.cullMode = vk::CullModeFlagBits::eBack;
     rasterizationInfo.frontFace = vk::FrontFace::eClockwise;
     rasterizationInfo.depthBiasEnable = vk::False;
     rasterizationInfo.depthBiasConstantFactor = 0.0f;
