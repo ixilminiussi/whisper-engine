@@ -5,7 +5,9 @@ struct Camera
     mat4 viewProjection;
     mat4 view;
     mat4 projection;
-    vec3 position;
+    mat4 inverseView;
+    mat4 inverseProjection;
+    vec3 w_position;
 };
 
 struct Sun

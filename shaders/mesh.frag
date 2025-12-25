@@ -90,24 +90,29 @@ void main()
     float roughness = PBRParams.r;
     float metallic = PBRParams.g;
 
-    mat3 tangentMatrix = transpose(mat3(normalize(i.w_tangent), normalize(i.w_bitangent), normalize(i.w_normal)));
+    mat3 tangentMatrix = mat3(normalize(i.w_tangent), normalize(i.w_bitangent), normalize(i.w_normal));
     // FOUNDATION parameters
-    vec3 V = normalize(ubo.camera.position.xyz - i.w_position); // view vec
+    vec3 V = normalize(i.w_ray);
 
     vec3 N = getNormal(material, uv, tangentMatrix); // normal
 
     // DOT PRODUCTS
-    float NdotV = max(dot(N, V), 0.0);
+    float NdotV = max(dot(N, -V), 0);
     float NdotUp = saturate(dot(N, vec3(0, 1, 0)));
 
     vec3 R = reflect(-V, N);
 
     vec4 irradiance = texture(cubemaps[1], N); // temporary
-    vec3 specular = texture(cubemaps[0], R).rgb * metallic;
-    vec3 diffuse = albedo * max(1.0 - metallic, EPS) * irradiance.rgb * irradiance.a;
+    vec3 specular = mix(texture(cubemaps[0], R).rgb, texture(cubemaps[1], R).rgb, roughness);
+    vec3 diffuse = albedo * irradiance.rgb * irradiance.a;
 
-    vec3 color = specular + diffuse;
+    vec3 F0 = mix(vec3(0.04), albedo, metallic);
+    vec3 F = F0 + (1.0 - F0) * pow(1.0 - NdotV, 5.0);
+    vec3 kS = F;
+    vec3 kD = (1.0 - kS) * (1.0 - metallic);
 
-    out_color = vec4(color, 1.0);
+    vec3 color = specular * kS + diffuse * kD;
+
+    out_color = vec4(color, 1.0); // debug purposes
     return;
 }

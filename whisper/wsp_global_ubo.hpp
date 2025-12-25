@@ -17,6 +17,8 @@ struct Camera
     glm::mat4 viewProjection;
     glm::mat4 view;
     glm::mat4 projection;
+    glm::mat4 inverseView;
+    glm::mat4 inverseProjection;
     glm::vec3 position;
     float _pad0;
 };

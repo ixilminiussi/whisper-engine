@@ -28,11 +28,13 @@ void main()
     // Normal mapping parameters
     o.w_tangent = mat3(push.normalMatrix) * v_tangent.xyz;
     o.w_normal = mat3(push.normalMatrix) * v_normal;
-    o.w_position = (push.modelMatrix * vec4(v_position, 1.0)).xyz;
-    o.w_bitangent = cross(o.w_normal, o.w_tangent) * v_tangent.w;
+    o.w_bitangent = -cross(o.w_normal, o.w_tangent) * v_tangent.w;
 
     o.m_tangent = v_tangent.xyz;
-    o.m_bitangent = cross(v_normal, o.m_tangent) * v_tangent.w;
+    o.m_bitangent = -cross(v_normal, o.m_tangent) * v_tangent.w;
+    vec3 w_position = (push.modelMatrix * vec4(v_position, 1.0)).xyz;
 
-    gl_Position = ubo.camera.viewProjection * vec4(o.w_position, 1.0);
+    gl_Position = ubo.camera.viewProjection * vec4(w_position, 1.0);
+
+    o.w_ray = normalize(w_position - ubo.camera.w_position);
 }

@@ -5,7 +5,7 @@ struct v_info
 {
     vec3 uv;
     vec3 w_normal;
-    vec3 w_position;
+    vec3 w_ray;
     vec3 w_tangent;
     vec3 w_bitangent;
 

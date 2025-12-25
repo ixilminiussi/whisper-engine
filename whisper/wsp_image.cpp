@@ -51,6 +51,7 @@ Image::Image(Device const *device, CreateInfo const &createInfo, bool cubemap) :
     {
         stbi_uc *pixels = stbi_load(createInfo.filepath.c_str(), &width, &height, &channels, STBI_rgb);
         size = 1;
+        channels = 3;
 
         build(pixels);
 

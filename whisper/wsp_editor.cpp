@@ -248,7 +248,9 @@ void Editor::PopulateUbo(ubo::Ubo *ubo)
         _viewportCamera->GetCamera()->GetProjection() * _viewportCamera->GetCamera()->GetView();
     ubo->camera.view = _viewportCamera->GetCamera()->GetView();
     ubo->camera.projection = _viewportCamera->GetCamera()->GetProjection();
-    ubo->camera.position = _viewportCamera->GetPosition();
+    ubo->camera.inverseView = glm::inverse(_viewportCamera->GetCamera()->GetView());
+    ubo->camera.inverseProjection = glm::inverse(_viewportCamera->GetCamera()->GetProjection());
+    ubo->camera.position = _viewportCamera->GetCamera()->GetPosition();
 
     memcpy(ubo->materials, AssetsManager::Get()->GetMaterialInfos().data(), MAX_MATERIALS);
 }
@@ -433,7 +435,8 @@ void Editor::RenderContentBrowser(bool *show)
                         std::filesystem::path const relativePath =
                             std::filesystem::relative(path, assetsManager->_fileRoot);
 
-                        if (relativePath.extension().compare(".gltf") == 0)
+                        if (relativePath.extension().compare(".gltf") == 0 ||
+                            relativePath.extension().compare(".glb") == 0)
                         {
                             if (_drawList)
                             {
