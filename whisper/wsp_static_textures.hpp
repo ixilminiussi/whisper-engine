@@ -18,7 +18,6 @@ class StaticTextures
     StaticTextures(uint32_t size, bool cubemap = false, std::string const &name = "");
     ~StaticTextures();
 
-    void BuildDummy(bool cubemap = false);
     void Push(std::vector<TextureID> const &);
     void Clear();
 
@@ -26,15 +25,12 @@ class StaticTextures
     vk::DescriptorSet GetDescriptorSet() const;
 
     int GetID(TextureID) const;
+    uint32_t GetSize() const;
 
   protected:
     std::string _name;
     uint32_t _size;
     uint32_t _offset;
-
-    std::vector<class Texture *> _dummyTextures;
-    std::vector<class Image *> _dummyImages;
-    class Sampler *_dummySampler;
 
     std::unordered_map<TextureID, size_t> _staticTextures;
 

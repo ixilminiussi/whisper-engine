@@ -17,14 +17,15 @@ class Image
     {
         std::filesystem::path filepath{};
         vk::Format format{vk::Format::eUndefined};
+        bool cubemap{false};
 
         inline bool operator<(CreateInfo const &b) const
         {
-            return std::tie(filepath, format) < std::tie(b.filepath, b.format);
+            return std::tie(filepath, format, cubemap) < std::tie(b.filepath, b.format, cubemap);
         }
     };
 
-    Image(class Device const *, CreateInfo const &createInfo, bool cubemap = false);
+    Image(class Device const *, CreateInfo const &createInfo);
     ~Image();
 
     Image(Image const &) = delete;
@@ -33,6 +34,7 @@ class Image
     vk::Image GetImage() const;
     vk::Format GetFormat() const;
     std::string GetName() const;
+    bool IsCubemap() const;
 
     friend class Graph;
 
@@ -60,4 +62,3 @@ class Image
 } // namespace wsp
 
 #endif
-

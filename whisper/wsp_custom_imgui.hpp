@@ -177,14 +177,17 @@ inline bool ThumbnailButton(char const *label)
 
 inline bool ThumbnailButton(ImTextureID textureID)
 {
-    static float const padding = 16.f;
-    static float const thumbnailSize = 128.f;
+    static float const padding = 0.f;
+    static float const thumbnailSize = 128.f - padding * 2.0f;
+
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(padding, padding));
 
     ImGui::PushStyleColor(ImGuiCol_Button, decodeSRGB(catppuccin::blue));
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, decodeSRGB(catppuccin::lavender));
     ImGui::PushStyleColor(ImGuiCol_ButtonActive, decodeSRGB(catppuccin::lavender));
     bool const r = ImGui::ImageButton("", textureID, ImVec2{thumbnailSize, thumbnailSize});
     ImGui::PopStyleColor(3);
+    ImGui::PopStyleVar(1);
 
     return r;
 }

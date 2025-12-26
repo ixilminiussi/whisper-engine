@@ -354,6 +354,334 @@ inline void DecomposeFormat(vk::Format format, uint32_t *channels, size_t *size)
     }
 }
 
+inline std::string FormatToString(vk::Format format)
+{
+    switch (format)
+    {
+    case vk::Format::eR8G8B8A8Sint:
+        return std::string("eR8G8B8A8Sint");
+        break;
+    case vk::Format::eR8G8B8A8Snorm:
+        return std::string("eR8G8B8A8Snorm");
+        break;
+    case vk::Format::eR8G8B8A8Srgb:
+        return std::string("eR8G8B8A8Srgb");
+        break;
+    case vk::Format::eR8G8B8A8Sscaled:
+        return std::string("eR8G8B8A8Sscaled");
+        break;
+    case vk::Format::eR8G8B8A8Uint:
+        return std::string("eR8G8B8A8Uint");
+        break;
+    case vk::Format::eR8G8B8A8Unorm:
+        return std::string("eR8G8B8A8Unorm");
+        break;
+    case vk::Format::eR8G8B8A8Uscaled:
+        return std::string("eR8G8B8A8Uscaled");
+        break;
+    case vk::Format::eB8G8R8A8Sint:
+        return std::string("eB8G8R8A8Sint");
+        break;
+    case vk::Format::eB8G8R8A8Snorm:
+        return std::string("eB8G8R8A8Snorm");
+        break;
+    case vk::Format::eB8G8R8A8Srgb:
+        return std::string("eB8G8R8A8Srgb");
+        break;
+    case vk::Format::eB8G8R8A8Sscaled:
+        return std::string("eB8G8R8A8Sscaled");
+        break;
+    case vk::Format::eB8G8R8A8Uint:
+        return std::string("eB8G8R8A8Uint");
+        break;
+    case vk::Format::eB8G8R8A8Unorm:
+        return std::string("eB8G8R8A8Unorm");
+        break;
+    case vk::Format::eB8G8R8A8Uscaled:
+        return std::string("eB8G8R8A8Uscaled");
+        break;
+    case vk::Format::eA8B8G8R8UnormPack32:
+        return std::string("eA8B8G8R8UnormPack32");
+        break;
+    case vk::Format::eA8B8G8R8SnormPack32:
+        return std::string("eA8B8G8R8SnormPack32");
+        break;
+    case vk::Format::eA8B8G8R8UscaledPack32:
+        return std::string("eA8B8G8R8UscaledPack32");
+        break;
+    case vk::Format::eA8B8G8R8SscaledPack32:
+        return std::string("eA8B8G8R8SscaledPack32");
+        break;
+    case vk::Format::eA8B8G8R8UintPack32:
+        return std::string("eA8B8G8R8UintPack32");
+        break;
+    case vk::Format::eA8B8G8R8SintPack32:
+        return std::string("eA8B8G8R8SintPack32");
+        break;
+    case vk::Format::eA8B8G8R8SrgbPack32:
+        return std::string("eA8B8G8R8SrgbPack32");
+        break;
+    case vk::Format::eR16G16B16A16Sint:
+        return std::string("eR16G16B16A16Sint");
+        break;
+    case vk::Format::eR16G16B16A16Snorm:
+        return std::string("eR16G16B16A16Snorm");
+        break;
+    case vk::Format::eR16G16B16A16Sfloat:
+        return std::string("eR16G16B16A16Sfloat");
+        break;
+    case vk::Format::eR16G16B16A16Sscaled:
+        return std::string("eR16G16B16A16Sscaled");
+        break;
+    case vk::Format::eR16G16B16A16Uint:
+        return std::string("eR16G16B16A16Uint");
+        break;
+    case vk::Format::eR16G16B16A16Unorm:
+        return std::string("eR16G16B16A16Unorm");
+        break;
+    case vk::Format::eR16G16B16A16Uscaled:
+        return std::string("eR16G16B16A16Uscaled");
+        break;
+    case vk::Format::eR32G32B32A32Sint:
+        return std::string("eR32G32B32A32Sint");
+        break;
+    case vk::Format::eR32G32B32A32Sfloat:
+        return std::string("eR32G32B32A32Sfloat");
+        break;
+    case vk::Format::eR32G32B32A32Uint:
+        return std::string("eR32G32B32A32Uint");
+        break;
+    case vk::Format::eR64G64B64A64Uint:
+        return std::string("eR64G64B64A64Uint");
+        break;
+    case vk::Format::eR64G64B64A64Sint:
+        return std::string("eR64G64B64A64Sint");
+        break;
+    case vk::Format::eR64G64B64A64Sfloat:
+        return std::string("eR64G64B64A64Sfloat");
+        break;
+    case vk::Format::eR8G8B8Sint:
+        return std::string("eR8G8B8Sint");
+        break;
+    case vk::Format::eR8G8B8Snorm:
+        return std::string("eR8G8B8Snorm");
+        break;
+    case vk::Format::eR8G8B8Srgb:
+        return std::string("eR8G8B8Srgb");
+        break;
+    case vk::Format::eR8G8B8Sscaled:
+        return std::string("eR8G8B8Sscaled");
+        break;
+    case vk::Format::eR8G8B8Uint:
+        return std::string("eR8G8B8Uint");
+        break;
+    case vk::Format::eR8G8B8Unorm:
+        return std::string("eR8G8B8Unorm");
+        break;
+    case vk::Format::eR8G8B8Uscaled:
+        return std::string("eR8G8B8Uscaled");
+        break;
+    case vk::Format::eB8G8R8Sint:
+        return std::string("eB8G8R8Sint");
+        break;
+    case vk::Format::eB8G8R8Snorm:
+        return std::string("eB8G8R8Snorm");
+        break;
+    case vk::Format::eB8G8R8Srgb:
+        return std::string("eB8G8R8Srgb");
+        break;
+    case vk::Format::eB8G8R8Sscaled:
+        return std::string("eB8G8R8Sscaled");
+        break;
+    case vk::Format::eB8G8R8Uint:
+        return std::string("eB8G8R8Uint");
+        break;
+    case vk::Format::eB8G8R8Unorm:
+        return std::string("eB8G8R8Unorm");
+        break;
+    case vk::Format::eB8G8R8Uscaled:
+        return std::string("eB8G8R8Uscaled");
+        break;
+    case vk::Format::eR16G16B16Sint:
+        return std::string("eR16G16B16Sint");
+        break;
+    case vk::Format::eR16G16B16Snorm:
+        return std::string("eR16G16B16Snorm");
+        break;
+    case vk::Format::eR16G16B16Sfloat:
+        return std::string("eR16G16B16Sfloat");
+        break;
+    case vk::Format::eR16G16B16Sscaled:
+        return std::string("eR16G16B16Sscaled");
+        break;
+    case vk::Format::eR16G16B16Uint:
+        return std::string("eR16G16B16Uint");
+        break;
+    case vk::Format::eR16G16B16Unorm:
+        return std::string("eR16G16B16Unorm");
+        break;
+    case vk::Format::eR16G16B16Uscaled:
+        return std::string("eR16G16B16Uscaled");
+        break;
+    case vk::Format::eR32G32B32Sint:
+        return std::string("eR32G32B32Sint");
+        break;
+    case vk::Format::eR32G32B32Sfloat:
+        return std::string("eR32G32B32Sfloat");
+        break;
+    case vk::Format::eR32G32B32Uint:
+        return std::string("eR32G32B32Uint");
+        break;
+    case vk::Format::eR64G64B64Uint:
+        return std::string("eR64G64B64Uint");
+        break;
+    case vk::Format::eR64G64B64Sint:
+        return std::string("eR64G64B64Sint");
+        break;
+    case vk::Format::eR64G64B64Sfloat:
+        return std::string("eR64G64B64Sfloat");
+        break;
+    case vk::Format::eR8G8Sint:
+        return std::string("eR8G8Sint");
+        break;
+    case vk::Format::eR8G8Snorm:
+        return std::string("eR8G8Snorm");
+        break;
+    case vk::Format::eR8G8Srgb:
+        return std::string("eR8G8Srgb");
+        break;
+    case vk::Format::eR8G8Sscaled:
+        return std::string("eR8G8Sscaled");
+        break;
+    case vk::Format::eR8G8Uint:
+        return std::string("eR8G8Uint");
+        break;
+    case vk::Format::eR8G8Unorm:
+        return std::string("eR8G8Unorm");
+        break;
+    case vk::Format::eR8G8Uscaled:
+        return std::string("eR8G8Uscaled");
+        break;
+    case vk::Format::eR16G16Sint:
+        return std::string("eR16G16Sint");
+        break;
+    case vk::Format::eR16G16Snorm:
+        return std::string("eR16G16Snorm");
+        break;
+    case vk::Format::eR16G16Sfloat:
+        return std::string("eR16G16Sfloat");
+        break;
+    case vk::Format::eR16G16Sscaled:
+        return std::string("eR16G16Sscaled");
+        break;
+    case vk::Format::eR16G16Uint:
+        return std::string("eR16G16Uint");
+        break;
+    case vk::Format::eR16G16Unorm:
+        return std::string("eR16G16Unorm");
+        break;
+    case vk::Format::eR16G16Uscaled:
+        return std::string("eR16G16Uscaled");
+        break;
+    case vk::Format::eR32G32Sint:
+        return std::string("eR32G32Sint");
+        break;
+    case vk::Format::eR32G32Sfloat:
+        return std::string("eR32G32Sfloat");
+        break;
+    case vk::Format::eR32G32Uint:
+        return std::string("eR32G32Uint");
+        break;
+    case vk::Format::eR64G64Uint:
+        return std::string("eR64G64Uint");
+        break;
+    case vk::Format::eR64G64Sint:
+        return std::string("eR64G64Sint");
+        break;
+    case vk::Format::eR64G64Sfloat:
+        return std::string("eR64G64Sfloat");
+        break;
+    case vk::Format::eR8Sint:
+        return std::string("eR8Sint");
+        break;
+    case vk::Format::eR8Snorm:
+        return std::string("eR8Snorm");
+        break;
+    case vk::Format::eR8Srgb:
+        return std::string("eR8Srgb");
+        break;
+    case vk::Format::eR8Sscaled:
+        return std::string("eR8Sscaled");
+        break;
+    case vk::Format::eR8Uint:
+        return std::string("eR8Uint");
+        break;
+    case vk::Format::eR8Unorm:
+        return std::string("eR8Unorm");
+        break;
+    case vk::Format::eR8Uscaled:
+        return std::string("eR8Uscaled");
+        break;
+    case vk::Format::eA8UnormKHR:
+        return std::string("eA8UnormKHR");
+        break;
+    case vk::Format::eS8Uint:
+        return std::string("eS8Uint");
+        break;
+    case vk::Format::eR16Sint:
+        return std::string("eR16Sint");
+        break;
+    case vk::Format::eR16Snorm:
+        return std::string("eR16Snorm");
+        break;
+    case vk::Format::eR16Sfloat:
+        return std::string("eR16Sfloat");
+        break;
+    case vk::Format::eR16Sscaled:
+        return std::string("eR16Sscaled");
+        break;
+    case vk::Format::eR16Uint:
+        return std::string("eR16Uint");
+        break;
+    case vk::Format::eR16Unorm:
+        return std::string("eR16Unorm");
+        break;
+    case vk::Format::eR16Uscaled:
+        return std::string("eR16Uscaled");
+        break;
+    case vk::Format::eD16Unorm:
+        return std::string("eD16Unorm");
+        break;
+    case vk::Format::eR32Sint:
+        return std::string("eR32Sint");
+        break;
+    case vk::Format::eR32Sfloat:
+        return std::string("eR32Sfloat");
+        break;
+    case vk::Format::eR32Uint:
+        return std::string("eR32Uint");
+        break;
+    case vk::Format::eD32Sfloat:
+        return std::string("eD32Sfloat");
+        break;
+    case vk::Format::eR64Uint:
+        return std::string("eR64Uint");
+        break;
+    case vk::Format::eR64Sint:
+        return std::string("eR64Sint");
+        break;
+    case vk::Format::eR64Sfloat:
+        return std::string("eR64Sfloat");
+        break;
+    case vk::Format::eUndefined:
+        return std::string("eUndefined");
+        break;
+    default:
+        throw std::invalid_argument("Yet to support specific format");
+        break;
+    }
+}
+
 } // namespace wsp
 
 #endif

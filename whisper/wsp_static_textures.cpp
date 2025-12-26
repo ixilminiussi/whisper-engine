@@ -49,7 +49,6 @@ StaticTextures::StaticTextures(uint32_t size, bool cubemap, std::string const &n
 
     device->AllocateDescriptorSet(setAllocInfo, &_descriptorSet, fmt::format("{}<descriptor_set>", name));
 
-    BuildDummy(cubemap);
     Clear();
 
     spdlog::debug("Graph: built static textures");
@@ -64,101 +63,11 @@ StaticTextures::~StaticTextures()
     device->DestroyDescriptorPool(&_descriptorPool);
     device->DestroyDescriptorSetLayout(&_descriptorSetLayout);
 
-    delete _dummySampler;
-
-    for (Image *image : _dummyImages)
-    {
-        delete image;
-    }
-    _dummyImages.clear();
-
-    for (Texture *texture : _dummyTextures)
-    {
-        delete texture;
-    }
-    _dummyTextures.clear();
-
     spdlog::info("StaticTextures: freed");
-}
-
-void StaticTextures::BuildDummy(bool cubemap)
-{
-    Device const *device = SafeDeviceAccessor::Get();
-    check(device);
-
-    _dummySampler = new Sampler{device, Sampler::CreateInfo{}};
-
-    if (cubemap)
-    {
-        {
-            Image::CreateInfo imageCreateInfo{};
-            imageCreateInfo.filepath =
-                (std::filesystem::path(WSP_EDITOR_ASSETS) / std::filesystem::path("skybox.exr")).lexically_normal();
-            Image *image = new Image{device, imageCreateInfo, true};
-
-            Texture::CreateInfo createInfo{};
-            createInfo.pImage = image;
-            createInfo.pSampler = _dummySampler;
-            createInfo.cubemap = true;
-            createInfo.name = "skybox";
-
-            Texture *texture = new Texture{device, createInfo};
-
-            _dummyImages.push_back(image);
-            _dummyTextures.push_back(texture);
-        }
-
-        {
-            Image::CreateInfo imageCreateInfo{};
-            imageCreateInfo.filepath =
-                (std::filesystem::path(WSP_EDITOR_ASSETS) / std::filesystem::path("irradiance.exr")).lexically_normal();
-            Image *image = new Image{device, imageCreateInfo, true};
-
-            Texture::CreateInfo createInfo{};
-            createInfo.pImage = image;
-            createInfo.pSampler = _dummySampler;
-            createInfo.cubemap = true;
-            createInfo.name = "irradiance";
-
-            Texture *texture = new Texture{device, createInfo};
-
-            _dummyImages.push_back(image);
-            _dummyTextures.push_back(texture);
-        }
-    }
-    else
-    {
-        Image::CreateInfo imageCreateInfo{};
-        imageCreateInfo.filepath =
-            (std::filesystem::path(WSP_EDITOR_ASSETS) / std::filesystem::path("missing-texture.png"))
-                .lexically_normal();
-        Image *image = new Image{device, imageCreateInfo, false};
-
-        Texture::CreateInfo createInfo{};
-        createInfo.pImage = image;
-        createInfo.pSampler = _dummySampler;
-        createInfo.name = "missing";
-        createInfo.cubemap = false;
-
-        Texture *texture = new Texture{device, createInfo};
-
-        _dummyImages.push_back(image);
-        _dummyTextures.push_back(texture);
-    }
-
-    spdlog::debug("Graph: built dummy texture");
 }
 
 void StaticTextures::Clear()
 {
-    std::vector<TextureID> textures{};
-
-    textures.resize(_size, 0);
-
-    _offset = 0u;
-
-    Push(textures);
-
     _offset = 0u;
 }
 
@@ -172,28 +81,16 @@ void StaticTextures::Push(std::vector<TextureID> const &textures)
     std::vector<vk::DescriptorImageInfo> imageInfos{};
     for (int i = 0; i < textures.size(); i++)
     {
-        if (textures[i] == 0)
-        {
-            vk::DescriptorImageInfo imageInfo{};
-            imageInfo.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
-            imageInfo.imageView = _dummyTextures[i % _dummyTextures.size()]->GetImageView();
-            imageInfo.sampler = _dummySampler->GetSampler();
+        Texture const *texture = AssetsManager::Get()->GetTexture(textures[i]);
 
-            imageInfos.push_back(imageInfo);
-        }
-        else
-        {
-            Texture const *texture = AssetsManager::Get()->GetTexture(textures[i]);
+        vk::DescriptorImageInfo imageInfo{};
+        imageInfo.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+        imageInfo.imageView = texture->GetImageView();
+        imageInfo.sampler = texture->GetSampler();
 
-            vk::DescriptorImageInfo imageInfo{};
-            imageInfo.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
-            imageInfo.imageView = texture->GetImageView();
-            imageInfo.sampler = texture->GetSampler();
+        imageInfos.push_back(imageInfo);
 
-            imageInfos.push_back(imageInfo);
-
-            _staticTextures[textures[i]] = _offset + i;
-        }
+        _staticTextures[textures[i]] = _offset + i;
     }
 
     vk::WriteDescriptorSet writeDescriptor{};
@@ -229,4 +126,9 @@ int StaticTextures::GetID(TextureID textureID) const
     check(_staticTextures.find(textureID) != _staticTextures.end());
 
     return (int)_staticTextures.at(textureID);
+}
+
+uint32_t StaticTextures::GetSize() const
+{
+    return _size;
 }

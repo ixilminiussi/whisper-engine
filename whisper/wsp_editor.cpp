@@ -63,6 +63,8 @@ Editor::Editor() : _drawList{nullptr}
 
     Graph *graph = renderManager->GetGraph(_windowID);
 
+    AssetsManager::Get()->LoadDefaults();
+
     graph->SetUboSize(sizeof(ubo::Ubo));
     graph->SetPopulateUboFunction([this]() {
         ubo::Ubo *uboInfo = new ubo::Ubo();
@@ -72,9 +74,7 @@ Editor::Editor() : _drawList{nullptr}
 
     ResourceCreateInfo colorInfo{};
     colorInfo.usage = ResourceUsage::eColor;
-    colorInfo.format = vk::Format::eR8G8B8A8Srgb;
-    glm::vec4 const clearColor = decodeSRGB(glm::vec4{24.f / 255.f, 24 / 255.f, 37 / 255.f, 1.f});
-    colorInfo.clear.color = vk::ClearColorValue{clearColor.r, clearColor.g, clearColor.b, 1.0f};
+    colorInfo.format = vk::Format::eR16G16B16A16Sfloat;
     colorInfo.debugName = "color";
 
     ResourceCreateInfo depthInfo{};
@@ -83,8 +83,14 @@ Editor::Editor() : _drawList{nullptr}
     depthInfo.clear.depthStencil = vk::ClearDepthStencilValue{1.};
     depthInfo.debugName = "depth";
 
+    ResourceCreateInfo postInfo{};
+    postInfo.usage = ResourceUsage::eColor;
+    postInfo.format = vk::Format::eR16G16B16A16Sfloat;
+    postInfo.debugName = "color";
+
     Resource const colorResource = graph->NewResource(colorInfo);
     Resource const depthResource = graph->NewResource(depthInfo);
+    Resource const postResource = graph->NewResource(postInfo);
 
     PassCreateInfo backgroundPassInfo{};
     backgroundPassInfo.writes = {colorResource, depthResource};
@@ -103,6 +109,7 @@ Editor::Editor() : _drawList{nullptr}
     meshPassInfo.writes = {colorResource, depthResource};
     meshPassInfo.readsUniform = true;
     meshPassInfo.staticTextures = {AssetsManager::Get()->GetStaticTextures(),
+                                   AssetsManager::Get()->GetStaticEngineTextures(),
                                    AssetsManager::Get()->GetStaticCubemaps()};
     meshPassInfo.vertexInputInfo = Mesh::Vertex::GetVertexInputInfo();
     meshPassInfo.pushConstantSize = sizeof(Mesh::PushData);
@@ -121,7 +128,19 @@ Editor::Editor() : _drawList{nullptr}
 
     graph->NewPass(meshPassInfo);
 
-    _rebuild = [graph, colorResource]() { graph->Compile(colorResource, Graph::eToDescriptorSet); };
+    PassCreateInfo postPassInfo{};
+    postPassInfo.writes = {postResource};
+    postPassInfo.reads = {colorResource};
+    postPassInfo.vertFile = "tonemapping.vert.spv";
+    postPassInfo.fragFile = "tonemapping.frag.spv";
+    postPassInfo.debugName = "tonemapping render";
+    postPassInfo.execute = [](vk::CommandBuffer commandBuffer, vk::PipelineLayout) {
+        commandBuffer.draw(6u, 1u, 0u, 0u);
+    };
+
+    graph->NewPass(postPassInfo);
+
+    _rebuild = [graph, postResource]() { graph->Compile(postResource, Graph::eToDescriptorSet); };
 
     _rebuild();
 }
@@ -407,20 +426,17 @@ void Editor::RenderContentBrowser(bool *show)
                 std::filesystem::path const path = directory.path();
 
                 bool r = false;
-                Image::CreateInfo imageInfo{};
-                imageInfo.filepath = path;
                 if (path.extension().compare(".png") == 0)
                 {
-                    try
+                    Image const *image = assetsManager->FindImage(path);
+                    if (image)
                     {
-                        Image *image = assetsManager->RequestImage(imageInfo);
-                        ImTextureID const textureID = assetsManager->GetTextureID(image);
-
+                        ImTextureID const textureID = assetsManager->RequestTextureID(image);
                         r = wsp::ThumbnailButton(textureID);
                     }
-                    catch (std::exception const &exception)
+                    else
                     {
-                        r = wsp::ThumbnailButton(ICON_MS_ERROR_CIRCLE_ROUNDED);
+                        r = wsp::ThumbnailButton(ICON_MS_QUESTION_MARK);
                     }
                 }
                 else

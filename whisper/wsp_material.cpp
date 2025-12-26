@@ -32,7 +32,6 @@ void Material::PropagateFormatFromGlTF(cgltf_material const *material, cgltf_tex
 
         Texture::CreateInfo &createInfo = createInfos->at(index);
 
-        createInfo.format = format;
         createInfo.imageInfo.format = format;
         createInfo.deferredImageCreation = true;
     };

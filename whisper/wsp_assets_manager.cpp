@@ -1,4 +1,3 @@
-#include "imgui.h"
 #include <wsp_device.hpp>
 
 #include <wsp_assets_manager.hpp>
@@ -44,13 +43,72 @@ AssetsManager *AssetsManager::Get()
 
 AssetsManager::AssetsManager() : _fileRoot{WSP_ASSETS}
 {
-#ifndef NDEBUG
-    Device const *device = SafeDeviceAccessor::Get();
-    check(device);
-#endif
-
     _staticTextures = new StaticTextures{MAX_DYNAMIC_TEXTURES, false, "static 2d textures"};
     _staticCubemaps = new StaticTextures{2, true, "static cube textures"};
+    _staticEngineTextures = new StaticTextures{1, false, "static engine textures"};
+}
+
+void AssetsManager::LoadDefaults()
+{
+    Device const *device = SafeDeviceAccessor::Get();
+    check(device);
+
+    Image::CreateInfo brdfLUTImageInfo{};
+    brdfLUTImageInfo.filepath =
+        (std::filesystem::path(WSP_ENGINE_ASSETS) / std::filesystem::path("brdfLUT.png")).lexically_normal();
+    brdfLUTImageInfo.format = vk::Format::eR8G8B8Srgb;
+    Image const *brdfImage = RequestImage(brdfLUTImageInfo);
+
+    Texture::CreateInfo brdfLUTTextureInfo{};
+    brdfLUTTextureInfo.pImage = brdfImage;
+    brdfLUTTextureInfo.pSampler = RequestSampler();
+    brdfLUTTextureInfo.name = "brdfLUT";
+
+    _staticEngineTextures->Push({LoadTexture(brdfLUTTextureInfo)});
+
+    Image::CreateInfo missingImageInfo{};
+    missingImageInfo.filepath =
+        (std::filesystem::path(WSP_ENGINE_ASSETS) / std::filesystem::path("missing-texture.png")).lexically_normal();
+    missingImageInfo.format = vk::Format::eR8G8B8Srgb;
+    Image const *missingImage = RequestImage(missingImageInfo);
+
+    Texture::CreateInfo missingTextureInfo{};
+    missingTextureInfo.pImage = missingImage;
+    missingTextureInfo.pSampler = RequestSampler();
+    missingTextureInfo.name = "missing";
+
+    TextureID const missingTexture = LoadTexture(missingTextureInfo);
+    std::vector<TextureID> missingTextures{};
+
+    missingTextures.resize(_staticTextures->GetSize(), missingTexture);
+    _staticTextures->Push(missingTextures);
+    _staticTextures->Clear();
+
+    Image::CreateInfo skyboxImageInfo{};
+    skyboxImageInfo.filepath =
+        (std::filesystem::path(WSP_ENGINE_ASSETS) / std::filesystem::path("skybox.exr")).lexically_normal();
+    skyboxImageInfo.format = vk::Format::eR32G32B32A32Sfloat;
+    skyboxImageInfo.cubemap = true;
+    Image const *skyboxImage = RequestImage(skyboxImageInfo);
+
+    Texture::CreateInfo skyboxTextureInfo{};
+    skyboxTextureInfo.pImage = skyboxImage;
+    skyboxTextureInfo.pSampler = RequestSampler();
+    skyboxTextureInfo.name = "skybox";
+
+    Image::CreateInfo irradianceImageInfo{};
+    irradianceImageInfo.filepath =
+        (std::filesystem::path(WSP_ENGINE_ASSETS) / std::filesystem::path("irradiance.exr")).lexically_normal();
+    skyboxImageInfo.format = vk::Format::eR32G32B32A32Sfloat;
+    irradianceImageInfo.cubemap = true;
+    Image const *irradianceImage = RequestImage(irradianceImageInfo);
+
+    Texture::CreateInfo irradianceTextureInfo{};
+    irradianceTextureInfo.pImage = irradianceImage;
+    irradianceTextureInfo.pSampler = RequestSampler();
+    irradianceTextureInfo.name = "irradiance";
+
+    _staticCubemaps->Push({LoadTexture(skyboxTextureInfo), LoadTexture(irradianceTextureInfo)});
 }
 
 AssetsManager::~AssetsManager()
@@ -114,20 +172,13 @@ void AssetsManager::UnloadAll()
     }
 #endif
 
-    for (auto &[info, image] : _images)
-    {
-        delete image;
-    }
-    _images.clear();
-
-    for (auto &[key, sampler] : _samplers)
-    {
-        delete sampler;
-    }
     _samplers.clear();
-
+    _images.clear();
     _textures.clear();
     _materials.clear();
+
+    _imagesMap.clear();
+    _samplersMap.clear();
 
     for (auto const &[mesh, path] : _meshes)
     {
@@ -136,6 +187,7 @@ void AssetsManager::UnloadAll()
     _meshes.clear();
 
     delete _staticTextures;
+    delete _staticEngineTextures;
     delete _staticCubemaps;
 
     spdlog::info("AssetsManager: terminated");
@@ -234,16 +286,9 @@ std::vector<Mesh *> AssetsManager::ImportGlTF(std::filesystem::path const &relat
     std::vector<Mesh *> meshes{};
     for (int i = 0; i < data->meshes_count; i++)
     {
-        if (_meshes.contains(filepath))
-        {
-            meshes.push_back(_meshes.from(filepath)[0]);
-        }
-        else
-        {
-            Mesh *mesh = Mesh::BuildGlTF(device, data->meshes + i, data->materials, materials, true);
-            _meshes[mesh] = filepath;
-            meshes.push_back(mesh);
-        }
+        Mesh *mesh = Mesh::BuildGlTF(device, data->meshes + i, data->materials, materials);
+        _meshes[mesh] = filepath;
+        meshes.push_back(mesh);
     }
     // Meshes END ======================================
 
@@ -253,7 +298,20 @@ std::vector<Mesh *> AssetsManager::ImportGlTF(std::filesystem::path const &relat
 }
 
 #ifndef NDEBUG
-ImTextureID AssetsManager::GetTextureID(Image *image)
+Image const *AssetsManager::FindImage(std::filesystem::path const &filepath)
+{
+    for (auto &[createInfo, imageKey] : _imagesMap)
+    {
+        if (createInfo.filepath.compare(filepath) == 0)
+        {
+            return _images.get(imageKey);
+        }
+    }
+
+    return nullptr;
+}
+
+ImTextureID AssetsManager::RequestTextureID(Image const *image)
 {
     Device const *device = SafeDeviceAccessor::Get();
     check(device);
@@ -265,7 +323,7 @@ ImTextureID AssetsManager::GetTextureID(Image *image)
         vk::ImageViewCreateInfo imageViewInfo{};
         imageViewInfo.viewType = vk::ImageViewType::e2D;
         imageViewInfo.image = image->GetImage();
-        imageViewInfo.format = vk::Format::eR8G8B8Srgb;
+        imageViewInfo.format = image->GetFormat();
         imageViewInfo.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
         imageViewInfo.subresourceRange.baseMipLevel = 0;
         imageViewInfo.subresourceRange.levelCount = 1;
@@ -299,30 +357,47 @@ std::array<ubo::Material, MAX_MATERIALS> const &AssetsManager::GetMaterialInfos(
     return materialInfos;
 }
 
-Image *AssetsManager::RequestImage(Image::CreateInfo const &createInfo)
+Image const *AssetsManager::RequestImage(Image::CreateInfo const &createInfo)
 {
     Device const *device = SafeDeviceAccessor::Get();
     check(device);
 
-    if (_images.find(createInfo) == _images.end())
+    if (createInfo.format == vk::Format::eUndefined)
     {
-        _images[createInfo] = new Image{device, createInfo};
+        spdlog::warn("AssetsManager: cannot requesting an image of undefined format will always lead to the "
+                     "creation of a new image");
     }
 
-    return _images[createInfo];
+    if (_imagesMap.find(createInfo) != _imagesMap.end())
+    {
+        return _images.get(_imagesMap.at(createInfo));
+    }
+
+    dod::slot_map_key32<Image> const key = _images.emplace(device, createInfo);
+    Image::CreateInfo trueInfo = createInfo;
+    Image const *image = _images.get(key);
+    trueInfo.format = image->GetFormat();
+    _imagesMap[trueInfo] = key;
+
+    return image;
 }
 
-Sampler *AssetsManager::RequestSampler(Sampler::CreateInfo const &createInfo)
+Sampler const *AssetsManager::RequestSampler(Sampler::CreateInfo const &createInfo)
 {
     Device const *device = SafeDeviceAccessor::Get();
     check(device);
 
-    if (_samplers.find(createInfo) == _samplers.end())
+    if (_samplersMap.find(createInfo) != _samplersMap.end())
     {
-        _samplers[createInfo] = new Sampler{device, createInfo};
+        return _samplers.get(_samplersMap.at(createInfo));
     }
 
-    return _samplers[createInfo];
+    dod::slot_map_key32<Sampler> const key = _samplers.emplace(device, createInfo);
+    _samplersMap[createInfo] = key;
+
+    Sampler const *sampler = _samplers.get(key);
+
+    return sampler;
 }
 
 Texture const *AssetsManager::GetTexture(TextureID const &id) const
@@ -340,6 +415,11 @@ Material const *AssetsManager::GetMaterial(MaterialID const &id) const
 StaticTextures *AssetsManager::GetStaticTextures() const
 {
     return _staticTextures;
+}
+
+StaticTextures *AssetsManager::GetStaticEngineTextures() const
+{
+    return _staticEngineTextures;
 }
 
 StaticTextures *AssetsManager::GetStaticCubemaps() const

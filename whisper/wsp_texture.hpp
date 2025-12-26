@@ -23,11 +23,9 @@ class Texture
   public:
     struct CreateInfo
     {
-        Sampler *pSampler{nullptr};
-        Image *pImage{nullptr};
-        vk::Format format{vk::Format::eUndefined};
+        Sampler const *pSampler{nullptr};
+        Image const *pImage{nullptr};
         bool depth{false};
-        bool cubemap{false};
 
         Image::CreateInfo imageInfo{};
         bool deferredImageCreation{false};

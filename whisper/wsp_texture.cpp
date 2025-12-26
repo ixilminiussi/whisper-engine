@@ -62,7 +62,7 @@ Texture::Texture(Device const *device, CreateInfo const &createInfo) : _name{cre
 {
     check(device);
 
-    Image *image;
+    Image const *image;
 
     if (createInfo.deferredImageCreation)
     {
@@ -76,23 +76,11 @@ Texture::Texture(Device const *device, CreateInfo const &createInfo) : _name{cre
     check(image);
     check(createInfo.pSampler);
 
-    vk::Format format;
-    if (createInfo.format == vk::Format::eUndefined)
-    {
-        format = image->GetFormat();
-    }
-    else
-    {
-        format = createInfo.format;
-        if (format != image->GetFormat())
-        {
-            throw std::invalid_argument(fmt::format("Texture: pImage <{}> is incompatible with format of Texture <{}>",
-                                                    image->GetName(), _name));
-        }
-    }
+    vk::Format const format = image->GetFormat();
+    bool const cubemap = image->IsCubemap();
 
     vk::ImageViewCreateInfo viewCreateInfo;
-    viewCreateInfo.viewType = createInfo.cubemap ? vk::ImageViewType::eCube : vk::ImageViewType::e2D;
+    viewCreateInfo.viewType = cubemap ? vk::ImageViewType::eCube : vk::ImageViewType::e2D;
     viewCreateInfo.format = format;
     viewCreateInfo.image = image->GetImage();
     viewCreateInfo.subresourceRange.aspectMask =
@@ -100,7 +88,7 @@ Texture::Texture(Device const *device, CreateInfo const &createInfo) : _name{cre
     viewCreateInfo.subresourceRange.baseMipLevel = 0u;
     viewCreateInfo.subresourceRange.levelCount = 1u;
     viewCreateInfo.subresourceRange.baseArrayLayer = 0u;
-    viewCreateInfo.subresourceRange.layerCount = createInfo.cubemap ? 6u : 1u;
+    viewCreateInfo.subresourceRange.layerCount = cubemap ? 6u : 1u;
 
     _sampler = createInfo.pSampler;
 

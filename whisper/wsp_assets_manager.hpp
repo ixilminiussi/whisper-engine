@@ -37,6 +37,8 @@ class AssetsManager
     static AssetsManager *Get();
     ~AssetsManager();
 
+    void LoadDefaults();
+
     TextureID LoadTexture(Texture::CreateInfo const &);
     MaterialID LoadMaterial(Material::CreateInfo const &);
 
@@ -46,12 +48,13 @@ class AssetsManager
 
     std::array<ubo::Material, MAX_MATERIALS> const &GetMaterialInfos() const;
 
-    Image *RequestImage(Image::CreateInfo const &);
-    Sampler *RequestSampler(Sampler::CreateInfo const &samplerInfo = {});
+    Image const *RequestImage(Image::CreateInfo const &);
+    Sampler const *RequestSampler(Sampler::CreateInfo const &samplerInfo = {});
     Texture const *GetTexture(TextureID const &) const;
     Material const *GetMaterial(MaterialID const &) const;
 
     class StaticTextures *GetStaticTextures() const;
+    class StaticTextures *GetStaticEngineTextures() const;
     class StaticTextures *GetStaticCubemaps() const;
 
     friend class Editor;
@@ -61,20 +64,24 @@ class AssetsManager
     AssetsManager();
 
     class StaticTextures *_staticTextures;
+    class StaticTextures *_staticEngineTextures;
     class StaticTextures *_staticCubemaps;
 
     dod::slot_map32<Texture> _textures;
     dod::slot_map32<Material> _materials;
+    dod::slot_map32<Image> _images;
+    dod::slot_map32<Sampler, 128> _samplers;
     // std::array<ubo::Material, MAX_MATERIALS> _materialInfos;
 
     dictionary<class Mesh *, std::filesystem::path, 1024> _meshes;
 
-    std::map<Image::CreateInfo, Image *> _images;
-    std::map<Sampler::CreateInfo, Sampler *> _samplers;
+    std::map<Image::CreateInfo, dod::slot_map_key32<Image>> _imagesMap;
+    std::map<Sampler::CreateInfo, dod::slot_map_key32<Sampler>> _samplersMap;
 
 #ifndef NDEBUG
-    ImTextureID GetTextureID(class Image *image);
-    std::map<class Image *, std::pair<ImTextureID, vk::ImageView>> _previewTextures;
+    Image const *FindImage(std::filesystem::path const &);
+    ImTextureID RequestTextureID(class Image const *image);
+    std::map<class Image const *, std::pair<ImTextureID, vk::ImageView>> _previewTextures;
 #endif
 
     std::filesystem::path _fileRoot;

@@ -9,7 +9,8 @@ layout(location = 0) in v_info i;
 layout(location = 0) out vec4 out_color;
 
 layout(set = 1, binding = 0) uniform sampler2D textures[];
-layout(set = 2, binding = 0) uniform samplerCube cubemaps[];
+layout(set = 2, binding = 0) uniform sampler2D engineTextures[];
+layout(set = 3, binding = 0) uniform samplerCube cubemaps[];
 
 #include "ubo.glsl"
 
@@ -46,8 +47,8 @@ vec3 getPBRParams(in Material material, in vec2 uv)
 
     if (metallicRoughnessTexID != INVALID_ID)
     {
-        params.r *= texture(textures[metallicRoughnessTexID], uv).g;
-        params.g *= texture(textures[metallicRoughnessTexID], uv).b;
+        params.r = texture(textures[metallicRoughnessTexID], uv).g;
+        params.g = texture(textures[metallicRoughnessTexID], uv).b;
     }
 
     return params;
@@ -102,16 +103,22 @@ void main()
 
     vec3 R = reflect(-V, N);
 
-    vec4 irradiance = texture(cubemaps[1], N); // temporary
-    vec3 specular = mix(texture(cubemaps[0], R).rgb, texture(cubemaps[1], R).rgb, roughness);
+    vec4 irradiance = texture(cubemaps[1], -N); // temporary
+    vec3 specular = mix(texture(cubemaps[0], -R).rgb, texture(cubemaps[1], -R).rgb,
+                        roughness); // placeholder, will use mip maps
     vec3 diffuse = albedo * irradiance.rgb * irradiance.a;
 
     vec3 F0 = mix(vec3(0.04), albedo, metallic);
     vec3 F = F0 + (1.0 - F0) * pow(1.0 - NdotV, 5.0);
+
+    vec2 brdf = texture(engineTextures[0], vec2(NdotV, roughness)).rg;
+    vec3 specularIBL = specular * (F * brdf.r + brdf.g);
+
     vec3 kS = F;
     vec3 kD = (1.0 - kS) * (1.0 - metallic);
+    vec3 diffuseIBL = diffuse * kD * occlusion;
 
-    vec3 color = specular * kS + diffuse * kD;
+    vec3 color = specularIBL + diffuse * kD;
 
     out_color = vec4(color, 1.0); // debug purposes
     return;

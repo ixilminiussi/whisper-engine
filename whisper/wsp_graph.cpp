@@ -868,7 +868,6 @@ void Graph::Build(Resource resource)
 
         Texture::CreateInfo textureCreateInfo{};
         textureCreateInfo.pImage = _images[resource][i];
-        textureCreateInfo.format = createInfo.format;
         textureCreateInfo.name = createInfo.debugName;
         textureCreateInfo.pSampler = _colorSampler;
 

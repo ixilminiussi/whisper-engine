@@ -13,7 +13,8 @@
 
 using namespace wsp;
 
-Image::Image(Device const *device, CreateInfo const &createInfo, bool cubemap) : _name{createInfo.filepath.filename()}
+Image::Image(Device const *device, CreateInfo const &createInfo)
+    : _name{createInfo.filepath.filename()}, _cubemap{createInfo.cubemap}
 {
     check(device);
 
@@ -37,7 +38,7 @@ Image::Image(Device const *device, CreateInfo const &createInfo, bool cubemap) :
                 fmt::format("Image: asset '{}' couldn't be imported", createInfo.filepath.string()));
         }
 
-        if (cubemap)
+        if (createInfo.cubemap)
         {
             BuildCubemap(device, pixels, width, height, size, channels, _format);
         }
@@ -76,10 +77,12 @@ Image::Image(Device const *device, CreateInfo const &createInfo, bool cubemap) :
         throw std::invalid_argument(
             fmt::format("Image: unsupported file format '{}'", createInfo.filepath.extension().string()));
     }
-    spdlog::info("Image: <{}> -> {} width, {} height, {} channels, {} size", GetName(), width, height, channels, size);
+    spdlog::info("Image: <{}> -> {} format, {} width, {} height, {} channels, {} size", GetName(),
+                 FormatToString(_format), width, height, channels, size);
 }
 
-Image::Image(Device const *device, vk::ImageCreateInfo const &createInfo, std::string const &name) : _name{""}
+Image::Image(Device const *device, vk::ImageCreateInfo const &createInfo, std::string const &name)
+    : _name{""}, _format{createInfo.format}
 {
     check(device);
 
@@ -265,4 +268,9 @@ vk::Image Image::GetImage() const
 vk::Format Image::GetFormat() const
 {
     return _format;
+}
+
+bool Image::IsCubemap() const
+{
+    return _cubemap;
 }
