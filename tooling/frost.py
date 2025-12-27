@@ -112,7 +112,7 @@ def find_refresh(class_body: str) -> {}:
     lines = class_body.splitlines()
 
     for i, line in enumerate(lines):
-        if "REFRESH()" in line:
+        if "WREFRESH()" in line:
             if i + 1 < len(lines):
                 next_line = lines[i + 1].strip()
                 tokens = next_line.split()

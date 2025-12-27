@@ -37,7 +37,7 @@ class Transform
     glm::vec3 const &GetScale() const;
     glm::quat const &GetRotation() const;
 
-    REFRESH()
+    WREFRESH()
     void Refresh();
 
     WCLASS_BODY$Transform();

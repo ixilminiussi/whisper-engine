@@ -36,5 +36,5 @@ void main()
 
     gl_Position = ubo.camera.viewProjection * vec4(w_position, 1.0);
 
-    o.w_ray = normalize(w_position - ubo.camera.w_position);
+    o.w_ray = normalize(ubo.camera.w_position - w_position);
 }

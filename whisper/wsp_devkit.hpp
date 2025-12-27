@@ -55,6 +55,6 @@
 #define WCLASS(...)    /* WCLASS */
 #define WSTRUCT(...)   /* WSTRUCT */
 #define WENUM(...)     /* WENUM */
-#define REFRESH(...)   /* REFRESH */
+#define WREFRESH(...)  /* REFRESH */
 
 #endif

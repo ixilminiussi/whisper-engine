@@ -214,7 +214,9 @@ void Editor::Render()
         if (_viewportCamera)
         {
             ImGui::Begin("View Settings", &showViewSettings);
+            ImGui::SeparatorText("Viewport Camera");
             frost::RenderEditor(frost::Meta<ViewportCamera>{}, _viewportCamera.get());
+            ImGui::SeparatorText("Environment");
             frost::RenderEditor(frost::Meta<Environment>{}, _environment.get());
             ImGui::End();
         }

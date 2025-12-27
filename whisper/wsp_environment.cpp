@@ -4,6 +4,8 @@
 #include <wsp_image.hpp>
 #include <wsp_static_textures.hpp>
 
+#include <glm/gtc/quaternion.hpp>
+
 using namespace wsp;
 
 Environment::Environment()
@@ -40,6 +42,8 @@ Environment::Environment()
     _irradianceTexture = assetsManager->LoadTexture(irradianceTextureInfo);
 
     assetsManager->GetStaticCubemaps()->Push({_skyboxTexture, _irradianceTexture});
+
+    Refresh();
 }
 
 void Environment::PopulateUbo(ubo::Ubo *ubo) const
@@ -49,9 +53,15 @@ void Environment::PopulateUbo(ubo::Ubo *ubo) const
     StaticTextures *staticCubemaps = AssetsManager::Get()->GetStaticCubemaps();
     check(staticCubemaps);
 
-    ubo->light.sun.direction = sun.direction;
-    ubo->light.sun.color = sun.color;
-    ubo->light.sun.intensity = sun.intensity;
+    ubo->light.sun.direction = glm::normalize(_sunSource);
+    ubo->light.sun.color = _sunColor;
+    ubo->light.sun.intensity = _sunIntensity;
     ubo->light.skybox = staticCubemaps->GetID(_skyboxTexture);
     ubo->light.irradiance = staticCubemaps->GetID(_irradianceTexture);
+}
+
+void Environment::Refresh()
+{
+    glm::vec4 source = glm::quat(glm::vec3{0.f, _sunDirection.x, _sunDirection.y}) * glm::vec4{1.f, 0.f, 0.f, 1.f};
+    _sunSource = source;
 }

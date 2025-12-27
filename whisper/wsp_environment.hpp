@@ -13,17 +13,6 @@
 namespace wsp
 {
 
-WSTRUCT()
-struct Sun
-{
-    WPROPERTY()
-    glm::vec3 direction{1.f, 0.f, 0.f};
-    WPROPERTY()
-    glm::vec3 color{1.f};
-    WPROPERTY()
-    float intensity{10.f};
-};
-
 WCLASS()
 class Environment
 {
@@ -36,8 +25,16 @@ class Environment
     WCLASS_BODY$Environment();
 
   protected:
-    WPROPERTY()
-    Sun sun;
+    WREFRESH()
+    void Refresh();
+
+    WPROPERTY(eDrag)
+    glm::vec2 _sunDirection{3.35, 0.87f};
+    glm::vec3 _sunSource{1.f, 0.f, 0.f};
+    WPROPERTY(eColor)
+    glm::vec3 _sunColor{1.f};
+    WPROPERTY(eDrag, 0.f, 10.f)
+    float _sunIntensity{10.f};
 
     TextureID _skyboxTexture;
     TextureID _irradianceTexture;

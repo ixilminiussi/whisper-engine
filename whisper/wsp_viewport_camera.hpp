@@ -52,7 +52,7 @@ class ViewportCamera
 
     void Update(double dt);
 
-    REFRESH()
+    WREFRESH()
     void Refresh();
 
     WCLASS_BODY$ViewportCamera();

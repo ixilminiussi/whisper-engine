@@ -79,25 +79,25 @@ Transform operator+(Transform const &a, Transform const &b)
 void Transform::SetPosition(glm::vec3 const &position)
 {
     _position = position;
-    REFRESH();
+    Refresh();
 }
 
 void Transform::SetScale(glm::vec3 const &scale)
 {
     _scale = scale;
-    REFRESH();
+    Refresh();
 }
 
 void Transform::SetRotation(glm::quat const &rotation)
 {
     _rotation = glm::normalize(rotation);
-    REFRESH();
+    Refresh();
 }
 
 void Transform::SetRotation(glm::vec3 const &euler)
 {
     _rotation = glm::quat{euler};
-    REFRESH();
+    Refresh();
 }
 
 glm::vec3 const &Transform::GetPosition() const

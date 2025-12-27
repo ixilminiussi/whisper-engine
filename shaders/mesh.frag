@@ -26,20 +26,20 @@ push;
 vec4 getSky(in vec3 ray)
 {
     int skyboxTexID = ubo.light.skyboxTex;
-    return skyboxTexID != INVALID_ID ? texture(cubemaps[skyboxTexID], ray) : vec4(ubo.light.sun.color.rgb, 0.0);
+    return skyboxTexID != INVALID_ID ? texture(cubemaps[skyboxTexID], ray) : vec4(ubo.light.sun.color.rgb, 0.);
 }
 
 vec4 getIrradiance(in vec3 ray)
 {
     int irradianceTexID = ubo.light.irradianceTex;
-    return irradianceTexID != INVALID_ID ? texture(cubemaps[irradianceTexID], ray) : vec4(ubo.light.sun.color.rgb, 0.0);
+    return irradianceTexID != INVALID_ID ? texture(cubemaps[irradianceTexID], ray) : vec4(ubo.light.sun.color.rgb, 0.);
 }
 
 vec3 getNormal(in Material material, in vec2 uv, in mat3 tangentMatrix)
 {
     int normalTexID = material.normalTex;
     vec3 normal =
-        normalTexID != INVALID_ID ? tangentMatrix * (texture(textures[normalTexID], uv).rgb * 2.0 - 1.0) : i.w_normal;
+        normalTexID != INVALID_ID ? tangentMatrix * (texture(textures[normalTexID], uv).rgb * 2. - 1.) : i.w_normal;
     return normalize(normal);
 }
 
@@ -68,7 +68,7 @@ vec3 getPBRParams(in Material material, in vec2 uv)
 
 float getOcclusion(in Material material, in vec2 uv)
 {
-    float occlusion = 1.0;
+    float occlusion = 1.;
 
     int occlusionTexID = material.occlusionTex;
 
@@ -78,6 +78,32 @@ float getOcclusion(in Material material, in vec2 uv)
     }
 
     return occlusion;
+}
+
+vec3 computeFresnel(in float metallic, in vec3 albedo, in float NdotV)
+{
+    vec3 F0 = mix(vec3(0.04), albedo, metallic);
+    return F0 + (1. - F0) * pow(1. - NdotV, 5.);
+}
+
+float computeDGGX(in float roughness, in float NdotH)
+{
+    float a2 = pow(roughness, 4.);
+
+    float denom = (NdotH * NdotH) * (a2 - 1.) + 1.;
+    return a2 / (PI * denom * denom);
+}
+
+float computeGGX1(in float a2, in float NdotX)
+{
+    return (2. * NdotX) / (NdotX + sqrt(a2 + (1. - a2) * pow(NdotX, 2.)));
+}
+
+float computeGGX(in float roughness, in float NdotL, in float NdotV)
+{
+    float a2 = pow(roughness, 4.);
+
+    return computeGGX1(a2, NdotL) * computeGGX1(a2, NdotV);
 }
 
 void main()
@@ -93,6 +119,8 @@ void main()
 
     Material material = ubo.materials[materialID];
 
+    vec3 lightColor = ubo.light.sun.color.rgb * ubo.light.sun.color.a;
+
     // TEXTURE SAMPLES
     vec3 albedo = getAlbedo(material, uv);
     float occlusion = getOcclusion(material, uv);
@@ -105,33 +133,43 @@ void main()
 
     mat3 tangentMatrix = mat3(normalize(i.w_tangent), normalize(i.w_bitangent), normalize(i.w_normal));
     // FOUNDATION parameters
-    vec3 V = normalize(i.w_ray);
-
+    vec3 V = -normalize(i.w_ray);
     vec3 N = getNormal(material, uv, tangentMatrix); // normal
-
-    // DOT PRODUCTS
-    float NdotV = max(dot(N, -V), 0);
-    float NdotUp = saturate(dot(N, vec3(0, 1, 0)));
-
+    vec3 L = -normalize(ubo.light.sun.direction);
+    vec3 H = normalize(V + L);
     vec3 R = reflect(-V, N);
 
-    vec4 irradiance = getIrradiance(-N);
-    vec3 specular = mix(getSky(-R).rgb, getIrradiance(-R).rgb,
-                        roughness); // placeholder, will use mip maps
-    vec3 diffuse = albedo * irradiance.rgb * irradiance.a;
+    // DOT PRODUCTS
+    float NdotV = max(dot(N, -V), EPS);
+    float NdotUp = saturate(dot(N, vec3(0., 1., 0.)));
+    float NdotL = max(dot(N, L), EPS);
+    float NdotH = max(dot(N, H), 0.);
 
-    vec3 F0 = mix(vec3(0.04), albedo, metallic);
-    vec3 F = F0 + (1.0 - F0) * pow(1.0 - NdotV, 5.0);
-
-    vec2 brdf = texture(engineTextures[0], vec2(NdotV, roughness)).rg;
-    vec3 specularIBL = specular * (F * brdf.r + brdf.g);
+    vec3 F = computeFresnel(metallic, albedo, NdotV);
+    float D = computeDGGX(roughness, NdotH);
+    float G = computeGGX(roughness, NdotL, NdotV);
 
     vec3 kS = F;
-    vec3 kD = (1.0 - kS) * (1.0 - metallic);
-    vec3 diffuseIBL = diffuse * kD * occlusion;
+    vec3 kD = (1. - kS) * (1. - metallic);
 
-    vec3 color = specularIBL + diffuse * kD;
+    // IBL
+    vec4 irradiance = getIrradiance(-N);
+    // vec2 brdf = texture(engineTextures[0], vec2(NdotV, roughness)).rg;
 
-    out_color = vec4(color, 1.0); // debug purposes
+    // placeholder, will use mip maps
+    vec3 specularIBL = mix(getSky(-R).rgb, getIrradiance(-R).rgb, roughness) * kS;
+    // specularIBL *= (brdf.r + brdf.g);
+
+    vec3 diffuseIBL = (albedo * irradiance.rgb * irradiance.a) * kD * occlusion;
+
+    vec3 Ld = kD * (albedo / PI) * NdotL * lightColor;
+    vec3 Ls = kS * ((D * G * F) / (4. * NdotL * NdotV)) * lightColor * NdotL;
+
+    vec3 IBLColor = specularIBL + diffuseIBL;
+    vec3 directColor = Ld + Ls;
+
+    // Direct lighting
+
+    out_color = vec4(IBLColor + directColor, 1.); // debug purposes
     return;
 }

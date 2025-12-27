@@ -52,7 +52,7 @@ class Camera
     void SetNear(float);
     void SetFar(float);
 
-    REFRESH()
+    WREFRESH()
     void Refresh();
 
     WCLASS_BODY$Camera();

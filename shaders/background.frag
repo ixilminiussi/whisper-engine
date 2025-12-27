@@ -19,4 +19,8 @@ vec3 getSky(in vec3 ray)
 void main()
 {
     out_color = vec4(getSky(normalize(in_ray)), 1.0);
+    if (dot(normalize(in_ray), -normalize(ubo.light.sun.direction)) > 0.99999)
+    {
+        out_color = vec4(1., 0., 0., 1.);
+    }
 }
