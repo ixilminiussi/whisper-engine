@@ -2,6 +2,8 @@
 #ifndef WSP_EDITOR
 #define WSP_EDITOR
 
+#include <wsp_devkit.hpp>
+
 #include <wsp_handles.hpp>
 #include <wsp_typedefs.hpp>
 
@@ -36,7 +38,7 @@ class Editor
     void Render();
     void Update(double dt);
 
-    void PopulateUbo(ubo::Ubo *);
+    void PopulateUbo(ubo::Ubo *) const;
 
     void OnClick(double dt, int);
 
@@ -52,6 +54,7 @@ class Editor
 
     std::unique_ptr<class ViewportCamera> _viewportCamera;
     std::unique_ptr<class InputManager> _inputManager;
+    std::unique_ptr<class Environment> _environment;
 
     std::vector<std::function<void()>> _deferredQueue;
 
@@ -61,8 +64,6 @@ class Editor
     class Sampler *_previewSampler;
 
     std::function<void()> _rebuild;
-
-    Texture *_cubemapTexture;
 
     WindowID _windowID;
 };

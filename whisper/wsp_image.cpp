@@ -86,6 +86,7 @@ Image::Image(Device const *device, vk::ImageCreateInfo const &createInfo, std::s
 {
     check(device);
 
+    _cubemap = createInfo.arrayLayers == 6u && createInfo.flags & vk::ImageCreateFlagBits::eCubeCompatible;
     _format = createInfo.format;
 
     device->CreateImageAndBindMemory(createInfo, &_image, &_deviceMemory, name);

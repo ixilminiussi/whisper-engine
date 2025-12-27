@@ -25,12 +25,18 @@ struct Camera
 
 struct Sun
 {
-    int skybox;
+    glm::vec3 direction{1.f, 0.f, 0.f};
+    float _pad0;
+    glm::vec3 color{1.f};
+    float intensity{10.f}; // will be color.w
 };
 
 struct Light
 {
     Sun sun;
+    int skybox = INVALID_ID;
+    int irradiance = INVALID_ID;
+    float _pad0, _pad1;
 };
 
 struct Material
@@ -54,7 +60,7 @@ struct Material
 struct Ubo
 {
     Camera camera;
-    // Light light;
+    Light light;
     Material materials[MAX_MATERIALS];
 };
 

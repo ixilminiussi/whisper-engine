@@ -164,7 +164,7 @@ void ViewportCamera::OnMouseScroll(double dt, glm::vec2 value)
 
 void ViewportCamera::OnMouseMovement(double dt, glm::vec2 value)
 {
-    value.x *= -1;
+    value.x *= -.5;
     if (_possessionMode == eOrbit)
     {
         Orbit(value * _mouseSensitivity * (float)dt);

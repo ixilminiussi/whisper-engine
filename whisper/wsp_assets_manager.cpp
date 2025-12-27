@@ -83,32 +83,6 @@ void AssetsManager::LoadDefaults()
     missingTextures.resize(_staticTextures->GetSize(), missingTexture);
     _staticTextures->Push(missingTextures);
     _staticTextures->Clear();
-
-    Image::CreateInfo skyboxImageInfo{};
-    skyboxImageInfo.filepath =
-        (std::filesystem::path(WSP_ENGINE_ASSETS) / std::filesystem::path("skybox.exr")).lexically_normal();
-    skyboxImageInfo.format = vk::Format::eR32G32B32A32Sfloat;
-    skyboxImageInfo.cubemap = true;
-    Image const *skyboxImage = RequestImage(skyboxImageInfo);
-
-    Texture::CreateInfo skyboxTextureInfo{};
-    skyboxTextureInfo.pImage = skyboxImage;
-    skyboxTextureInfo.pSampler = RequestSampler();
-    skyboxTextureInfo.name = "skybox";
-
-    Image::CreateInfo irradianceImageInfo{};
-    irradianceImageInfo.filepath =
-        (std::filesystem::path(WSP_ENGINE_ASSETS) / std::filesystem::path("irradiance.exr")).lexically_normal();
-    skyboxImageInfo.format = vk::Format::eR32G32B32A32Sfloat;
-    irradianceImageInfo.cubemap = true;
-    Image const *irradianceImage = RequestImage(irradianceImageInfo);
-
-    Texture::CreateInfo irradianceTextureInfo{};
-    irradianceTextureInfo.pImage = irradianceImage;
-    irradianceTextureInfo.pSampler = RequestSampler();
-    irradianceTextureInfo.name = "irradiance";
-
-    _staticCubemaps->Push({LoadTexture(skyboxTextureInfo), LoadTexture(irradianceTextureInfo)});
 }
 
 AssetsManager::~AssetsManager()

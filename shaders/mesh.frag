@@ -23,6 +23,18 @@ layout(push_constant) uniform Push
 }
 push;
 
+vec4 getSky(in vec3 ray)
+{
+    int skyboxTexID = ubo.light.skyboxTex;
+    return skyboxTexID != INVALID_ID ? texture(cubemaps[skyboxTexID], ray) : vec4(ubo.light.sun.color.rgb, 0.0);
+}
+
+vec4 getIrradiance(in vec3 ray)
+{
+    int irradianceTexID = ubo.light.irradianceTex;
+    return irradianceTexID != INVALID_ID ? texture(cubemaps[irradianceTexID], ray) : vec4(ubo.light.sun.color.rgb, 0.0);
+}
+
 vec3 getNormal(in Material material, in vec2 uv, in mat3 tangentMatrix)
 {
     int normalTexID = material.normalTex;
@@ -103,8 +115,8 @@ void main()
 
     vec3 R = reflect(-V, N);
 
-    vec4 irradiance = texture(cubemaps[1], -N); // temporary
-    vec3 specular = mix(texture(cubemaps[0], -R).rgb, texture(cubemaps[1], -R).rgb,
+    vec4 irradiance = getIrradiance(-N);
+    vec3 specular = mix(getSky(-R).rgb, getIrradiance(-R).rgb,
                         roughness); // placeholder, will use mip maps
     vec3 diffuse = albedo * irradiance.rgb * irradiance.a;
 

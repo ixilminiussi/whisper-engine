@@ -10,9 +10,13 @@ layout(set = 1, binding = 0) uniform samplerCube cubemaps[];
 
 layout(location = 0) out vec4 out_color;
 
+vec3 getSky(in vec3 ray)
+{
+    int skyboxTexID = ubo.light.skyboxTex;
+    return skyboxTexID != INVALID_ID ? texture(cubemaps[skyboxTexID], ray).rgb : ubo.light.sun.color.rgb;
+}
+
 void main()
 {
-    vec3 color = texture(cubemaps[0], normalize(in_ray)).rgb;
-
-    out_color = vec4(color, 1.0);
+    out_color = vec4(getSky(normalize(in_ray)), 1.0);
 }

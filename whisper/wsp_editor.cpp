@@ -9,6 +9,7 @@
 #include <wsp_custom_imgui.hpp>
 #include <wsp_drawable.hpp>
 #include <wsp_engine.hpp>
+#include <wsp_environment.hpp>
 #include <wsp_global_ubo.hpp>
 #include <wsp_graph.hpp>
 #include <wsp_handles.hpp>
@@ -64,6 +65,7 @@ Editor::Editor() : _drawList{nullptr}
     Graph *graph = renderManager->GetGraph(_windowID);
 
     AssetsManager::Get()->LoadDefaults();
+    _environment = std::make_unique<Environment>();
 
     graph->SetUboSize(sizeof(ubo::Ubo));
     graph->SetPopulateUboFunction([this]() {
@@ -179,7 +181,7 @@ void Editor::Render()
         ImGui::NewFrame();
 
         static bool showViewport = true;
-        static bool showViewportCamera = true;
+        static bool showViewSettings = true;
         static bool showContentBrowser = true;
 
         static bool showEditorSettings = false;
@@ -195,7 +197,7 @@ void Editor::Render()
             if (ImGui::BeginMenu("windows"))
             {
                 ImGui::MenuItem("viewport", nullptr, &showViewport);
-                ImGui::MenuItem("viewport camera", nullptr, &showViewportCamera);
+                ImGui::MenuItem("view settings", nullptr, &showViewSettings);
                 ImGui::MenuItem("content browser", nullptr, &showContentBrowser);
                 ImGui::EndMenu();
             }
@@ -211,9 +213,14 @@ void Editor::Render()
 
         if (_viewportCamera)
         {
-            ImGui::Begin("Camera", &showViewportCamera);
+            ImGui::Begin("View Settings", &showViewSettings);
             frost::RenderEditor(frost::Meta<ViewportCamera>{}, _viewportCamera.get());
+            frost::RenderEditor(frost::Meta<Environment>{}, _environment.get());
             ImGui::End();
+        }
+
+        if (_environment)
+        {
         }
 
         if (showContentBrowser)
@@ -256,7 +263,7 @@ void Editor::Update(double dt)
     _viewportCamera->Update(dt);
 }
 
-void Editor::PopulateUbo(ubo::Ubo *ubo)
+void Editor::PopulateUbo(ubo::Ubo *ubo) const
 {
     check(ubo);
 
@@ -270,6 +277,9 @@ void Editor::PopulateUbo(ubo::Ubo *ubo)
     ubo->camera.inverseView = glm::inverse(_viewportCamera->GetCamera()->GetView());
     ubo->camera.inverseProjection = glm::inverse(_viewportCamera->GetCamera()->GetProjection());
     ubo->camera.position = _viewportCamera->GetCamera()->GetPosition();
+
+    check(_environment);
+    _environment->PopulateUbo(ubo);
 
     memcpy(ubo->materials, AssetsManager::Get()->GetMaterialInfos().data(), MAX_MATERIALS);
 }
@@ -302,7 +312,7 @@ void Editor::InitDockspace(unsigned int dockspaceID)
     ImGuiID bottomID = ImGui::DockBuilderSplitNode(dock_mainID, ImGuiDir_Down, 0.3f, nullptr, &dock_mainID);
 
     ImGui::DockBuilderDockWindow("Content Browser", bottomID);
-    ImGui::DockBuilderDockWindow("Camera", rightID);
+    ImGui::DockBuilderDockWindow("View Settings", rightID);
     ImGui::DockBuilderDockWindow("Viewport", dock_mainID);
     ImGui::DockBuilderDockWindow("Controls", leftID);
 
