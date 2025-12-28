@@ -176,12 +176,11 @@ void main()
 
     vec3 diffuseIBL = (albedo * irradiance.rgb * irradiance.a) * kD * occlusion;
 
-    float LFactor = max(NdotL * isOccluded(i.sc_position), EPS);
-    vec3 Ld = kD * (albedo / PI) * LFactor * lightColor;
-    vec3 Ls = kS * ((D * G * F) / (4. * LFactor * NdotV)) * lightColor * NdotL;
+    vec3 Ld = kD * (albedo / PI) * NdotL * lightColor;
+    vec3 Ls = kS * ((D * G * F) / (4. * NdotL * NdotV)) * lightColor * NdotL;
 
     vec3 IBLColor = specularIBL + diffuseIBL;
-    vec3 directColor = Ld + Ls;
+    vec3 directColor = (Ld + Ls) * isOccluded(i.sc_position);
 
     // Direct lighting
 
