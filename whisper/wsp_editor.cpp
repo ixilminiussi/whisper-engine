@@ -53,10 +53,23 @@ Editor::Editor() : _drawList{nullptr}
     _inputManager->AddInput("look", AxisAction{WSP_MOUSE_AXIS_X_RELATIVE, WSP_MOUSE_AXIS_Y_RELATIVE});
     _inputManager->AddInput("left click on", ButtonAction{ButtonAction::Usage::ePressed, {WSP_MOUSE_BUTTON_LEFT}});
     _inputManager->AddInput("left click off", ButtonAction{ButtonAction::Usage::eReleased, {WSP_MOUSE_BUTTON_LEFT}});
+    _inputManager->AddInput("right click on", ButtonAction{ButtonAction::Usage::ePressed, {WSP_MOUSE_BUTTON_RIGHT}});
+    _inputManager->AddInput("right click off", ButtonAction{ButtonAction::Usage::eReleased, {WSP_MOUSE_BUTTON_RIGHT}});
+    _inputManager->AddInput("lift", ButtonAction{ButtonAction::Usage::eHeld, {WSP_KEY_SPACE}});
+    _inputManager->AddInput("sink", ButtonAction{ButtonAction::Usage::eHeld, {WSP_KEY_LEFT_SHIFT}});
+    _inputManager->AddInput("move", AxisAction{WSP_KEY_D, WSP_KEY_A, WSP_KEY_W, WSP_KEY_S});
+    _inputManager->AddInput("scroll", AxisAction{WSP_MOUSE_SCROLL_X_RELATIVE, WSP_MOUSE_SCROLL_Y_RELATIVE});
 
     _inputManager->BindAxis("look", &ViewportCamera::OnMouseMovement, _viewportCamera.get());
-    _inputManager->BindButton("left click on", &Editor::OnClick, this);
-    _inputManager->BindButton("left click off", &Editor::OnClick, this);
+    _inputManager->BindAxis("move", &ViewportCamera::OnKeyboardMovement, _viewportCamera.get());
+    _inputManager->BindAxis("move", &ViewportCamera::OnKeyboardMovement, _viewportCamera.get());
+    _inputManager->BindAxis("scroll", &ViewportCamera::OnMouseScroll, _viewportCamera.get());
+    _inputManager->BindButton("lift", &ViewportCamera::Lift, _viewportCamera.get());
+    _inputManager->BindButton("sink", &ViewportCamera::Sink, _viewportCamera.get());
+    _inputManager->BindButton("left click on", &Editor::OnLeftClick, this);
+    _inputManager->BindButton("left click off", &Editor::OnLeftClick, this);
+    _inputManager->BindButton("right click on", &Editor::OnRightClick, this);
+    _inputManager->BindButton("right click off", &Editor::OnRightClick, this);
 
     renderManager->InitImGui(_windowID);
 
@@ -315,11 +328,25 @@ void Editor::PopulateUbo(ubo::Ubo *ubo) const
     memcpy(ubo->materials, AssetsManager::Get()->GetMaterialInfos().data(), MAX_MATERIALS);
 }
 
-void Editor::OnClick(double dt, int value)
+void Editor::OnLeftClick(double dt, int value)
 {
     if (_isHoveringViewport && value)
     {
         _viewportCamera->Possess(ViewportCamera::PossessionMode::eOrbit);
+        _inputManager->SetMouseCapture(true);
+    }
+    else
+    {
+        _viewportCamera->Possess(ViewportCamera::PossessionMode::eReleased);
+        _inputManager->SetMouseCapture(false);
+    }
+}
+
+void Editor::OnRightClick(double dt, int value)
+{
+    if (_isHoveringViewport && value)
+    {
+        _viewportCamera->Possess(ViewportCamera::PossessionMode::eMove);
         _inputManager->SetMouseCapture(true);
     }
     else

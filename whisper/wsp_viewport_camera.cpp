@@ -15,7 +15,7 @@ using namespace wsp;
 
 ViewportCamera::ViewportCamera(glm::vec3 const &orbitPoint, float distance, glm::vec2 const &rotation)
     : _orbitDistance{distance}, _rotation{rotation}, _orbitTarget{orbitPoint}, _orbitPoint{orbitPoint},
-      _orbitLerp{0.1f}, _possessionMode{eReleased}, _mouseSensitivity{3.f, 2.f}, _movementSpeed{1.f}
+      _orbitLerp{0.1f}, _possessionMode{eReleased}, _mouseSensitivity{2.f, 1.5f}, _movementSpeed{10.f}
 {
     _camera.SetLeft(-_orbitDistance);
     _camera.SetRight(_orbitDistance);
@@ -50,18 +50,15 @@ glm::vec3 const &ViewportCamera::GetOrbitTarget() const
 
 void ViewportCamera::Zoom(float value)
 {
-    if (_possessionMode != eMove)
-    {
-        _orbitDistance *= 1.0f - (value);
-        _orbitDistance = glm::clamp(_orbitDistance, 0.05f, 400.f);
+    _orbitDistance *= 1.0f - value;
+    _orbitDistance = glm::clamp(_orbitDistance, 0.05f, 400.f);
 
-        _camera.SetLeft(-_orbitDistance);
-        _camera.SetRight(_orbitDistance);
-        _camera.SetTop(-_orbitDistance);
-        _camera.SetBottom(_orbitDistance);
-        _camera.SetNear(-_orbitDistance);
-        _camera.SetFar(_orbitDistance);
-    }
+    _camera.SetLeft(-_orbitDistance);
+    _camera.SetRight(_orbitDistance);
+    _camera.SetTop(-_orbitDistance);
+    _camera.SetBottom(_orbitDistance);
+    _camera.SetNear(-_orbitDistance);
+    _camera.SetFar(_orbitDistance);
 }
 
 glm::vec3 const &ViewportCamera::GetPosition() const
@@ -156,25 +153,27 @@ void ViewportCamera::OnMouseScroll(double dt, glm::vec2 value)
 {
     if (_possessionMode == eMove)
     {
-        value.x = glm::clamp(value.x, -1.f, 1.f);
-        _movementSpeed *= 1.0f + 0.1f * dt * value.x;
-        _movementSpeed = glm::clamp(_movementSpeed, .1f, 2.f);
+        value.y = glm::clamp(value.y, -1.f, 1.f);
+        _movementSpeed *= 1.0f + (0.1f * value.y);
+        _movementSpeed = glm::clamp(_movementSpeed, .1f, 100.f);
+    }
+    else if (_possessionMode == eOrbit)
+    {
+        value.y = glm::clamp(value.y, -1.f, 1.f);
+        Zoom(value.y * 0.05f);
     }
 }
 
 void ViewportCamera::OnMouseMovement(double dt, glm::vec2 value)
 {
-    value.x *= -.5;
+    value.x *= -1;
     if (_possessionMode == eOrbit)
     {
         Orbit(value * _mouseSensitivity * (float)dt);
     }
-    else
+    else if (_possessionMode == eMove)
     {
-        if (_possessionMode == eMove)
-        {
-            Rotate(value * _mouseSensitivity * (float)dt);
-        }
+        Rotate(value * _mouseSensitivity * (float)dt);
     }
 }
 
@@ -190,7 +189,37 @@ void ViewportCamera::OnKeyboardMovement(double dt, glm::vec2 value)
         glm::vec3 const right = _camera.GetRight();
 
         _orbitPoint += forward * 0.01f * -value.y;
-        _orbitPoint += right * 0.01f * -value.x;
+        _orbitPoint += right * 0.01f * value.x;
+
+        _orbitTarget = _orbitPoint;
+        RefreshView();
+    }
+}
+
+void ViewportCamera::Lift(double dt, int value)
+{
+    if (_possessionMode == eMove)
+    {
+        RefreshView();
+
+        glm::vec3 constexpr up = glm::vec3{0.f, 1.f, 0.f};
+
+        _orbitPoint += up * 0.01f * _movementSpeed * (float)dt;
+
+        _orbitTarget = _orbitPoint;
+        RefreshView();
+    }
+}
+
+void ViewportCamera::Sink(double dt, int value)
+{
+    if (_possessionMode == eMove)
+    {
+        RefreshView();
+
+        glm::vec3 constexpr down = glm::vec3{0.f, -1.f, 0.f};
+
+        _orbitPoint += down * 0.01f * _movementSpeed * (float)dt;
 
         _orbitTarget = _orbitPoint;
         RefreshView();

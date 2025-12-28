@@ -43,6 +43,8 @@ class ViewportCamera
     void OnMouseScroll(double dt, glm::vec2);
     void OnMouseMovement(double dt, glm::vec2);
     void OnKeyboardMovement(double dt, glm::vec2);
+    void Lift(double dt, int);
+    void Sink(double dt, int);
 
     void SetAspectRatio(float);
 

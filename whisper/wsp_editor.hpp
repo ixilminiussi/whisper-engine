@@ -40,7 +40,8 @@ class Editor
 
     void PopulateUbo(ubo::Ubo *) const;
 
-    void OnClick(double dt, int);
+    void OnLeftClick(double dt, int);
+    void OnRightClick(double dt, int);
 
   protected:
     static void InitDockspace(unsigned int dockspaceID);
