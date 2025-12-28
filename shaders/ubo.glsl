@@ -14,6 +14,7 @@ struct Sun
 {
     vec3 direction;
     vec4 color;
+    mat4 viewProjection;
 };
 
 struct Light

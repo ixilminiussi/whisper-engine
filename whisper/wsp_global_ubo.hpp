@@ -29,6 +29,7 @@ struct Sun
     float _pad0;
     glm::vec3 color{1.f};
     float intensity{10.f}; // will be color.w
+    glm::mat4 viewProjection{};
 };
 
 struct Light

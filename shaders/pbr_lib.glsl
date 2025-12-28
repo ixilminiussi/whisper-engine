@@ -9,6 +9,8 @@ struct v_info
     vec3 w_tangent;
     vec3 w_bitangent;
 
+    vec3 sc_position;
+
     vec3 m_tangent;
     vec3 m_bitangent;
 };

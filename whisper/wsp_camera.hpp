@@ -1,10 +1,12 @@
 #ifndef WSP_CAMERA
 #define WSP_CAMERA
 
-#include <glm/mat4x4.hpp>
-#include <glm/vec3.hpp>
 #include <wsp_devkit.hpp>
 #include <wsp_input_action.hpp>
+
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
+#include <glm/mat4x4.hpp>
+#include <glm/vec3.hpp>
 
 #include <.generated/wsp_camera.generated.hpp>
 

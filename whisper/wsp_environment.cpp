@@ -1,6 +1,7 @@
 #include <wsp_environment.hpp>
 
 #include <wsp_assets_manager.hpp>
+#include <wsp_drawable.hpp>
 #include <wsp_image.hpp>
 #include <wsp_static_textures.hpp>
 
@@ -8,7 +9,7 @@
 
 using namespace wsp;
 
-Environment::Environment()
+Environment::Environment() : _sunDirection{3.35f, 0.87f}, _sunColor{1.f}, _sunIntensity{8.f}, _shadowMapRadius{20.f}
 {
     AssetsManager *assetsManager = AssetsManager::Get();
     check(assetsManager);
@@ -56,12 +57,23 @@ void Environment::PopulateUbo(ubo::Ubo *ubo) const
     ubo->light.sun.direction = glm::normalize(_sunSource);
     ubo->light.sun.color = _sunColor;
     ubo->light.sun.intensity = _sunIntensity;
+    ubo->light.sun.viewProjection = _shadowMapCamera.GetProjection() * _shadowMapCamera.GetView();
     ubo->light.skybox = staticCubemaps->GetID(_skyboxTexture);
     ubo->light.irradiance = staticCubemaps->GetID(_irradianceTexture);
 }
 
+void Environment::SetShadowMapRadius(float shadowMapRadius)
+{
+    _shadowMapRadius = shadowMapRadius;
+    Refresh();
+}
+
 void Environment::Refresh()
 {
-    glm::vec4 source = glm::quat(glm::vec3{0.f, _sunDirection.x, _sunDirection.y}) * glm::vec4{1.f, 0.f, 0.f, 1.f};
+    glm::vec4 const source =
+        glm::quat(glm::vec3{0.f, _sunDirection.x, _sunDirection.y}) * glm::vec4{1.f, 0.f, 0.f, 1.f};
     _sunSource = source;
+    _shadowMapCamera.SetOrthographicProjection(-_shadowMapRadius, _shadowMapRadius, _shadowMapRadius, -_shadowMapRadius,
+                                               -_shadowMapRadius, _shadowMapRadius);
+    _shadowMapCamera.LookTowards(glm::vec3{0.f}, _sunSource);
 }

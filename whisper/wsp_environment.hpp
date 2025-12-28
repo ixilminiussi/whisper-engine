@@ -1,11 +1,13 @@
 #ifndef WSP_ENVIRONMENT
 #define WSP_ENVIRONMENT
 
+#include <wsp_camera.hpp>
 #include <wsp_constants.hpp>
 #include <wsp_devkit.hpp>
 #include <wsp_global_ubo.hpp>
 #include <wsp_typedefs.hpp>
 
+#include <glm/mat4x4.hpp>
 #include <glm/vec3.hpp>
 
 #include <.generated/wsp_environment.generated.hpp>
@@ -21,6 +23,7 @@ class Environment
     ~Environment() = default;
 
     void PopulateUbo(ubo::Ubo *) const;
+    void SetShadowMapRadius(float);
 
     WCLASS_BODY$Environment();
 
@@ -29,12 +32,16 @@ class Environment
     void Refresh();
 
     WPROPERTY(eDrag)
-    glm::vec2 _sunDirection{3.35, 0.87f};
-    glm::vec3 _sunSource{1.f, 0.f, 0.f};
+    glm::vec2 _sunDirection;
+    glm::vec3 _sunSource;
+
+    float _shadowMapRadius;
+    Camera _shadowMapCamera;
+
     WPROPERTY(eColor)
-    glm::vec3 _sunColor{1.f};
+    glm::vec3 _sunColor;
     WPROPERTY(eDrag, 0.f, 10.f)
-    float _sunIntensity{10.f};
+    float _sunIntensity;
 
     TextureID _skyboxTexture;
     TextureID _irradianceTexture;

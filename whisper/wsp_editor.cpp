@@ -74,6 +74,13 @@ Editor::Editor() : _drawList{nullptr}
         return uboInfo;
     });
 
+    ResourceCreateInfo shadowInfo{};
+    shadowInfo.usage = ResourceUsage::eDepth;
+    shadowInfo.format = vk::Format::eD16Unorm;
+    shadowInfo.clear.depthStencil = vk::ClearDepthStencilValue{1.};
+    shadowInfo.debugName = "shadowMap";
+    shadowInfo.extent = vk::Extent2D{1024, 1024};
+
     ResourceCreateInfo colorInfo{};
     colorInfo.usage = ResourceUsage::eColor;
     colorInfo.format = vk::Format::eR16G16B16A16Sfloat;
@@ -88,11 +95,32 @@ Editor::Editor() : _drawList{nullptr}
     ResourceCreateInfo postInfo{};
     postInfo.usage = ResourceUsage::eColor;
     postInfo.format = vk::Format::eR16G16B16A16Sfloat;
-    postInfo.debugName = "color";
+    postInfo.debugName = "post process";
 
+    Resource const shadowResource = graph->NewResource(shadowInfo);
     Resource const colorResource = graph->NewResource(colorInfo);
     Resource const depthResource = graph->NewResource(depthInfo);
     Resource const postResource = graph->NewResource(postInfo);
+
+    PassCreateInfo shadowMapPassInfo{};
+    shadowMapPassInfo.writes = {shadowResource};
+    shadowMapPassInfo.readsUniform = true;
+    shadowMapPassInfo.vertexInputInfo = Mesh::Vertex::GetVertexInputInfo();
+    shadowMapPassInfo.pushConstantSize = sizeof(Mesh::PushData);
+    shadowMapPassInfo.vertFile = "void.vert.spv";
+    shadowMapPassInfo.fragFile = "void.frag.spv";
+    shadowMapPassInfo.debugName = "shadowMap render";
+    shadowMapPassInfo.execute = [&](vk::CommandBuffer commandBuffer, vk::PipelineLayout pipelineLayout) {
+        if (_drawList)
+        {
+            for (Drawable const *drawable : *_drawList)
+            {
+                drawable->BindAndDraw(commandBuffer, pipelineLayout);
+            }
+        }
+    };
+
+    graph->NewPass(shadowMapPassInfo);
 
     PassCreateInfo backgroundPassInfo{};
     backgroundPassInfo.writes = {colorResource, depthResource};
@@ -108,6 +136,7 @@ Editor::Editor() : _drawList{nullptr}
     graph->NewPass(backgroundPassInfo);
 
     PassCreateInfo meshPassInfo{};
+    meshPassInfo.reads = {shadowResource};
     meshPassInfo.writes = {colorResource, depthResource};
     meshPassInfo.readsUniform = true;
     meshPassInfo.staticTextures = {AssetsManager::Get()->GetStaticTextures(),
@@ -118,7 +147,7 @@ Editor::Editor() : _drawList{nullptr}
     meshPassInfo.vertFile = "mesh.vert.spv";
     meshPassInfo.fragFile = "mesh.frag.spv";
     meshPassInfo.debugName = "mesh render";
-    meshPassInfo.execute = [=](vk::CommandBuffer commandBuffer, vk::PipelineLayout pipelineLayout) {
+    meshPassInfo.execute = [&](vk::CommandBuffer commandBuffer, vk::PipelineLayout pipelineLayout) {
         if (_drawList)
         {
             for (Drawable const *drawable : *_drawList)
@@ -487,6 +516,8 @@ void Editor::RenderContentBrowser(bool *show)
                                 _viewportCamera->SetOrbitTarget({0.f, 0.f, 0.f});
                                 _viewportCamera->SetOrbitDistance(furthestRadius * 2.5f);
                                 _viewportCamera->Refresh();
+
+                                _environment->SetShadowMapRadius(furthestRadius);
                             }
                             else if (relativePath.extension().compare(".png") == 0 && _skyboxFlag)
                             {

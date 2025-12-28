@@ -8,9 +8,10 @@ layout(location = 0) in v_info i;
 
 layout(location = 0) out vec4 out_color;
 
-layout(set = 1, binding = 0) uniform sampler2D textures[];
-layout(set = 2, binding = 0) uniform sampler2D engineTextures[];
-layout(set = 3, binding = 0) uniform samplerCube cubemaps[];
+layout(set = 1, binding = 0) uniform sampler2D shadowMap;
+layout(set = 2, binding = 0) uniform sampler2D textures[];
+layout(set = 3, binding = 0) uniform sampler2D engineTextures[];
+layout(set = 4, binding = 0) uniform samplerCube cubemaps[];
 
 #include "ubo.glsl"
 
@@ -106,6 +107,19 @@ float computeGGX(in float roughness, in float NdotL, in float NdotV)
     return computeGGX1(a2, NdotL) * computeGGX1(a2, NdotV);
 }
 
+float isOccluded(in vec3 sc_position)
+{
+    vec2 uv = 0.5 * sc_position.xy + 0.5;
+    float depth = texture(shadowMap, uv).r;
+
+    if (depth < sc_position.z - 0.025)
+    {
+        return 0.0f;
+    }
+
+    return 1.0f;
+}
+
 void main()
 {
     vec2 uv = i.uv.xy;
@@ -162,8 +176,9 @@ void main()
 
     vec3 diffuseIBL = (albedo * irradiance.rgb * irradiance.a) * kD * occlusion;
 
-    vec3 Ld = kD * (albedo / PI) * NdotL * lightColor;
-    vec3 Ls = kS * ((D * G * F) / (4. * NdotL * NdotV)) * lightColor * NdotL;
+    float LFactor = max(NdotL * isOccluded(i.sc_position), EPS);
+    vec3 Ld = kD * (albedo / PI) * LFactor * lightColor;
+    vec3 Ls = kS * ((D * G * F) / (4. * LFactor * NdotV)) * lightColor * NdotL;
 
     vec3 IBLColor = specularIBL + diffuseIBL;
     vec3 directColor = Ld + Ls;

@@ -338,7 +338,7 @@ Image const *AssetsManager::RequestImage(Image::CreateInfo const &createInfo)
 
     if (createInfo.format == vk::Format::eUndefined)
     {
-        spdlog::warn("AssetsManager: cannot requesting an image of undefined format will always lead to the "
+        spdlog::warn("AssetsManager: requesting an image of undefined format will always lead to the "
                      "creation of a new image");
     }
 

@@ -239,25 +239,32 @@ Mesh::~Mesh()
 
 vk::PipelineVertexInputStateCreateInfo Mesh::Vertex::GetVertexInputInfo()
 {
-    static std::vector<vk::VertexInputBindingDescription> bindingDescriptions(1);
+    static std::vector<vk::VertexInputBindingDescription> bindingDescriptions = []() {
+        std::vector<vk::VertexInputBindingDescription> desc(1);
+        desc[0].binding = 0;
+        desc[0].stride = sizeof(Vertex);
+        desc[0].inputRate = vk::VertexInputRate::eVertex;
+        return desc;
+    }();
 
-    bindingDescriptions[0].binding = 0;
-    bindingDescriptions[0].stride = sizeof(Vertex);
-    bindingDescriptions[0].inputRate = vk::VertexInputRate::eVertex;
+    static std::vector<vk::VertexInputAttributeDescription> attributeDescriptions = []() {
+        std::vector<vk::VertexInputAttributeDescription> attrs;
+        attrs.emplace_back(0, 0, vk::Format::eR32G32B32A32Sfloat, offsetof(Vertex, tangent));
+        attrs.emplace_back(1, 0, vk::Format::eR32G32B32Sfloat, offsetof(Vertex, position));
+        attrs.emplace_back(2, 0, vk::Format::eR32G32B32Sfloat, offsetof(Vertex, normal));
+        attrs.emplace_back(3, 0, vk::Format::eR32G32B32Sfloat, offsetof(Vertex, color));
+        attrs.emplace_back(4, 0, vk::Format::eR32G32Sfloat, offsetof(Vertex, uv));
+        return attrs;
+    }();
 
-    static std::vector<vk::VertexInputAttributeDescription> attributeDescriptions{};
-
-    attributeDescriptions.emplace_back(0, 0, vk::Format::eR32G32B32A32Sfloat, offsetof(Vertex, tangent));
-    attributeDescriptions.emplace_back(1, 0, vk::Format::eR32G32B32Sfloat, offsetof(Vertex, position));
-    attributeDescriptions.emplace_back(2, 0, vk::Format::eR32G32B32Sfloat, offsetof(Vertex, normal));
-    attributeDescriptions.emplace_back(3, 0, vk::Format::eR32G32B32Sfloat, offsetof(Vertex, color));
-    attributeDescriptions.emplace_back(4, 0, vk::Format::eR32G32Sfloat, offsetof(Vertex, uv));
-
-    vk::PipelineVertexInputStateCreateInfo vertexInputInfo{};
-    vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
-    vertexInputInfo.vertexBindingDescriptionCount = static_cast<uint32_t>(bindingDescriptions.size());
-    vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
-    vertexInputInfo.pVertexBindingDescriptions = bindingDescriptions.data();
+    static vk::PipelineVertexInputStateCreateInfo const vertexInputInfo = []() {
+        vk::PipelineVertexInputStateCreateInfo info{};
+        info.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
+        info.vertexBindingDescriptionCount = static_cast<uint32_t>(bindingDescriptions.size());
+        info.pVertexAttributeDescriptions = attributeDescriptions.data();
+        info.pVertexBindingDescriptions = bindingDescriptions.data();
+        return info;
+    }();
 
     return vertexInputInfo;
 }

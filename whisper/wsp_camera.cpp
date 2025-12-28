@@ -146,10 +146,7 @@ void Camera::LookXYZ(glm::vec3 const &position, glm::vec3 const &rotation)
 
 void Camera::SetAspectRatio(float aspectRatio)
 {
-    if (aspectRatio != _aspectRatio)
-    {
-        _aspectRatio = aspectRatio;
-    }
+    _aspectRatio = aspectRatio;
 
     UpdateProjection();
 }
@@ -199,12 +196,12 @@ void Camera::UpdateProjection()
     switch (_mode)
     {
     case eOrthographic:
-        _projectionMatrix = glm::ortho(_left, _right, _bottom, _top, _near, _far);
+        _projectionMatrix = glm::orthoZO(_left, _right, _bottom, _top, _near, _far);
         break;
     case ePerspective:
         check(glm::abs(_aspectRatio - std::numeric_limits<float>::epsilon()) > 0.0f);
 
-        _projectionMatrix = glm::perspective(glm::radians(_fov), _aspectRatio, _nearPlane, _farPlane);
+        _projectionMatrix = glm::perspectiveZO(glm::radians(_fov), _aspectRatio, _nearPlane, _farPlane);
         // _projectionMatrix[1][1] *= -1.0f;
         break;
     }

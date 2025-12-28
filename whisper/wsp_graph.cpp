@@ -540,14 +540,23 @@ void Graph::Render(vk::CommandBuffer commandBuffer, uint32_t frameIndex)
             }
         }
 
+        PassCreateInfo const &passInfo = GetPassInfo(pass);
+
         vk::RenderPassBeginInfo renderPassInfo{};
         renderPassInfo.renderPass = _renderPasses.at(pass);
         renderPassInfo.framebuffer = _framebuffers.at(pass)[_currentFrameIndex];
 
         renderPassInfo.renderArea.offset = vk::Offset2D{0, 0};
-        renderPassInfo.renderArea.extent = vk::Extent2D{uint32_t(_width), (uint32_t)_height};
 
-        PassCreateInfo const &passInfo = GetPassInfo(pass);
+        if (ResourceCreateInfo const &resourceInfo = GetResourceInfo(passInfo.writes.at(0));
+            resourceInfo.extent != vk::Extent2D{0u, 0u})
+        {
+            renderPassInfo.renderArea.extent = resourceInfo.extent;
+        }
+        else
+        {
+            renderPassInfo.renderArea.extent = vk::Extent2D{uint32_t(_width), (uint32_t)_height};
+        }
 
         std::vector<vk::ClearValue> clearValues;
         clearValues.reserve(passInfo.writes.size());
@@ -567,14 +576,25 @@ void Graph::Render(vk::CommandBuffer commandBuffer, uint32_t frameIndex)
         static vk::Viewport viewport{};
         viewport.x = 0.0f;
         viewport.y = 0.0f;
-        viewport.width = static_cast<float>(_width);
-        viewport.height = static_cast<float>(_height);
         viewport.minDepth = 0.0f;
         viewport.maxDepth = 1.0f;
 
         static vk::Rect2D scissor{};
         scissor.offset = vk::Offset2D{0, 0};
-        scissor.extent = vk::Extent2D{(uint32_t)_width, (uint32_t)_height};
+
+        if (ResourceCreateInfo const &resourceInfo = GetResourceInfo(passInfo.writes.at(0));
+            resourceInfo.extent != vk::Extent2D{0u, 0u})
+        {
+            viewport.width = resourceInfo.extent.width; // WARN: important fix, need to send to tauri
+            viewport.height = resourceInfo.extent.height;
+            scissor.extent = resourceInfo.extent;
+        }
+        else
+        {
+            viewport.width = static_cast<float>(_width);
+            viewport.height = static_cast<float>(_height);
+            scissor.extent = vk::Extent2D{(uint32_t)_width, (uint32_t)_height};
+        }
 
         commandBuffer.setViewport(0, 1, &viewport);
         commandBuffer.setScissor(0, 1, &scissor);
@@ -803,9 +823,13 @@ void Graph::KhanFindOrder(std::set<Resource> const &resources, std::set<Pass> co
 
     std::ostringstream oss;
     oss << "Graph: pass order selected: ";
-    for (Pass const pass : _orderedPasses)
+    for (int i = 0; i < _orderedPasses.size(); i++)
     {
-        oss << " -> " << GetPassInfo(pass).debugName;
+        if (i != 0)
+        {
+            oss << " -> ";
+        }
+        oss << GetPassInfo(_orderedPasses[i]).debugName;
     }
     spdlog::info("{0}", oss.str());
 }
@@ -1039,7 +1063,7 @@ void Graph::Build(Pass pass)
 
     vk::SubpassDescription subpass = {};
     subpass.pipelineBindPoint = vk::PipelineBindPoint::eGraphics;
-    subpass.colorAttachmentCount = 1;
+    subpass.colorAttachmentCount = colorAttachmentReferences.size();
     subpass.pColorAttachments = colorAttachmentReferences.data();
     subpass.pDepthStencilAttachment =
         depthAttachmentReference.has_value() ? &depthAttachmentReference.value() : nullptr;
