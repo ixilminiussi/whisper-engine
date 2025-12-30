@@ -73,13 +73,16 @@ class ViewportCamera
     WPROPERTY(Edit::eDrag, 0.01f, 1000000.f, 0.01f)
     float _orbitDistance;
 
+    WPROPERTY(Edit::eDrag, 0.01f, 1000000.f, 0.01f)
+    float _viewDistance;
+
     WPROPERTY(Edit::eDrag)
     glm::vec3 _position; // Gets priority over orbit;
 
     WPROPERTY(Edit::eDrag, 0.f, 0.f, 1.f)
     glm::vec2 _rotation; // Get priority over orbit; position
 
-    WPROPERTY(Edit::eSlider, 1.f, 100.f, 0.01f)
+    WPROPERTY(Edit::eSlider, 1.f, 10000.f, 0.01f)
     float _movementSpeed;
     WPROPERTY(Edit::eSlider, 0.1f, 4.f, 0.01f)
     glm::vec2 _mouseSensitivity;

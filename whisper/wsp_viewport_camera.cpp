@@ -15,13 +15,20 @@ using namespace wsp;
 
 ViewportCamera::ViewportCamera(glm::vec3 const &orbitPoint, float distance, glm::vec2 const &rotation)
     : _orbitDistance{distance}, _rotation{rotation}, _orbitTarget{orbitPoint}, _orbitPoint{orbitPoint},
-      _orbitLerp{0.1f}, _possessionMode{eReleased}, _mouseSensitivity{2.f, 1.5f}, _movementSpeed{10.f}
+      _orbitLerp{0.1f}, _possessionMode{eReleased}, _mouseSensitivity{2.f, 1.5f}, _movementSpeed{10.f},
+      _viewDistance{1000.f}
 {
     SetOrbitDistance(_orbitDistance);
+
+    _camera.SetFOV(40.f);
+    _camera.SetNearPlane(1.0);
 }
 
 void ViewportCamera::Refresh()
 {
+    _camera.SetFarPlane(_viewDistance);
+    _camera.SetNearPlane(_viewDistance / 2000.f);
+
     RefreshView();
     _camera.Refresh();
 }
@@ -37,9 +44,6 @@ void ViewportCamera::SetOrbitDistance(float distance)
     _camera.SetBottom(_orbitDistance);
     _camera.SetNear(-_orbitDistance);
     _camera.SetFar(_orbitDistance);
-    _camera.SetFOV(40.f);
-    _camera.SetNearPlane(0.01f);
-    _camera.SetFarPlane(10000.f);
 }
 
 void ViewportCamera::SetOrbitTarget(glm::vec3 const &target)
@@ -154,7 +158,7 @@ void ViewportCamera::OnMouseScroll(double dt, glm::vec2 value)
     {
         value.y = glm::clamp(value.y, -1.f, 1.f);
         _movementSpeed *= 1.0f + (0.1f * value.y);
-        _movementSpeed = glm::clamp(_movementSpeed, .1f, 100.f);
+        _movementSpeed = glm::clamp(_movementSpeed, .1f, 10000.f);
     }
     else if (_possessionMode == eOrbit)
     {
@@ -165,6 +169,8 @@ void ViewportCamera::OnMouseScroll(double dt, glm::vec2 value)
 
 void ViewportCamera::OnMouseMovement(double dt, glm::vec2 value)
 {
+    dt = std::min(dt, 0.02);
+
     value.x *= -1;
     if (_possessionMode == eOrbit)
     {

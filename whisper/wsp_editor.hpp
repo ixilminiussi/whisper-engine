@@ -65,6 +65,8 @@ class Editor
 
     std::function<void()> _rebuild;
 
+    double _deltaTime; // dont depend on it, just for rendering fps to editor
+
     WindowID _windowID;
 };
 

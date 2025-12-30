@@ -90,7 +90,7 @@ Editor::Editor() : _scene{nullptr}
 
     ResourceCreateInfo shadowInfo{};
     shadowInfo.usage = ResourceUsage::eDepth;
-    shadowInfo.format = vk::Format::eD16Unorm;
+    shadowInfo.format = vk::Format::eD32Sfloat;
     shadowInfo.clear.depthStencil = vk::ClearDepthStencilValue{1.};
     shadowInfo.debugName = "shadowMap";
     shadowInfo.extent = vk::Extent2D{1024, 1024};
@@ -102,7 +102,7 @@ Editor::Editor() : _scene{nullptr}
 
     ResourceCreateInfo depthInfo{};
     depthInfo.usage = ResourceUsage::eDepth;
-    depthInfo.format = vk::Format::eD16Unorm;
+    depthInfo.format = vk::Format::eD32Sfloat;
     depthInfo.clear.depthStencil = vk::ClearDepthStencilValue{1.};
     depthInfo.debugName = "depth";
 
@@ -303,6 +303,8 @@ void Editor::Update(double dt)
     {
         func();
     }
+
+    _deltaTime = dt;
 
     _viewportCamera->Refresh();
 }
@@ -591,6 +593,9 @@ void Editor::RenderGraphicsManager(bool *show)
     check(show);
 
     ImGui::Begin("Graphics Manager", show);
+
+    ImGui::Text("%f", _deltaTime);
+    ImGui::Text("%f", 1. / _deltaTime);
 
     if (wsp::VanillaButton("Rebuild"))
     {

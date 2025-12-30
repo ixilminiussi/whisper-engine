@@ -145,7 +145,7 @@ Mesh *Mesh::BuildGlTF(Device const *device, cgltf_mesh const *mesh, cgltf_materi
         for (uint32_t j = 0; j < indexCount; j++)
         {
             cgltf_size const index = cgltf_accessor_read_index(primitive->indices, j);
-            indices.emplace_back(static_cast<uint32_t>(index) + vertexOffset);
+            indices.emplace_back(static_cast<uint32_t>(index));
         }
 
         indexOffset += indexCount;
