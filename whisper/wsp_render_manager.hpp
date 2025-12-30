@@ -1,14 +1,13 @@
 #ifndef WSP_RENDER_MANAGER
 #define WSP_RENDER_MANAGER
 
-#include <cstddef>
+#include <wsp_typedefs.hpp>
+
 #include <map>
 #include <memory>
 #include <vector>
 
 #include <vulkan/vulkan.hpp>
-
-using WindowID = uint32_t;
 
 class GLFWwindow;
 

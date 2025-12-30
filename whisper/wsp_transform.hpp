@@ -1,12 +1,12 @@
 #ifndef WSP_TRANSFORM
 #define WSP_TRANSFORM
 
-#include <.generated/wsp_transform.generated.hpp>
-
 #include <wsp_devkit.hpp>
 
 #include <glm/gtc/quaternion.hpp>
 #include <glm/vec3.hpp>
+
+#include <.generated/wsp_transform.generated.hpp>
 
 namespace wsp
 {
@@ -42,6 +42,8 @@ class Transform
 
     WCLASS_BODY$Transform();
 
+    friend Transform operator+(Transform const &, Transform const &);
+
   protected:
     WPROPERTY(eDrag);
     glm::vec3 _position;
@@ -54,8 +56,13 @@ class Transform
     glm::mat3 _normalMatrix;
 };
 
-static Transform operator+(Transform const &, Transform const &);
+inline Transform operator+(Transform const &a, Transform const &b)
+{
+    return Transform{a.GetMatrix() * b.GetMatrix()};
+}
 
 } // namespace wsp
+
+WGENERATED_META_DATA()
 
 #endif

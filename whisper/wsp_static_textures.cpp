@@ -1,13 +1,13 @@
-#include "wsp_assets_manager.hpp"
-#include "wsp_constants.hpp"
-#include <fcntl.h>
-#include <filesystem>
 #include <wsp_static_textures.hpp>
 
+#include <wsp_assets_manager.hpp>
+#include <wsp_constants.hpp>
 #include <wsp_device.hpp>
 #include <wsp_image.hpp>
 #include <wsp_sampler.hpp>
 #include <wsp_texture.hpp>
+
+#include <fcntl.h>
 
 using namespace wsp;
 
@@ -69,6 +69,7 @@ StaticTextures::~StaticTextures()
 void StaticTextures::Clear()
 {
     _offset = 0u;
+    _staticTextures.clear();
 }
 
 void StaticTextures::Push(std::vector<TextureID> const &textures)
@@ -103,7 +104,7 @@ void StaticTextures::Push(std::vector<TextureID> const &textures)
 
     device->UpdateDescriptorSets({writeDescriptor});
 
-    _offset += imageInfos.size();
+    _offset += textures.size();
 }
 
 vk::DescriptorSetLayout StaticTextures::GetDescriptorSetLayout() const
@@ -118,14 +119,13 @@ vk::DescriptorSet StaticTextures::GetDescriptorSet() const
 
 int StaticTextures::GetID(TextureID textureID) const
 {
-    if (textureID == 0)
+    auto it = _staticTextures.find(textureID);
+    if (textureID == 0 || it == _staticTextures.end())
     {
         return INVALID_ID;
     }
 
-    check(_staticTextures.find(textureID) != _staticTextures.end());
-
-    return (int)_staticTextures.at(textureID);
+    return (int)(it->second);
 }
 
 uint32_t StaticTextures::GetSize() const

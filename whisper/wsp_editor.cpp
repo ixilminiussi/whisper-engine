@@ -16,6 +16,7 @@
 #include <wsp_input_manager.hpp>
 #include <wsp_inputs.hpp>
 #include <wsp_mesh.hpp>
+#include <wsp_node.hpp>
 #include <wsp_render_manager.hpp>
 #include <wsp_renderer.hpp>
 #include <wsp_static_utils.hpp>
@@ -40,7 +41,7 @@
 
 using namespace wsp;
 
-Editor::Editor() : _drawList{nullptr}
+Editor::Editor() : _scene{nullptr}
 {
     RenderManager *renderManager = RenderManager::Get();
     check(renderManager);
@@ -124,12 +125,9 @@ Editor::Editor() : _drawList{nullptr}
     shadowMapPassInfo.fragFile = "void.frag.spv";
     shadowMapPassInfo.debugName = "shadowMap render";
     shadowMapPassInfo.execute = [&](vk::CommandBuffer commandBuffer, vk::PipelineLayout pipelineLayout) {
-        if (_drawList)
+        if (_scene)
         {
-            for (Drawable const *drawable : *_drawList)
-            {
-                drawable->BindAndDraw(commandBuffer, pipelineLayout);
-            }
+            _scene->BindAndDraw(commandBuffer, pipelineLayout);
         }
     };
 
@@ -161,12 +159,9 @@ Editor::Editor() : _drawList{nullptr}
     meshPassInfo.fragFile = "mesh.frag.spv";
     meshPassInfo.debugName = "mesh render";
     meshPassInfo.execute = [&](vk::CommandBuffer commandBuffer, vk::PipelineLayout pipelineLayout) {
-        if (_drawList)
+        if (_scene)
         {
-            for (Drawable const *drawable : *_drawList)
-            {
-                drawable->BindAndDraw(commandBuffer, pipelineLayout);
-            }
+            _scene->BindAndDraw(commandBuffer, pipelineLayout);
         }
     };
 
@@ -258,6 +253,11 @@ void Editor::Render()
             ImGui::Begin("View Settings", &showViewSettings);
             ImGui::SeparatorText("Viewport Camera");
             frost::RenderEditor(frost::Meta<ViewportCamera>{}, _viewportCamera.get());
+            ImGui::SeparatorText("Scene");
+            if (_scene)
+            {
+                frost::RenderEditor(frost::Meta<Node>{}, _scene);
+            }
             ImGui::SeparatorText("Environment");
             frost::RenderEditor(frost::Meta<Environment>{}, _environment.get());
             ImGui::End();
@@ -304,7 +304,7 @@ void Editor::Update(double dt)
         func();
     }
 
-    _viewportCamera->Update(dt);
+    _viewportCamera->Refresh();
 }
 
 void Editor::PopulateUbo(ubo::Ubo *ubo) const
@@ -325,7 +325,8 @@ void Editor::PopulateUbo(ubo::Ubo *ubo) const
     check(_environment);
     _environment->PopulateUbo(ubo);
 
-    memcpy(ubo->materials, AssetsManager::Get()->GetMaterialInfos().data(), MAX_MATERIALS);
+    auto const &materialInfos = AssetsManager::Get()->GetMaterialInfos();
+    memcpy(ubo->materials, materialInfos.data(), materialInfos.size() * sizeof(ubo::Material));
 }
 
 void Editor::OnLeftClick(double dt, int value)
@@ -494,7 +495,8 @@ void Editor::RenderContentBrowser(bool *show)
                 std::filesystem::path const path = directory.path();
 
                 bool r = false;
-                if (path.extension().compare(".png") == 0)
+                if (path.extension().compare(".png") == 0 || path.extension().compare(".jpg") == 0 ||
+                    path.extension().compare(".jpeg") == 0)
                 {
                     Image const *image = assetsManager->FindImage(path);
                     if (image)
@@ -523,33 +525,11 @@ void Editor::RenderContentBrowser(bool *show)
                             if (relativePath.extension().compare(".gltf") == 0 ||
                                 relativePath.extension().compare(".glb") == 0)
                             {
-                                if (_drawList)
-                                {
-                                    _drawList->clear();
-                                }
-                                else
-                                {
-                                    _drawList = new std::vector<Drawable const *>{};
-                                }
-
-                                float furthestRadius = 0.f;
-
-                                for (Drawable const *drawable : assetsManager->ImportGlTF(relativePath))
-                                {
-                                    furthestRadius = std::max(furthestRadius, drawable->GetRadius());
-                                    _drawList->push_back((Drawable const *)drawable);
-                                }
+                                _scene = assetsManager->ImportGlTF(relativePath);
 
                                 _viewportCamera->SetOrbitTarget({0.f, 0.f, 0.f});
-                                _viewportCamera->SetOrbitDistance(furthestRadius * 2.5f);
-                                _viewportCamera->Refresh();
 
-                                _environment->SetShadowMapRadius(furthestRadius);
-                            }
-                            else if (relativePath.extension().compare(".png") == 0 && _skyboxFlag)
-                            {
-                                // assetsManager->ImportCubemap(relativePath);
-                                _skyboxFlag = false;
+                                _environment->SetShadowMapRadius(100.f);
                             }
                         }
                         catch (std::exception const &exception)
@@ -578,15 +558,21 @@ void Editor::RenderContentBrowser(bool *show)
 
         ImGui::Columns(columnCount, 0, false);
 
+        int i = 0;
         for (auto &material : assetsManager->_materials)
         {
-            ImGui::BeginChild(material.GetName().c_str());
-            ImGui::Text("%s", material.GetName().c_str());
-            frost::RenderEditor(frost::Meta<Material>{}, &material);
-            ImGui::EndChild();
+            ImGui::PushID(i++);
 
+            if (ImGui::TreeNode(material.GetName().c_str()))
+            {
+                frost::RenderEditor(frost::Meta<Material>{}, &material);
+                ImGui::TreePop();
+            }
+
+            ImGui::PopID();
             ImGui::NextColumn();
         }
+        spdlog::info(assetsManager->_materials.size());
 
         ImGui::Columns(1);
 
@@ -610,13 +596,6 @@ void Editor::RenderGraphicsManager(bool *show)
     {
         _rebuild();
     }
-
-    ImGui::BeginDisabled(_skyboxFlag);
-    if (wsp::GreenButton("Select Skybox"))
-    {
-        _skyboxFlag = true;
-    }
-    ImGui::EndDisabled();
 
     ImGui::End();
 }

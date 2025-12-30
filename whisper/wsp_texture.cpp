@@ -62,27 +62,25 @@ Texture::Texture(Device const *device, CreateInfo const &createInfo) : _name{cre
 {
     check(device);
 
-    Image const *image;
-
     if (createInfo.deferredImageCreation)
     {
-        image = AssetsManager::Get()->RequestImage(createInfo.imageInfo);
+        _image = AssetsManager::Get()->RequestImage(createInfo.imageInfo);
     }
     else
     {
-        image = createInfo.pImage;
+        _image = createInfo.pImage;
     }
 
-    check(image);
+    check(_image);
     check(createInfo.pSampler);
 
-    vk::Format const format = image->GetFormat();
-    bool const cubemap = image->IsCubemap();
+    vk::Format const format = _image->GetFormat();
+    bool const cubemap = _image->IsCubemap();
 
     vk::ImageViewCreateInfo viewCreateInfo;
     viewCreateInfo.viewType = cubemap ? vk::ImageViewType::eCube : vk::ImageViewType::e2D;
     viewCreateInfo.format = format;
-    viewCreateInfo.image = image->GetImage();
+    viewCreateInfo.image = _image->GetImage();
     viewCreateInfo.subresourceRange.aspectMask =
         createInfo.depth ? vk::ImageAspectFlagBits::eDepth : vk::ImageAspectFlagBits::eColor;
     viewCreateInfo.subresourceRange.baseMipLevel = 0u;
@@ -92,7 +90,10 @@ Texture::Texture(Device const *device, CreateInfo const &createInfo) : _name{cre
 
     _sampler = createInfo.pSampler;
 
-    device->CreateImageView(viewCreateInfo, &_imageView, fmt::format("{}<image_view>", image->GetName()));
+    device->CreateImageView(viewCreateInfo, &_imageView, fmt::format("{}<image_view>", _image->GetName()));
+
+    spdlog::debug("Texture: <{}> -> image: <{}>, format: {}, ?cubemap: {}", _name, _image->GetName(),
+                  FormatToString(format), cubemap);
 }
 
 Texture::~Texture()
@@ -115,4 +116,11 @@ vk::Sampler Texture::GetSampler() const
     check(_sampler);
 
     return _sampler->GetSampler();
+}
+
+Image const *Texture::GetImage() const
+{
+    check(_image);
+
+    return _image;
 }

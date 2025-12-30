@@ -52,8 +52,6 @@ class ViewportCamera
 
     static void OnResizeCallback(void *camera, uint32_t width, uint32_t height);
 
-    void Update(double dt);
-
     WREFRESH()
     void Refresh();
 
@@ -72,7 +70,7 @@ class ViewportCamera
     glm::vec3 _orbitTarget;
     float _orbitLerp;
 
-    WPROPERTY(Edit::eSlider, 0.01f, 10.f, 0.01f)
+    WPROPERTY(Edit::eDrag, 0.01f, 1000000.f, 0.01f)
     float _orbitDistance;
 
     WPROPERTY(Edit::eDrag)

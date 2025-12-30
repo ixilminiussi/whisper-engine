@@ -1,3 +1,4 @@
+#include "wsp_node.hpp"
 #include <wsp_device.hpp>
 
 #include <wsp_assets_manager.hpp>
@@ -46,6 +47,8 @@ AssetsManager::AssetsManager() : _fileRoot{WSP_ASSETS}
     _staticTextures = new StaticTextures{MAX_DYNAMIC_TEXTURES, false, "static 2d textures"};
     _staticCubemaps = new StaticTextures{2, true, "static cube textures"};
     _staticEngineTextures = new StaticTextures{1, false, "static engine textures"};
+
+    _meshes.reserve(1024);
 }
 
 void AssetsManager::LoadDefaults()
@@ -151,12 +154,21 @@ void AssetsManager::UnloadAll()
     _textures.clear();
     _materials.clear();
 
+    auto it = _meshes.begin();
+    while (it != _meshes.end())
+    {
+        Mesh *mesh = *it;
+        it = _meshes.erase(it);
+        delete mesh;
+    }
+    _meshes.clear();
+
     _imagesMap.clear();
     _samplersMap.clear();
 
-    for (auto const &[mesh, path] : _meshes)
+    for (auto const &[path, node] : _nodes)
     {
-        delete mesh;
+        delete node;
     }
     _meshes.clear();
 
@@ -167,7 +179,7 @@ void AssetsManager::UnloadAll()
     spdlog::info("AssetsManager: terminated");
 }
 
-std::vector<Mesh *> AssetsManager::ImportGlTF(std::filesystem::path const &relativePath)
+Node *AssetsManager::ImportGlTF(std::filesystem::path const &relativePath)
 {
     Device const *device = SafeDeviceAccessor::Get();
     check(device);
@@ -177,9 +189,9 @@ std::vector<Mesh *> AssetsManager::ImportGlTF(std::filesystem::path const &relat
     std::filesystem::path const filepath = (_fileRoot / relativePath).lexically_normal();
 
     // if we already imported file return the meshes without reimporting
-    if (std::vector<Mesh *> const drawables = _meshes.from(filepath); drawables.size() > 0)
+    if (auto it = _nodes.find(filepath); it != _nodes.end())
     {
-        return drawables;
+        return it->second;
     }
 
     cgltf_data *data = NULL;
@@ -190,14 +202,14 @@ std::vector<Mesh *> AssetsManager::ImportGlTF(std::filesystem::path const &relat
         result != cgltf_result_success)
     {
         throw std::invalid_argument(
-            fmt::format("AssetsManager: asset '{}' parse error ({})", filepath.string(), ToString(result)));
+            fmt::format("AssetsManager: asset '{}' parse error ({})", filepath.filename().string(), ToString(result)));
     }
 
     if (cgltf_result const result = cgltf_load_buffers(&options, data, filepath.c_str());
         result != cgltf_result_success)
     {
         throw std::invalid_argument(
-            fmt::format("AssetsManager: asset '{}' parse error ({})", filepath.string(), ToString(result)));
+            fmt::format("AssetsManager: asset '{}' parse error ({})", filepath.filename().string(), ToString(result)));
     }
 
     check(data);
@@ -217,6 +229,7 @@ std::vector<Mesh *> AssetsManager::ImportGlTF(std::filesystem::path const &relat
     }
 
     std::vector<TextureID> textures;
+    textures.reserve(data->textures_count);
     for (Texture::CreateInfo const &createInfo : textureCreateInfos)
     {
         textures.push_back(LoadTexture(createInfo));
@@ -227,7 +240,7 @@ std::vector<Mesh *> AssetsManager::ImportGlTF(std::filesystem::path const &relat
 
     // Materials BEGIN =================================
     std::vector<MaterialID> materials{};
-
+    materials.reserve(data->materials_count);
     for (int i = 0; i < data->materials_count; i++)
     {
         Material::CreateInfo const createInfo =
@@ -243,8 +256,6 @@ std::vector<Mesh *> AssetsManager::ImportGlTF(std::filesystem::path const &relat
         if (i < MAX_MATERIALS)
         {
             material.SetID(i);
-
-            // material.GetInfo(&_materialInfos[i]);
         }
         else
         {
@@ -257,18 +268,25 @@ std::vector<Mesh *> AssetsManager::ImportGlTF(std::filesystem::path const &relat
     // Materials END ===================================
 
     // Meshes BEGIN ====================================
-    std::vector<Mesh *> meshes{};
+    std::vector<MeshID> meshes{};
+    meshes.reserve(data->meshes_count);
     for (int i = 0; i < data->meshes_count; i++)
     {
-        Mesh *mesh = Mesh::BuildGlTF(device, data->meshes + i, data->materials, materials);
-        _meshes[mesh] = filepath;
-        meshes.push_back(mesh);
+        Mesh *mesh = Mesh::BuildGlTF(device, data->meshes + i, data->materials, materials, false);
+
+        _meshes.push_back(mesh);
+        meshes.push_back(_meshes.size() - 1);
     }
     // Meshes END ======================================
 
+    // Nodes BEGIN =====================================
+    Node *node = Node::BuildGlTF(data->nodes, data->meshes, meshes);
+    _nodes[filepath] = node;
+    // Nodes END =======================================
+
     cgltf_free(data);
 
-    return meshes;
+    return node;
 }
 
 #ifndef NDEBUG
@@ -342,9 +360,9 @@ Image const *AssetsManager::RequestImage(Image::CreateInfo const &createInfo)
                      "creation of a new image");
     }
 
-    if (_imagesMap.find(createInfo) != _imagesMap.end())
+    if (auto it = _imagesMap.find(createInfo); it != _imagesMap.end())
     {
-        return _images.get(_imagesMap.at(createInfo));
+        return _images.get(it->second);
     }
 
     dod::slot_map_key32<Image> const key = _images.emplace(device, createInfo);
@@ -376,14 +394,34 @@ Sampler const *AssetsManager::RequestSampler(Sampler::CreateInfo const &createIn
 
 Texture const *AssetsManager::GetTexture(TextureID const &id) const
 {
+    if (id == 0)
+    {
+        return nullptr;
+    }
+
     dod::slot_map_key32<Texture> const restoredID{id};
     return _textures.get(restoredID);
 }
 
 Material const *AssetsManager::GetMaterial(MaterialID const &id) const
 {
+    if (id == 0)
+    {
+        return nullptr;
+    }
+
     dod::slot_map_key32<Material> const restoredID{id};
     return _materials.get(restoredID);
+}
+
+Mesh const *AssetsManager::GetMesh(MeshID const &id) const
+{
+    if (id == INVALID_ID)
+    {
+        return nullptr;
+    }
+
+    return _meshes.at(id);
 }
 
 StaticTextures *AssetsManager::GetStaticTextures() const

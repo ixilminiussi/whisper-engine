@@ -59,9 +59,13 @@ class Material
 
     int _ID;
 
+    WPROPERTY()
     TextureID _albedoTexture;
+    WPROPERTY()
     TextureID _normalTexture;
+    WPROPERTY()
     TextureID _metallicRoughnessTexture;
+    WPROPERTY()
     TextureID _occlusionTexture;
 
     WPROPERTY(eColor)

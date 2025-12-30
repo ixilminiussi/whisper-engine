@@ -48,9 +48,11 @@ Image::Image(Device const *device, CreateInfo const &createInfo)
         }
     };
 
-    if (createInfo.filepath.extension().compare(".png") == 0)
+    if (createInfo.filepath.extension().compare(".png") == 0 || createInfo.filepath.extension().compare(".jpg") == 0 ||
+        createInfo.filepath.extension().compare(".jpeg") == 0)
     {
         stbi_uc *pixels = stbi_load(createInfo.filepath.c_str(), &width, &height, &channels, STBI_rgb);
+
         size = 1;
         channels = 3;
 

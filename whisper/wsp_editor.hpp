@@ -59,9 +59,8 @@ class Editor
 
     std::vector<std::function<void()>> _deferredQueue;
 
-    std::vector<class Drawable const *> *_drawList;
+    class Node *_scene;
 
-    bool _skyboxFlag;
     class Sampler *_previewSampler;
 
     std::function<void()> _rebuild;

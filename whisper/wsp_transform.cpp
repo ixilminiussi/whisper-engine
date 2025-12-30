@@ -42,7 +42,7 @@ glm::mat3 Transform::GetNormalMatrix() const
 
 void Transform::FromMatrix(glm::mat4 const &mat4)
 {
-    _position = mat4[3];
+    _position = glm::vec3(mat4[3]);
 
     _scale.x = glm::length(glm::vec3(mat4[0]));
     _scale.y = glm::length(glm::vec3(mat4[1]));
@@ -54,6 +54,8 @@ void Transform::FromMatrix(glm::mat4 const &mat4)
     rotationMatrix[2] /= _scale.z;
 
     _rotation = glm::quat_cast(rotationMatrix);
+
+    Refresh();
 }
 
 glm::vec3 Transform::Forward() const
@@ -69,11 +71,6 @@ glm::vec3 Transform::Up() const
 glm::vec3 Transform::Right() const
 {
     return glm::normalize(_rotation * glm::vec3(1.0f, 0.0f, 0.0f)); // Default right is +X
-}
-
-Transform operator+(Transform const &a, Transform const &b)
-{
-    return Transform{a.GetMatrix() * b.GetMatrix()};
 }
 
 void Transform::SetPosition(glm::vec3 const &position)
@@ -126,6 +123,7 @@ void Transform::Refresh()
     {
         glm::mat4 const rotationMatrix = glm::mat4_cast(_rotation);
         glm::mat4 const translationMatrix = glm::translate(glm::mat4(1.0f), _position);
-        _matrix = translationMatrix * rotationMatrix;
+        glm::mat4 const scaleMatrix = glm::scale(glm::mat4(1.0f), _scale);
+        _matrix = translationMatrix * rotationMatrix * scaleMatrix;
     }
 }

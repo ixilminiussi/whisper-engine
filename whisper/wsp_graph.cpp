@@ -523,11 +523,10 @@ void Graph::Render(vk::CommandBuffer commandBuffer, uint32_t frameIndex)
 
     for (Pass const pass : _orderedPasses)
     {
-        if (_imageMemoryBarriers.find(pass) != _imageMemoryBarriers.end())
+        if (auto it = _imageMemoryBarriers.find(pass); it != _imageMemoryBarriers.end())
         {
             int i = 0;
-            for (std::array<vk::ImageMemoryBarrier, MAX_FRAMES_IN_FLIGHT> const &barriers :
-                 _imageMemoryBarriers.at(pass))
+            for (std::array<vk::ImageMemoryBarrier, MAX_FRAMES_IN_FLIGHT> const &barriers : it->second)
             {
                 vk::ImageMemoryBarrier const &barrier = barriers[_currentFrameIndex];
 

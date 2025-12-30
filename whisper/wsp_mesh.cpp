@@ -1,9 +1,10 @@
-#include "wsp_assets_manager.hpp"
 #include <wsp_mesh.hpp>
 
+#include <wsp_assets_manager.hpp>
 #include <wsp_device.hpp>
 #include <wsp_devkit.hpp>
 #include <wsp_material.hpp>
+#include <wsp_transform.hpp>
 
 #include <glm/geometric.hpp>
 
@@ -52,10 +53,16 @@ Mesh *Mesh::BuildGlTF(Device const *device, cgltf_mesh const *mesh, cgltf_materi
     uint32_t totalVertexCount = 0;
 
     glm::vec3 averageVertex{};
-    for (uint32_t i = 0; i < mesh->primitives_count; ++i)
+    for (uint32_t i = 0; i < mesh->primitives_count; i++)
     {
         cgltf_primitive *primitive = &mesh->primitives[i];
         check(primitive);
+        check(primitive->type == cgltf_primitive_type_triangles);
+
+        for (int i = 0; i < primitive->extensions_count; i++)
+        {
+            spdlog::critical(primitive->extensions[i].name);
+        }
 
         cgltf_accessor const *positionAccessor = FindAccessor(primitive, cgltf_attribute_type_position);
         check(positionAccessor);
@@ -83,6 +90,8 @@ Mesh *Mesh::BuildGlTF(Device const *device, cgltf_mesh const *mesh, cgltf_materi
         MaterialID material;
         if (pMaterial)
         {
+            check(primitive->material);
+
             uint32_t const materialID = primitive->material - pMaterial;
             check(materialID < materials.size());
             material = materials.at(materialID);
@@ -102,19 +111,31 @@ Mesh *Mesh::BuildGlTF(Device const *device, cgltf_mesh const *mesh, cgltf_materi
 
             if (normalAccessor)
             {
-                cgltf_accessor_read_float(normalAccessor, j, &normal.x, 3);
+                if (j <= normalAccessor->count)
+                {
+                    cgltf_accessor_read_float(normalAccessor, j, &normal.x, 3);
+                }
             }
             if (uvAccessor)
             {
-                cgltf_accessor_read_float(uvAccessor, j, &uv.x, 2);
+                if (j <= uvAccessor->count)
+                {
+                    cgltf_accessor_read_float(uvAccessor, j, &uv.x, 2);
+                }
             }
             if (colorAccessor)
             {
-                cgltf_accessor_read_float(colorAccessor, j, &color.x, 3);
+                if (j <= colorAccessor->count)
+                {
+                    cgltf_accessor_read_float(colorAccessor, j, &color.x, 3);
+                }
             }
             if (tangentAccessor)
             {
-                cgltf_accessor_read_float(tangentAccessor, j, &tangent.x, 4);
+                if (j <= tangentAccessor->count)
+                {
+                    cgltf_accessor_read_float(tangentAccessor, j, &tangent.x, 4);
+                }
             }
 
             vertices.emplace_back(Vertex{tangent, position, normal, color, uv});
@@ -123,8 +144,8 @@ Mesh *Mesh::BuildGlTF(Device const *device, cgltf_mesh const *mesh, cgltf_materi
 
         for (uint32_t j = 0; j < indexCount; j++)
         {
-            cgltf_size index = cgltf_accessor_read_index(primitive->indices, j);
-            indices.emplace_back(static_cast<uint32_t>(index));
+            cgltf_size const index = cgltf_accessor_read_index(primitive->indices, j);
+            indices.emplace_back(static_cast<uint32_t>(index) + vertexOffset);
         }
 
         indexOffset += indexCount;
@@ -140,7 +161,8 @@ Mesh *Mesh::BuildGlTF(Device const *device, cgltf_mesh const *mesh, cgltf_materi
         }
     }
 
-    return new Mesh{device, vertices, indices, primitives, mesh->name};
+    std::string const name = mesh->name ? mesh->name : "";
+    return new Mesh{device, vertices, indices, primitives, name};
 }
 
 Mesh::Mesh(Device const *device, std::vector<Vertex> const &vertices, std::vector<uint32_t> const &indices,
@@ -150,11 +172,6 @@ Mesh::Mesh(Device const *device, std::vector<Vertex> const &vertices, std::vecto
     check(device);
 
     ZoneScopedN("build mesh");
-
-    for (Vertex const &vertex : vertices)
-    {
-        _radius = std::max(_radius, glm::length(vertex.position));
-    }
 
     { // index buffer
         uint32_t const bufferSize = sizeof(uint32_t) * indices.size();
@@ -304,29 +321,24 @@ void Mesh::Bind(vk::CommandBuffer commandBuffer) const
     commandBuffer.bindVertexBuffers(0, 1, buffers, offsets);
 }
 
-void Mesh::Draw(vk::CommandBuffer commandBuffer, vk::PipelineLayout pipelineLayout) const
+void Mesh::Draw(vk::CommandBuffer commandBuffer, vk::PipelineLayout pipelineLayout, Transform const &transform) const
 {
     for (Primitive const &primitive : _primitives)
     {
-        PushConstant(primitive, commandBuffer, pipelineLayout);
+        PushConstant(primitive, transform, commandBuffer, pipelineLayout);
         commandBuffer.bindIndexBuffer(_indexBuffer, 0, vk::IndexType::eUint32);
         commandBuffer.drawIndexed(primitive.indexCount, 1, primitive.indexOffset, primitive.vertexOffset, 0);
     }
 }
 
-float Mesh::GetRadius() const
-{
-    return _radius;
-}
-
-void Mesh::PushConstant(Primitive const &primitive, vk::CommandBuffer commandBuffer,
+void Mesh::PushConstant(Primitive const &primitive, Transform const &transform, vk::CommandBuffer commandBuffer,
                         vk::PipelineLayout pipelineLayout) const
 {
     Material const *material = AssetsManager::Get()->GetMaterial(primitive.material);
 
     PushData pushData{};
-    pushData.modelMatrix = _transform.GetMatrix();
-    pushData.normalMatrix = _transform.GetNormalMatrix();
+    pushData.modelMatrix = transform.GetMatrix();
+    pushData.normalMatrix = transform.GetNormalMatrix();
     pushData.normalMatrix[3][3] = material ? material->GetID() : INVALID_ID;
 
     commandBuffer.pushConstants(pipelineLayout, vk::ShaderStageFlagBits::eAllGraphics, 0, sizeof(PushData), &pushData);

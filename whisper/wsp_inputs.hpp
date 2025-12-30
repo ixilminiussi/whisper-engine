@@ -379,4 +379,105 @@ inline static std::pair<char const *, Button *> const WSP_BUTTON_DICTIONARY[] = 
 
 } // namespace wsp
 
+#include <frost.hpp>
+
+namespace frost
+{
+
+template <>
+inline bool RenderNode<wsp::Axis>(char const *label, wsp::Axis *address, Edit edit, float, float, float, char const *)
+{
+    auto findSelected = [&]() {
+        int i = 0;
+
+        for (auto &pair : wsp::WSP_AXIS_DICTIONARY)
+        {
+            if (*address == *pair.second)
+            {
+                return i;
+            }
+            i++;
+        }
+
+        return 0;
+    };
+
+    int const currentItem = findSelected();
+    bool modified = false;
+
+    ImGui::SetNextItemWidth(200);
+    if (ImGui::BeginCombo(label, wsp::WSP_AXIS_DICTIONARY[currentItem].first))
+    {
+        for (std::pair<char const *, wsp::Axis *> const &pair : wsp::WSP_AXIS_DICTIONARY)
+        {
+            bool const isSelected = (*pair.second == *address);
+
+            if (ImGui::Selectable(pair.first, isSelected))
+            {
+                address->code = pair.second->code;
+                address->source = pair.second->source;
+                address->id = pair.second->id;
+                modified = true;
+            }
+
+            if (isSelected)
+            {
+                ImGui::SetItemDefaultFocus();
+            }
+        }
+        ImGui::EndCombo();
+    }
+
+    return modified;
+}
+
+template <>
+inline bool RenderNode<wsp::Button>(char const *label, wsp::Button *address, Edit edit, float, float, float,
+                                    char const *)
+{
+    auto findSelected = [&]() {
+        int i = 0;
+
+        for (std::pair<char const *, wsp::Button *> const &pair : wsp::WSP_BUTTON_DICTIONARY)
+        {
+            if (*address == *pair.second)
+            {
+                return i;
+            }
+            i++;
+        }
+
+        return 0;
+    };
+
+    bool modified = false;
+
+    ImGui::SetNextItemWidth(200);
+    if (ImGui::BeginCombo(label, wsp::WSP_BUTTON_DICTIONARY[findSelected()].first))
+    {
+        for (std::pair<char const *, wsp::Button *> const &pair : wsp::WSP_BUTTON_DICTIONARY)
+        {
+            bool const isSelected = (*pair.second == *address);
+
+            if (ImGui::Selectable(pair.first, isSelected))
+            {
+                address->code = pair.second->code;
+                address->source = pair.second->source;
+                address->id = pair.second->id;
+                modified = true;
+            }
+
+            if (isSelected)
+            {
+                ImGui::SetItemDefaultFocus();
+            }
+        }
+        ImGui::EndCombo();
+    }
+
+    return modified;
+}
+
+} // namespace frost
+
 #endif

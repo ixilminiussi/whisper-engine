@@ -11,7 +11,6 @@
 #include <IconsMaterialSymbols.h>
 
 #include <wsp_custom_imgui.hpp>
-#include <wsp_inputs.hpp>
 #include <wsp_typedefs.hpp>
 #include <wsp_types/dictionary.hpp>
 
@@ -270,98 +269,7 @@ inline bool RenderNode<char const *>(char const *label, char const **address, Ed
 }
 
 template <>
-inline bool RenderNode<wsp::Axis>(char const *label, wsp::Axis *address, Edit edit, float, float, float, char const *)
-{
-    auto findSelected = [&]() {
-        int i = 0;
-
-        for (auto &pair : wsp::WSP_AXIS_DICTIONARY)
-        {
-            if (*address == *pair.second)
-            {
-                return i;
-            }
-            i++;
-        }
-
-        return 0;
-    };
-
-    int const currentItem = findSelected();
-    bool modified = false;
-
-    ImGui::SetNextItemWidth(200);
-    if (ImGui::BeginCombo(label, wsp::WSP_AXIS_DICTIONARY[currentItem].first))
-    {
-        for (std::pair<char const *, wsp::Axis *> const &pair : wsp::WSP_AXIS_DICTIONARY)
-        {
-            bool const isSelected = (*pair.second == *address);
-
-            if (ImGui::Selectable(pair.first, isSelected))
-            {
-                address->code = pair.second->code;
-                address->source = pair.second->source;
-                address->id = pair.second->id;
-                modified = true;
-            }
-
-            if (isSelected)
-            {
-                ImGui::SetItemDefaultFocus();
-            }
-        }
-        ImGui::EndCombo();
-    }
-
-    return modified;
-}
-
-template <>
-inline bool RenderNode<wsp::Button>(char const *label, wsp::Button *address, Edit edit, float, float, float,
-                                    char const *)
-{
-    auto findSelected = [&]() {
-        int i = 0;
-
-        for (std::pair<char const *, wsp::Button *> const &pair : wsp::WSP_BUTTON_DICTIONARY)
-        {
-            if (*address == *pair.second)
-            {
-                return i;
-            }
-            i++;
-        }
-
-        return 0;
-    };
-
-    bool modified = false;
-
-    ImGui::SetNextItemWidth(200);
-    if (ImGui::BeginCombo(label, wsp::WSP_BUTTON_DICTIONARY[findSelected()].first))
-    {
-        for (std::pair<char const *, wsp::Button *> const &pair : wsp::WSP_BUTTON_DICTIONARY)
-        {
-            bool const isSelected = (*pair.second == *address);
-
-            if (ImGui::Selectable(pair.first, isSelected))
-            {
-                address->code = pair.second->code;
-                address->source = pair.second->source;
-                address->id = pair.second->id;
-                modified = true;
-            }
-
-            if (isSelected)
-            {
-                ImGui::SetItemDefaultFocus();
-            }
-        }
-        ImGui::EndCombo();
-    }
-
-    return modified;
-}
+bool RenderNode<TextureID>(char const *label, TextureID *address, Edit edit, float, float, float, char const *);
 
 template <typename First, typename Second>
 inline bool RenderNode(char const *label, std::pair<First, Second> *address, Edit edit, float min, float max,

@@ -1,3 +1,4 @@
+#include "wsp_constants.hpp"
 #include <wsp_material.hpp>
 
 #include <wsp_assets_manager.hpp>
@@ -98,6 +99,7 @@ Material::Material(CreateInfo const &createInfo)
       _albedoColor{createInfo.albedoColor}, _fresnelColor{createInfo.fresnelColor}, _roughness{createInfo.roughness},
       _metallic{createInfo.metallic}, _anisotropy{createInfo.anisotropy}, _name{createInfo.name}
 {
+    spdlog::debug("Material: <{}>", _name);
 }
 
 void Material::GetInfo(ubo::Material *info) const

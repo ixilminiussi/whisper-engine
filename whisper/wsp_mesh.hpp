@@ -63,11 +63,9 @@ class Mesh : public Drawable
     Mesh &operator=(Mesh const &) = delete;
 
     virtual void Bind(vk::CommandBuffer) const override;
-    virtual void Draw(vk::CommandBuffer, vk::PipelineLayout) const override;
+    virtual void Draw(vk::CommandBuffer, vk::PipelineLayout, class Transform const &) const override;
 
-    virtual float GetRadius() const override;
-
-    void PushConstant(Primitive const &, vk::CommandBuffer, vk::PipelineLayout) const;
+    void PushConstant(Primitive const &, class Transform const &, vk::CommandBuffer, vk::PipelineLayout) const;
 
   private:
     std::string _name;
@@ -79,8 +77,6 @@ class Mesh : public Drawable
 
     vk::Buffer _indexBuffer;
     vk::DeviceMemory _indexDeviceMemory;
-
-    float _radius;
 };
 
 } // namespace wsp

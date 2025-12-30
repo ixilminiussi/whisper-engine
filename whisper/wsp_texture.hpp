@@ -2,7 +2,6 @@
 #define WSP_TEXTURE_HPP
 
 #include <wsp_image.hpp>
-#include <wsp_sampler.hpp>
 
 #include <stb_image.h>
 #include <vulkan/vulkan.hpp>
@@ -23,8 +22,8 @@ class Texture
   public:
     struct CreateInfo
     {
-        Sampler const *pSampler{nullptr};
-        Image const *pImage{nullptr};
+        class Sampler const *pSampler{nullptr};
+        class Image const *pImage{nullptr};
         bool depth{false};
 
         Image::CreateInfo imageInfo{};
@@ -45,10 +44,13 @@ class Texture
     vk::ImageView GetImageView() const;
     vk::Sampler GetSampler() const;
 
+    class Image const *GetImage() const;
+
   protected:
     std::string _name;
 
     class Sampler const *_sampler;
+    class Image const *_image;
 
     vk::ImageView _imageView;
 };

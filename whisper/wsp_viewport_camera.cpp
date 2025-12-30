@@ -17,25 +17,29 @@ ViewportCamera::ViewportCamera(glm::vec3 const &orbitPoint, float distance, glm:
     : _orbitDistance{distance}, _rotation{rotation}, _orbitTarget{orbitPoint}, _orbitPoint{orbitPoint},
       _orbitLerp{0.1f}, _possessionMode{eReleased}, _mouseSensitivity{2.f, 1.5f}, _movementSpeed{10.f}
 {
+    SetOrbitDistance(_orbitDistance);
+}
+
+void ViewportCamera::Refresh()
+{
+    RefreshView();
+    _camera.Refresh();
+}
+
+void ViewportCamera::SetOrbitDistance(float distance)
+{
+    _orbitDistance = distance;
+    _orbitDistance = std::max(_orbitDistance, 0.05f);
+
     _camera.SetLeft(-_orbitDistance);
     _camera.SetRight(_orbitDistance);
     _camera.SetTop(-_orbitDistance);
     _camera.SetBottom(_orbitDistance);
     _camera.SetNear(-_orbitDistance);
     _camera.SetFar(_orbitDistance);
-
-    _camera.SetPerspectiveProjection(40.f, 1.f, 0.01f, 1000.f);
-    RefreshView();
-}
-
-void ViewportCamera::Refresh()
-{
-    RefreshView();
-}
-
-void ViewportCamera::SetOrbitDistance(float distance)
-{
-    _orbitDistance = distance;
+    _camera.SetFOV(40.f);
+    _camera.SetNearPlane(0.01f);
+    _camera.SetFarPlane(10000.f);
 }
 
 void ViewportCamera::SetOrbitTarget(glm::vec3 const &target)
@@ -51,14 +55,9 @@ glm::vec3 const &ViewportCamera::GetOrbitTarget() const
 void ViewportCamera::Zoom(float value)
 {
     _orbitDistance *= 1.0f - value;
-    _orbitDistance = glm::clamp(_orbitDistance, 0.05f, 400.f);
+    _orbitDistance = std::max(_orbitDistance, 0.05f);
 
-    _camera.SetLeft(-_orbitDistance);
-    _camera.SetRight(_orbitDistance);
-    _camera.SetTop(-_orbitDistance);
-    _camera.SetBottom(_orbitDistance);
-    _camera.SetNear(-_orbitDistance);
-    _camera.SetFar(_orbitDistance);
+    SetOrbitDistance(_orbitDistance);
 }
 
 glm::vec3 const &ViewportCamera::GetPosition() const
@@ -192,7 +191,6 @@ void ViewportCamera::OnKeyboardMovement(double dt, glm::vec2 value)
         _orbitPoint += right * 0.01f * value.x;
 
         _orbitTarget = _orbitPoint;
-        RefreshView();
     }
 }
 
@@ -200,14 +198,11 @@ void ViewportCamera::Lift(double dt, int value)
 {
     if (_possessionMode == eMove)
     {
-        RefreshView();
-
         glm::vec3 constexpr up = glm::vec3{0.f, 1.f, 0.f};
 
         _orbitPoint += up * 0.01f * _movementSpeed * (float)dt;
 
         _orbitTarget = _orbitPoint;
-        RefreshView();
     }
 }
 
@@ -215,26 +210,10 @@ void ViewportCamera::Sink(double dt, int value)
 {
     if (_possessionMode == eMove)
     {
-        RefreshView();
-
         glm::vec3 constexpr down = glm::vec3{0.f, -1.f, 0.f};
 
         _orbitPoint += down * 0.01f * _movementSpeed * (float)dt;
 
         _orbitTarget = _orbitPoint;
-        RefreshView();
     }
-}
-
-void ViewportCamera::Update(double dt)
-{
-    // movement inertia (slowly bring viewportCamera to target)
-    if (glm::distance(_orbitPoint, _orbitTarget) > glm::epsilon<float>())
-    {
-        glm::vec3 direction = _orbitTarget - _orbitPoint;
-        direction *= _orbitLerp * dt;
-        _orbitPoint += direction;
-    }
-
-    RefreshView();
 }
