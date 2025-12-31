@@ -73,7 +73,7 @@ class ViewportCamera
     WPROPERTY(Edit::eDrag, 0.01f, 1000000.f, 0.01f)
     float _orbitDistance;
 
-    WPROPERTY(Edit::eDrag, 0.01f, 1000000.f, 0.01f)
+    WPROPERTY(Edit::eDrag, 50.0f, 1000000.f, 50.0f)
     float _viewDistance;
 
     WPROPERTY(Edit::eDrag)

@@ -57,7 +57,6 @@ class AssetsManager
     class Mesh const *GetMesh(MeshID const &) const;
 
     class StaticTextures *GetStaticTextures() const;
-    class StaticTextures *GetStaticEngineTextures() const;
     class StaticTextures *GetStaticCubemaps() const;
 
     friend class Editor;
@@ -69,7 +68,6 @@ class AssetsManager
     AssetsManager();
 
     class StaticTextures *_staticTextures;
-    class StaticTextures *_staticEngineTextures;
     class StaticTextures *_staticCubemaps;
 
     std::vector<class Mesh *> _meshes;

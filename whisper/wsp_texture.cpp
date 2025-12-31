@@ -84,7 +84,7 @@ Texture::Texture(Device const *device, CreateInfo const &createInfo) : _name{cre
     viewCreateInfo.subresourceRange.aspectMask =
         createInfo.depth ? vk::ImageAspectFlagBits::eDepth : vk::ImageAspectFlagBits::eColor;
     viewCreateInfo.subresourceRange.baseMipLevel = 0u;
-    viewCreateInfo.subresourceRange.levelCount = 1u;
+    viewCreateInfo.subresourceRange.levelCount = _image->GetMipLevels();
     viewCreateInfo.subresourceRange.baseArrayLayer = 0u;
     viewCreateInfo.subresourceRange.layerCount = cubemap ? 6u : 1u;
 

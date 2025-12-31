@@ -10,8 +10,7 @@ layout(location = 0) out vec4 out_color;
 
 layout(set = 1, binding = 0) uniform sampler2D shadowMap;
 layout(set = 2, binding = 0) uniform sampler2D textures[];
-layout(set = 3, binding = 0) uniform sampler2D engineTextures[];
-layout(set = 4, binding = 0) uniform samplerCube cubemaps[];
+layout(set = 3, binding = 0) uniform samplerCube cubemaps[];
 
 #include "ubo.glsl"
 
@@ -24,10 +23,10 @@ layout(push_constant) uniform Push
 }
 push;
 
-vec4 getSky(in vec3 ray)
+vec4 getSky(in vec3 ray, in float mipLevel)
 {
     int skyboxTexID = ubo.light.skyboxTex;
-    return skyboxTexID != INVALID_ID ? texture(cubemaps[skyboxTexID], ray) : vec4(ubo.light.sun.color.rgb, 0.);
+    return skyboxTexID != INVALID_ID ? texture(cubemaps[skyboxTexID], ray, 7.) : vec4(ubo.light.sun.color.rgb, 0.);
 }
 
 vec4 getIrradiance(in vec3 ray)
@@ -168,11 +167,9 @@ void main()
 
     // IBL
     vec4 irradiance = getIrradiance(-N);
-    // vec2 brdf = texture(engineTextures[0], vec2(NdotV, roughness)).rg;
 
     // placeholder, will use mip maps
-    vec3 specularIBL = mix(getSky(-R).rgb, getIrradiance(-R).rgb, roughness) * kS;
-    // specularIBL *= (brdf.r + brdf.g);
+    vec3 specularIBL = getSky(-R, roughness).rgb * kS;
 
     vec3 diffuseIBL = (albedo * irradiance.rgb * irradiance.a) * kD * occlusion;
 

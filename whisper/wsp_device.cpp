@@ -589,17 +589,6 @@ void Device::CopyBufferToImage(vk::Buffer source, vk::Image *destination, uint32
 
     commandBuffer.copyBufferToImage(source, *destination, vk::ImageLayout::eTransferDstOptimal, 1, &copyRegion);
 
-    commandBuffer.pipelineBarrier(vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eAllGraphics, {}, {},
-                                  {},
-                                  vk::ImageMemoryBarrier{vk::AccessFlagBits::eTransferWrite,
-                                                         vk::AccessFlagBits::eShaderRead,
-                                                         vk::ImageLayout::eTransferDstOptimal,
-                                                         vk::ImageLayout::eShaderReadOnlyOptimal,
-                                                         vk::QueueFamilyIgnored,
-                                                         vk::QueueFamilyIgnored,
-                                                         *destination,
-                                                         {vk::ImageAspectFlagBits::eColor, 0, 1, 0, layerCount}});
-
     EndSingleTimeCommand(commandBuffer);
 }
 

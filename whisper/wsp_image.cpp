@@ -23,6 +23,9 @@ Image::Image(Device const *device, CreateInfo const &createInfo)
     int width, height, channels, size;
 
     auto build = [&](void *pixels) {
+        _mipLevels =
+            (uint32_t)std::max((double)createInfo.mipLevels, 1u + std::floor(std::log2(std::max(width, height))));
+
         if (createInfo.format == vk::Format::eUndefined)
         {
             _format = SelectFormat(channels, size);
@@ -40,11 +43,11 @@ Image::Image(Device const *device, CreateInfo const &createInfo)
 
         if (createInfo.cubemap)
         {
-            BuildCubemap(device, pixels, width, height, size, channels, _format);
+            BuildCubemap(device, pixels, width, height, size, channels, _format, _mipLevels);
         }
         else
         {
-            BuildImage(device, pixels, width, height, size, channels, _format);
+            BuildImage(device, pixels, width, height, size, channels, _format, _mipLevels);
         }
     };
 
@@ -90,6 +93,7 @@ Image::Image(Device const *device, vk::ImageCreateInfo const &createInfo, std::s
 
     _cubemap = createInfo.arrayLayers == 6u && createInfo.flags & vk::ImageCreateFlagBits::eCubeCompatible;
     _format = createInfo.format;
+    _mipLevels = createInfo.mipLevels;
 
     device->CreateImageAndBindMemory(createInfo, &_image, &_deviceMemory, name);
 }
@@ -105,8 +109,98 @@ Image::~Image()
     spdlog::debug("Image: <{}> freed", GetName());
 }
 
+void Image::GenerateMipmaps(Device const *device, vk::Format format, int32_t width, int32_t height, uint32_t mipLevels,
+                            uint32_t layerCount)
+{
+    int32_t previousWidth = width;
+    int32_t previousHeight = height;
+
+    vk::CommandBuffer const commandBuffer = device->BeginSingleTimeCommand();
+
+    // transition first image to TransferSrc
+    commandBuffer.pipelineBarrier(vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eTransfer, {}, {},
+                                  {},
+                                  vk::ImageMemoryBarrier{vk::AccessFlagBits::eNone,
+                                                         vk::AccessFlagBits::eTransferRead,
+                                                         vk::ImageLayout::eUndefined,
+                                                         vk::ImageLayout::eTransferSrcOptimal,
+                                                         vk::QueueFamilyIgnored,
+                                                         vk::QueueFamilyIgnored,
+                                                         _image,
+                                                         {vk::ImageAspectFlagBits::eColor, 0, 1, 0, layerCount}});
+
+    for (uint32_t i = 1; i < mipLevels; ++i)
+    {
+        int32_t const mipWidth = std::max(1, (width >> i));
+        int32_t const mipHeight = std::max(1, (height >> i));
+
+        vk::ImageBlit blit{};
+        blit.srcSubresource.aspectMask = vk::ImageAspectFlagBits::eColor;
+        blit.srcSubresource.mipLevel = i - 1;
+        blit.srcSubresource.layerCount = layerCount;
+        blit.srcOffsets[1] = vk::Offset3D{previousWidth, previousHeight, 1};
+
+        blit.dstSubresource.aspectMask = vk::ImageAspectFlagBits::eColor;
+        blit.dstSubresource.mipLevel = i;
+        blit.dstSubresource.layerCount = layerCount;
+        blit.dstOffsets[1] = vk::Offset3D{mipWidth, mipHeight, 1};
+
+        commandBuffer.pipelineBarrier(vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eTransfer, {},
+                                      {}, {},
+                                      vk::ImageMemoryBarrier{vk::AccessFlagBits::eNone,
+                                                             vk::AccessFlagBits::eTransferWrite,
+                                                             vk::ImageLayout::eUndefined,
+                                                             vk::ImageLayout::eTransferDstOptimal,
+                                                             vk::QueueFamilyIgnored,
+                                                             vk::QueueFamilyIgnored,
+                                                             _image,
+                                                             {vk::ImageAspectFlagBits::eColor, i, 1, 0, layerCount}});
+
+        commandBuffer.blitImage(_image, vk::ImageLayout::eTransferSrcOptimal, _image,
+                                vk::ImageLayout::eTransferDstOptimal, 1, &blit, vk::Filter::eLinear);
+
+        commandBuffer.pipelineBarrier(vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eTransfer, {},
+                                      {}, {},
+                                      vk::ImageMemoryBarrier{vk::AccessFlagBits::eTransferWrite,
+                                                             vk::AccessFlagBits::eTransferRead,
+                                                             vk::ImageLayout::eTransferDstOptimal,
+                                                             vk::ImageLayout::eTransferSrcOptimal,
+                                                             vk::QueueFamilyIgnored,
+                                                             vk::QueueFamilyIgnored,
+                                                             _image,
+                                                             {vk::ImageAspectFlagBits::eColor, i, 1, 0, layerCount}});
+
+        commandBuffer.pipelineBarrier(
+            vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eAllGraphics, {}, {}, {},
+            vk::ImageMemoryBarrier{vk::AccessFlagBits::eTransferRead,
+                                   vk::AccessFlagBits::eShaderRead,
+                                   vk::ImageLayout::eTransferSrcOptimal,
+                                   vk::ImageLayout::eShaderReadOnlyOptimal,
+                                   vk::QueueFamilyIgnored,
+                                   vk::QueueFamilyIgnored,
+                                   _image,
+                                   {vk::ImageAspectFlagBits::eColor, i - 1, 1, 0, layerCount}});
+
+        previousWidth = mipWidth;
+        previousHeight = mipHeight;
+    }
+
+    commandBuffer.pipelineBarrier(
+        vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eAllGraphics, {}, {}, {},
+        vk::ImageMemoryBarrier{vk::AccessFlagBits::eTransferRead,
+                               vk::AccessFlagBits::eShaderRead,
+                               vk::ImageLayout::eTransferSrcOptimal,
+                               vk::ImageLayout::eShaderReadOnlyOptimal,
+                               vk::QueueFamilyIgnored,
+                               vk::QueueFamilyIgnored,
+                               _image,
+                               {vk::ImageAspectFlagBits::eColor, mipLevels - 1, 1, 0, layerCount}});
+
+    device->EndSingleTimeCommand(commandBuffer);
+}
+
 void Image::BuildImage(Device const *device, void *pixels, uint32_t width, uint32_t height, size_t size,
-                       uint32_t channels, vk::Format format)
+                       uint32_t channels, vk::Format format, uint32_t mipLevels)
 {
     check(device);
 
@@ -118,16 +212,16 @@ void Image::BuildImage(Device const *device, void *pixels, uint32_t width, uint3
     if (t_size != size)
     {
         throw std::invalid_argument("Image: incompatible format with given size");
-        ;
     }
 
     vk::ImageCreateInfo imageInfo{};
     imageInfo.imageType = vk::ImageType::e2D;
     imageInfo.extent = vk::Extent3D{(uint32_t)width, (uint32_t)height, 1u};
     imageInfo.format = format;
-    imageInfo.usage = vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled;
+    imageInfo.usage =
+        vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled;
     imageInfo.tiling = vk::ImageTiling::eOptimal;
-    imageInfo.mipLevels = 1u;
+    imageInfo.mipLevels = mipLevels;
     imageInfo.arrayLayers = 1u;
 
     device->CreateImageAndBindMemory(imageInfo, &_image, &_deviceMemory, fmt::format("{}<texture>", GetName()));
@@ -153,10 +247,12 @@ void Image::BuildImage(Device const *device, void *pixels, uint32_t width, uint3
     device->CopyBufferToImage(buffer, &_image, width, height, 1, 1);
     device->DestroyBuffer(&buffer);
     device->FreeDeviceMemory(&deviceMemory);
+
+    GenerateMipmaps(device, format, width, height, mipLevels, 1u);
 }
 
 void Image::BuildCubemap(Device const *device, void *pixels, uint32_t width, uint32_t height, size_t size,
-                         uint32_t channels, vk::Format format)
+                         uint32_t channels, vk::Format format, uint32_t mipLevels)
 {
     uint32_t const t_width = width;
     uint32_t const t_height = height / 6u;
@@ -178,9 +274,14 @@ void Image::BuildCubemap(Device const *device, void *pixels, uint32_t width, uin
     imageInfo.format = format;
     imageInfo.usage = vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled;
     imageInfo.tiling = vk::ImageTiling::eOptimal;
-    imageInfo.mipLevels = 1u;
+    imageInfo.mipLevels = mipLevels;
     imageInfo.arrayLayers = 6u;
     imageInfo.flags |= vk::ImageCreateFlagBits::eCubeCompatible;
+
+    if (mipLevels > 1u)
+    {
+        imageInfo.usage |= vk::ImageUsageFlagBits::eTransferSrc;
+    }
 
     device->CreateImageAndBindMemory(imageInfo, &_image, &_deviceMemory, fmt::format("{}<texture>", GetName()));
 
@@ -210,6 +311,8 @@ void Image::BuildCubemap(Device const *device, void *pixels, uint32_t width, uin
     device->CopyBufferToImage(buffer, &_image, t_width, t_height, 1, 6);
     device->DestroyBuffer(&buffer);
     device->FreeDeviceMemory(&deviceMemory);
+
+    GenerateMipmaps(device, format, t_width, t_height, mipLevels, 6u);
 }
 
 void Image::CopyFaceToFace(uint32_t left, uint32_t top, uint32_t faceID, void *source, uint32_t s_width,
@@ -276,4 +379,9 @@ vk::Format Image::GetFormat() const
 bool Image::IsCubemap() const
 {
     return _cubemap;
+}
+
+uint32_t Image::GetMipLevels() const
+{
+    return _mipLevels;
 }

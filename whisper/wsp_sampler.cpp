@@ -87,6 +87,8 @@ Sampler::Sampler(Device const *device, Sampler::CreateInfo const &createInfo)
     samplerCreateInfo.unnormalizedCoordinates = false;
     samplerCreateInfo.compareEnable = createInfo.depth;
     samplerCreateInfo.mipmapMode = createInfo.mipmapMode;
+    samplerCreateInfo.minLod = 0.f;
+    samplerCreateInfo.maxLod = 7.f;
 
     _sampler = device->CreateSampler(samplerCreateInfo, "sampler");
 }

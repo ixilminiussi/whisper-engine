@@ -1,3 +1,4 @@
+#include "wsp_custom_imgui.hpp"
 #include <spdlog/spdlog.h>
 #include <wsp_environment.hpp>
 
@@ -20,6 +21,7 @@ Environment::Environment() : _sunDirection{3.35f, 0.87f}, _sunColor{1.f}, _sunIn
         (std::filesystem::path(WSP_ENGINE_ASSETS) / std::filesystem::path("skybox.exr")).lexically_normal();
     skyboxImageInfo.format = vk::Format::eR32G32B32A32Sfloat;
     skyboxImageInfo.cubemap = true;
+    skyboxImageInfo.mipLevels = 8;
     Image const *skyboxImage = assetsManager->RequestImage(skyboxImageInfo);
 
     Texture::CreateInfo skyboxTextureInfo{};

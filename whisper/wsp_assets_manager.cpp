@@ -46,7 +46,6 @@ AssetsManager::AssetsManager() : _fileRoot{WSP_ASSETS}
 {
     _staticTextures = new StaticTextures{MAX_DYNAMIC_TEXTURES, false, "static 2d textures"};
     _staticCubemaps = new StaticTextures{2, true, "static cube textures"};
-    _staticEngineTextures = new StaticTextures{1, false, "static engine textures"};
 
     _meshes.reserve(1024);
 }
@@ -55,19 +54,6 @@ void AssetsManager::LoadDefaults()
 {
     Device const *device = SafeDeviceAccessor::Get();
     check(device);
-
-    Image::CreateInfo brdfLUTImageInfo{};
-    brdfLUTImageInfo.filepath =
-        (std::filesystem::path(WSP_ENGINE_ASSETS) / std::filesystem::path("brdfLUT.png")).lexically_normal();
-    brdfLUTImageInfo.format = vk::Format::eR8G8B8Srgb;
-    Image const *brdfImage = RequestImage(brdfLUTImageInfo);
-
-    Texture::CreateInfo brdfLUTTextureInfo{};
-    brdfLUTTextureInfo.pImage = brdfImage;
-    brdfLUTTextureInfo.pSampler = RequestSampler();
-    brdfLUTTextureInfo.name = "brdfLUT";
-
-    _staticEngineTextures->Push({LoadTexture(brdfLUTTextureInfo)});
 
     Image::CreateInfo missingImageInfo{};
     missingImageInfo.filepath =
@@ -173,7 +159,6 @@ void AssetsManager::UnloadAll()
     _meshes.clear();
 
     delete _staticTextures;
-    delete _staticEngineTextures;
     delete _staticCubemaps;
 
     spdlog::info("AssetsManager: terminated");
@@ -427,11 +412,6 @@ Mesh const *AssetsManager::GetMesh(MeshID const &id) const
 StaticTextures *AssetsManager::GetStaticTextures() const
 {
     return _staticTextures;
-}
-
-StaticTextures *AssetsManager::GetStaticEngineTextures() const
-{
-    return _staticEngineTextures;
 }
 
 StaticTextures *AssetsManager::GetStaticCubemaps() const

@@ -154,7 +154,6 @@ Editor::Editor() : _scene{nullptr}
     meshPassInfo.writes = {colorResource, depthResource};
     meshPassInfo.readsUniform = true;
     meshPassInfo.staticTextures = {AssetsManager::Get()->GetStaticTextures(),
-                                   AssetsManager::Get()->GetStaticEngineTextures(),
                                    AssetsManager::Get()->GetStaticCubemaps()};
     meshPassInfo.vertexInputInfo = Mesh::Vertex::GetVertexInputInfo();
     meshPassInfo.pushConstantSize = sizeof(Mesh::PushData);
