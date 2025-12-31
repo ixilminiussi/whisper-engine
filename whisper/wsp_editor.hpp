@@ -51,7 +51,7 @@ class Editor
     bool _isHoveringViewport;
 
     void RenderContentBrowser(bool *show);
-    void RenderGraphicsManager(bool *show);
+    void RenderFrameInfoMenuBar() const;
 
     std::unique_ptr<class ViewportCamera> _viewportCamera;
     std::unique_ptr<class InputManager> _inputManager;

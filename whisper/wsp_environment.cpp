@@ -1,3 +1,4 @@
+#include <spdlog/spdlog.h>
 #include <wsp_environment.hpp>
 
 #include <wsp_assets_manager.hpp>

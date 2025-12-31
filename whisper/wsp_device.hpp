@@ -5,9 +5,6 @@
 #include <wsp_devkit.hpp>
 
 #include <vulkan/vulkan.hpp>
-#include <vulkan/vulkan_enums.hpp>
-#include <vulkan/vulkan_handles.hpp>
-#include <vulkan/vulkan_structs.hpp>
 
 #include <tracy/TracyVulkan.hpp>
 
@@ -121,6 +118,9 @@ class Device
 
     uint32_t FindMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags) const;
 
+    void GetMemoryProperties(vk::PhysicalDeviceMemoryProperties2 *,
+                             vk::PhysicalDeviceMemoryBudgetPropertiesEXT *) const;
+
     void AcquireNextImageKHR(vk::SwapchainKHR, vk::Semaphore, vk::Fence, uint32_t *imageIndex,
                              uint64_t timeout = UINT64_MAX) const;
     std::vector<vk::Image> GetSwapchainImagesKHR(vk::SwapchainKHR, uint32_t minImageCount) const;
@@ -181,6 +181,7 @@ class SafeDeviceAccessor
     friend class Sampler;
     friend class Mesh;
     friend class Swapchain;
+    friend class Editor;
 };
 
 } // namespace wsp

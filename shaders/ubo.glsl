@@ -1,4 +1,4 @@
-#define INVALID_ID 0
+#define INVALID_ID -1
 
 struct Camera
 {

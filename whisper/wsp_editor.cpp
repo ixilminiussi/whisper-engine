@@ -1,3 +1,6 @@
+#include "wsp_device.hpp"
+#include <vulkan/vulkan_enums.hpp>
+#include <vulkan/vulkan_structs.hpp>
 #ifndef NDEBUG
 #include <wsp_editor.hpp>
 
@@ -222,13 +225,18 @@ void Editor::Render()
         static bool showContentBrowser = true;
 
         static bool showEditorSettings = false;
-        static bool showGraphicsSettings = true;
+        static bool showFrameInfo = true;
 
         if (ImGui::BeginMainMenuBar())
         {
             if (ImGui::BeginMenu("options"))
             {
                 ImGui::MenuItem("editor preferences", nullptr, &showEditorSettings);
+                if (ImGui::MenuItem("reload shaders"))
+                {
+                    _rebuild();
+                }
+
                 ImGui::EndMenu();
             }
             if (ImGui::BeginMenu("windows"))
@@ -236,8 +244,15 @@ void Editor::Render()
                 ImGui::MenuItem("viewport", nullptr, &showViewport);
                 ImGui::MenuItem("view settings", nullptr, &showViewSettings);
                 ImGui::MenuItem("content browser", nullptr, &showContentBrowser);
+                ImGui::MenuItem("frame info", nullptr, &showFrameInfo);
                 ImGui::EndMenu();
             }
+
+            if (showFrameInfo)
+            {
+                RenderFrameInfoMenuBar();
+            }
+
             ImGui::EndMainMenuBar();
         }
 
@@ -270,11 +285,6 @@ void Editor::Render()
         if (showContentBrowser)
         {
             RenderContentBrowser(&showContentBrowser);
-        }
-
-        if (showGraphicsSettings)
-        {
-            RenderGraphicsManager(&showGraphicsSettings);
         }
 
         if (showEditorSettings)
@@ -585,24 +595,55 @@ void Editor::RenderContentBrowser(bool *show)
     ImGui::End();
 }
 
-void Editor::RenderGraphicsManager(bool *show)
+void Editor::RenderFrameInfoMenuBar() const
 {
-    RenderManager *renderManager = RenderManager::Get();
-    check(renderManager);
+    vk::PhysicalDeviceMemoryProperties2 memProps2{};
+    vk::PhysicalDeviceMemoryBudgetPropertiesEXT budgetProps{};
+    SafeDeviceAccessor::Get()->GetMemoryProperties(&memProps2, &budgetProps);
 
-    check(show);
+    auto const &heaps = memProps2.memoryProperties.memoryHeaps;
 
-    ImGui::Begin("Graphics Manager", show);
-
-    ImGui::Text("%f", _deltaTime);
-    ImGui::Text("%f", 1. / _deltaTime);
-
-    if (wsp::VanillaButton("Rebuild"))
+    float const FPS = 1. / _deltaTime;
+    ImGui::TextUnformatted("FPS:");
+    ImGui::SameLine();
+    if (FPS > 60.f)
     {
-        _rebuild();
+        wsp::GreenText("%.1f", FPS);
+    }
+    else if (FPS > 45.f)
+    {
+        wsp::YellowText("%.1f", FPS);
+    }
+    else
+    {
+        wsp::RedText("%.1f", FPS);
     }
 
-    ImGui::End();
+    ImGui::SameLine();
+
+    for (uint32_t i = 0; i < memProps2.memoryProperties.memoryHeapCount; ++i)
+    {
+        if (!(heaps[i].flags & vk::MemoryHeapFlagBits::eDeviceLocal))
+        {
+            continue;
+        }
+
+        constexpr double toGiB = 1024.0 * 1024.0 * 1024.0;
+        double const usage = budgetProps.heapUsage[i] / toGiB;
+        double const budget = budgetProps.heapBudget[i] / toGiB;
+
+        ImGui::TextUnformatted("VRAM:");
+        ImGui::SameLine();
+
+        if (usage > budget)
+            wsp::RedText("%.2f / %.2f GiB", usage, budget);
+        else if (usage > 0.9 * budget)
+            wsp::YellowText("%.2f / %.2f GiB", usage, budget);
+        else
+            wsp::GreenText("%.2f / %.2f GiB", usage, budget);
+
+        break; // one heap only
+    }
 }
 
 #endif

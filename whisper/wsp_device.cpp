@@ -1,4 +1,3 @@
-#include <vulkan/vulkan.hpp>
 #include <wsp_device.hpp>
 
 #include <wsp_devkit.hpp>
@@ -10,10 +9,7 @@
 
 #include <imgui_impl_vulkan.h>
 
-#include <vulkan/vulkan_core.h>
-#include <vulkan/vulkan_enums.hpp>
-#include <vulkan/vulkan_handles.hpp>
-#include <vulkan/vulkan_structs.hpp>
+#include <vulkan/vulkan.hpp>
 
 #include <set>
 #include <stdexcept>
@@ -884,6 +880,14 @@ uint32_t Device::FindMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags pro
     }
 
     throw std::runtime_error("Device: failed to find suitable memory type");
+}
+
+void Device::GetMemoryProperties(vk::PhysicalDeviceMemoryProperties2 *memoryProperties2,
+                                 vk::PhysicalDeviceMemoryBudgetPropertiesEXT *budgetProperties) const
+{
+    memoryProperties2->pNext = budgetProperties;
+
+    _physicalDevice.getMemoryProperties2(memoryProperties2);
 }
 
 void Device::AllocateCommandBuffers(std::vector<vk::CommandBuffer> *commandBuffers) const

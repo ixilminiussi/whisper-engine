@@ -51,7 +51,8 @@ TracyVkCtx TRACY_CTX;
 
 RenderManager::RenderManager()
     : _validationLayers{"VK_LAYER_KHRONOS_validation"},
-      _deviceExtensions{vk::KHRSwapchainExtensionName, vk::KHRMaintenance2ExtensionName}
+      _deviceExtensions{vk::KHRSwapchainExtensionName, vk::KHRMaintenance2ExtensionName,
+                        vk::EXTMemoryBudgetExtensionName}
 
 {
     ZoneScopedN("initialize");

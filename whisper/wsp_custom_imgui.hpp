@@ -225,6 +225,30 @@ inline bool VanillaButton(char const *label, ImVec2 const &size = ImVec2{0.f, 0.
     return r;
 }
 
+inline void GreenText(char const *fmt, ...)
+{
+    va_list args;
+    va_start(args, fmt);
+    ImGui::TextColoredV(decodeSRGB(catppuccin::green), fmt, args);
+    va_end(args);
+}
+
+inline void YellowText(char const *fmt, ...)
+{
+    va_list args;
+    va_start(args, fmt);
+    ImGui::TextColoredV(decodeSRGB(catppuccin::yellow), fmt, args);
+    va_end(args);
+}
+
+inline void RedText(char const *fmt, ...)
+{
+    va_list args;
+    va_start(args, fmt);
+    ImGui::TextColoredV(decodeSRGB(catppuccin::red), fmt, args);
+    va_end(args);
+}
+
 } // namespace wsp
 
 #endif
