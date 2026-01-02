@@ -77,9 +77,9 @@ class Graph
     void BuildDescriptorPool();
     void BuildDescriptors(Resource);
 
-    bool FindDependencies(std::set<Resource> *validResources, std::set<Pass> *validPasses, Resource pass,
+    void FindDependencies(std::set<Resource> *validResources, std::set<Pass> *validPasses, Resource pass,
                           std::set<std::variant<Resource, Pass>> &visitingStack);
-    bool FindDependencies(std::set<Resource> *validResources, std::set<Pass> *validPasses, Pass pass,
+    void FindDependencies(std::set<Resource> *validResources, std::set<Pass> *validPasses, Pass pass,
                           std::set<std::variant<Resource, Pass>> &visitingStack);
 
     void Reset();

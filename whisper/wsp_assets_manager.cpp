@@ -45,6 +45,7 @@ AssetsManager *AssetsManager::Get()
 AssetsManager::AssetsManager() : _fileRoot{WSP_ASSETS}
 {
     _staticTextures = new StaticTextures{MAX_DYNAMIC_TEXTURES, false, "static 2d textures"};
+    _staticNoises = new StaticTextures{1, false, "static 2d noises"};
     _staticCubemaps = new StaticTextures{2, true, "static cube textures"};
 
     _meshes.reserve(1024);
@@ -54,6 +55,26 @@ void AssetsManager::LoadDefaults()
 {
     Device const *device = SafeDeviceAccessor::Get();
     check(device);
+
+    Sampler::CreateInfo wrapSamplerInfo{};
+    wrapSamplerInfo.addressModeU = vk::SamplerAddressMode::eRepeat;
+    wrapSamplerInfo.addressModeV = vk::SamplerAddressMode::eRepeat;
+    wrapSamplerInfo.addressModeW = vk::SamplerAddressMode::eRepeat;
+
+    Image::CreateInfo rgbNoiseImageInfo{};
+    rgbNoiseImageInfo.filepath =
+        (std::filesystem::path(WSP_ENGINE_ASSETS) / std::filesystem::path("rgb-noise.png")).lexically_normal();
+    rgbNoiseImageInfo.format = vk::Format::eR8G8B8Srgb;
+    Image const *rgbNoiseImage = RequestImage(rgbNoiseImageInfo);
+
+    Texture::CreateInfo rgbNoiseTextureInfo{};
+    rgbNoiseTextureInfo.pImage = rgbNoiseImage;
+    rgbNoiseTextureInfo.pSampler = RequestSampler(wrapSamplerInfo);
+    rgbNoiseTextureInfo.name = "rgb noise";
+
+    TextureID const rgbNoiseTexture = LoadTexture(rgbNoiseTextureInfo);
+
+    _staticNoises->Push({rgbNoiseTexture});
 
     Image::CreateInfo missingImageInfo{};
     missingImageInfo.filepath =
@@ -159,6 +180,7 @@ void AssetsManager::UnloadAll()
     _meshes.clear();
 
     delete _staticTextures;
+    delete _staticNoises;
     delete _staticCubemaps;
 
     spdlog::info("AssetsManager: terminated");
@@ -412,6 +434,11 @@ Mesh const *AssetsManager::GetMesh(MeshID const &id) const
 StaticTextures *AssetsManager::GetStaticTextures() const
 {
     return _staticTextures;
+}
+
+StaticTextures *AssetsManager::GetStaticNoises() const
+{
+    return _staticNoises;
 }
 
 StaticTextures *AssetsManager::GetStaticCubemaps() const

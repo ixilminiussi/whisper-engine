@@ -24,7 +24,7 @@ Image::Image(Device const *device, CreateInfo const &createInfo)
 
     auto build = [&](void *pixels) {
         _mipLevels =
-            (uint32_t)std::max((double)createInfo.mipLevels, 1u + std::floor(std::log2(std::max(width, height))));
+            (uint32_t)std::min((double)createInfo.mipLevels, 1u + std::floor(std::log2(std::max(width, height))));
 
         if (createInfo.format == vk::Format::eUndefined)
         {
@@ -272,16 +272,12 @@ void Image::BuildCubemap(Device const *device, void *pixels, uint32_t width, uin
     imageInfo.imageType = vk::ImageType::e2D;
     imageInfo.extent = vk::Extent3D{t_width, t_height, 1u};
     imageInfo.format = format;
-    imageInfo.usage = vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled;
+    imageInfo.usage =
+        vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled;
     imageInfo.tiling = vk::ImageTiling::eOptimal;
     imageInfo.mipLevels = mipLevels;
     imageInfo.arrayLayers = 6u;
     imageInfo.flags |= vk::ImageCreateFlagBits::eCubeCompatible;
-
-    if (mipLevels > 1u)
-    {
-        imageInfo.usage |= vk::ImageUsageFlagBits::eTransferSrc;
-    }
 
     device->CreateImageAndBindMemory(imageInfo, &_image, &_deviceMemory, fmt::format("{}<texture>", GetName()));
 

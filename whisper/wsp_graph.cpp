@@ -19,9 +19,7 @@
 
 #include <spdlog/spdlog.h>
 
-#include <vulkan/vulkan_enums.hpp>
-#include <vulkan/vulkan_handles.hpp>
-#include <vulkan/vulkan_structs.hpp>
+#include <vulkan/vulkan.hpp>
 
 #include <optional>
 #include <stdexcept>
@@ -129,7 +127,7 @@ void Graph::SetPopulateUboFunction(std::function<void *()> populateUbo)
     _populateUbo = populateUbo;
 }
 
-bool Graph::FindDependencies(std::set<Resource> *validResources, std::set<Pass> *validPasses, Resource resource,
+void Graph::FindDependencies(std::set<Resource> *validResources, std::set<Pass> *validPasses, Resource resource,
                              std::set<std::variant<Resource, Pass>> &visitingStack)
 {
     check(validResources);
@@ -137,7 +135,7 @@ bool Graph::FindDependencies(std::set<Resource> *validResources, std::set<Pass> 
 
     if (visitingStack.find(resource) != visitingStack.end())
     {
-        return true;
+        return;
     }
 
     visitingStack.insert(resource);
@@ -145,17 +143,13 @@ bool Graph::FindDependencies(std::set<Resource> *validResources, std::set<Pass> 
 
     for (Pass const &writer : GetResourceInfo(resource).writers)
     {
-        if (FindDependencies(validResources, validPasses, writer, visitingStack))
-        {
-            return true;
-        }
+        FindDependencies(validResources, validPasses, writer, visitingStack);
     }
 
     visitingStack.erase(resource);
-    return false;
 }
 
-bool Graph::FindDependencies(std::set<Resource> *validResources, std::set<Pass> *validPasses, Pass pass,
+void Graph::FindDependencies(std::set<Resource> *validResources, std::set<Pass> *validPasses, Pass pass,
                              std::set<std::variant<Resource, Pass>> &visitingStack)
 {
     check(validResources);
@@ -163,7 +157,7 @@ bool Graph::FindDependencies(std::set<Resource> *validResources, std::set<Pass> 
 
     if (visitingStack.find(pass) != visitingStack.end())
     {
-        return true;
+        return;
     }
 
     visitingStack.insert(pass);
@@ -171,19 +165,15 @@ bool Graph::FindDependencies(std::set<Resource> *validResources, std::set<Pass> 
 
     for (Resource const &write : GetPassInfo(pass).writes)
     {
-        validResources->insert(write);
+        FindDependencies(validResources, validPasses, write, visitingStack);
     }
 
     for (Resource const &read : GetPassInfo(pass).reads)
     {
-        if (FindDependencies(validResources, validPasses, read, visitingStack))
-        {
-            return true;
-        }
+        FindDependencies(validResources, validPasses, read, visitingStack);
     }
 
     visitingStack.erase(pass);
-    return false;
 }
 
 void Graph::Compile(Resource target, GraphUsage usage)
@@ -210,16 +200,21 @@ void Graph::Compile(Resource target, GraphUsage usage)
             throw std::runtime_error(oss.str());
         }
 
-        for (Resource const resource : GetPassInfo(Pass{pass}).reads)
+        for (Resource const resource : passInfo.reads)
         {
             check(_resourceInfos.size() > resource.index);
             _resourceInfos.at(resource.index).readers.push_back(Pass{pass});
         }
-        for (Resource const resource : GetPassInfo(Pass{pass}).writes)
+        for (Resource const resource : passInfo.writes)
         {
             check(_resourceInfos.size() > resource.index);
             _resourceInfos.at(resource.index).writers.push_back(Pass{pass});
             _passInfos.at(pass).rebuildOnChange = true;
+        }
+        for (Pass const dependency : passInfo.passDependencies)
+        {
+            check(_passInfos.size() > dependency.index);
+            _passInfos.at(dependency.index).passDependants.push_back(Pass{pass});
         }
     }
 
@@ -227,10 +222,7 @@ void Graph::Compile(Resource target, GraphUsage usage)
     _validResources.clear();
     std::set<std::variant<Resource, Pass>> visitingStack{};
 
-    if (FindDependencies(&_validResources, &_validPasses, target, visitingStack))
-    {
-        throw std::runtime_error("Graph: circular dependency found! cannot compile");
-    }
+    FindDependencies(&_validResources, &_validPasses, target, visitingStack);
 
     std::ostringstream oss;
     oss << "Graph: dependencies : ";
@@ -383,7 +375,8 @@ void Graph::BuildPipeline(Pass pass)
 
     for (Resource const resource : passInfo.writes)
     {
-        if (GetResourceInfo(resource).usage == ResourceUsage::eColor)
+        ResourceCreateInfo const &resourceInfo = GetResourceInfo(resource);
+        if (resourceInfo.usage == ResourceUsage::eColor)
         {
             vk::PipelineColorBlendAttachmentState colorBlendAttachment{};
             colorBlendAttachment.colorWriteMask = vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG |
@@ -398,11 +391,11 @@ void Graph::BuildPipeline(Pass pass)
 
             colorBlendAttachments.push_back(colorBlendAttachment);
         }
-        if (GetResourceInfo(resource).usage == ResourceUsage::eDepth)
+        else if (resourceInfo.usage == ResourceUsage::eDepth)
         {
             depthStencilInfo.depthTestEnable = vk::True;
             depthStencilInfo.depthWriteEnable = vk::True;
-            depthStencilInfo.depthCompareOp = vk::CompareOp::eLess;
+            depthStencilInfo.depthCompareOp = vk::CompareOp::eLessOrEqual;
         }
     }
 
@@ -643,8 +636,6 @@ void Graph::Reset()
     Device const *device = SafeDeviceAccessor::Get();
     check(device);
 
-    Resource resource{0};
-
     if (_uboDescriptorPool != VK_NULL_HANDLE)
     {
         FreeUbo();
@@ -654,8 +645,10 @@ void Graph::Reset()
     {
         resourceInfo.writers.clear();
         resourceInfo.readers.clear();
-
-        resource.index++;
+    }
+    for (PassCreateInfo &passInfo : _passInfos)
+    {
+        passInfo.passDependants.clear();
     }
 
     for (Resource const resource : _validResources)
@@ -760,7 +753,7 @@ void Graph::KhanFindOrder(std::set<Resource> const &resources, std::set<Pass> co
     for (Pass const pass : passes)
     {
         PassCreateInfo const &passInfo = GetPassInfo(pass);
-        passDegrees[pass] = passInfo.reads.size();
+        passDegrees[pass] = passInfo.reads.size() + passInfo.passDependencies.size();
     }
 
     while (passDegrees.size() > 0 && resourceDegrees.size() > 0)
@@ -793,6 +786,10 @@ void Graph::KhanFindOrder(std::set<Resource> const &resources, std::set<Pass> co
                 {
                     resourceDegrees.at(writey)--;
                 }
+                for (Pass const dependant : passInfo.passDependants)
+                {
+                    passDegrees.at(dependant)--;
+                }
                 _orderedPasses.push_back(it->first);
                 it = passDegrees.erase(it);
                 progress = true;
@@ -809,12 +806,12 @@ void Graph::KhanFindOrder(std::set<Resource> const &resources, std::set<Pass> co
             for (auto const &[resource, degree] : resourceDegrees)
             {
                 ResourceCreateInfo const &resourceInfo = GetResourceInfo(resource);
-                oss << resourceInfo.debugName << ", ";
+                oss << resourceInfo.debugName << ": " << degree << ", ";
             }
             for (auto const &[pass, degree] : passDegrees)
             {
                 PassCreateInfo const &passInfo = GetPassInfo(pass);
-                oss << passInfo.debugName << ", ";
+                oss << passInfo.debugName << ": " << degree << ", ";
             }
             throw std::runtime_error(oss.str());
         }

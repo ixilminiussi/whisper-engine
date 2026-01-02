@@ -1,6 +1,4 @@
-#include "wsp_device.hpp"
-#include <vulkan/vulkan_enums.hpp>
-#include <vulkan/vulkan_structs.hpp>
+#include <wsp_device.hpp>
 #ifndef NDEBUG
 #include <wsp_editor.hpp>
 
@@ -109,6 +107,12 @@ Editor::Editor() : _scene{nullptr}
     depthInfo.clear.depthStencil = vk::ClearDepthStencilValue{1.};
     depthInfo.debugName = "depth";
 
+    ResourceCreateInfo prepassInfo{};
+    prepassInfo.usage = ResourceUsage::eColor;
+    prepassInfo.format = vk::Format::eR16G16B16A16Sfloat;
+    prepassInfo.clear.color = vk::ClearColorValue{0.f, 0.f, 0.f, 1.f};
+    prepassInfo.debugName = "prepass";
+
     ResourceCreateInfo postInfo{};
     postInfo.usage = ResourceUsage::eColor;
     postInfo.format = vk::Format::eR16G16B16A16Sfloat;
@@ -118,14 +122,33 @@ Editor::Editor() : _scene{nullptr}
     Resource const colorResource = graph->NewResource(colorInfo);
     Resource const depthResource = graph->NewResource(depthInfo);
     Resource const postResource = graph->NewResource(postInfo);
+    Resource const prepassResource = graph->NewResource(prepassInfo);
+
+    PassCreateInfo prepassPassInfo{};
+    prepassPassInfo.writes = {depthResource, prepassResource};
+    prepassPassInfo.readsUniform = true;
+    prepassPassInfo.vertexInputInfo = Mesh::Vertex::GetVertexInputInfo();
+    prepassPassInfo.pushConstantSize = sizeof(Mesh::PushData);
+    prepassPassInfo.staticTextures = {AssetsManager::Get()->GetStaticTextures()};
+    prepassPassInfo.vertFile = "prepass.vert.spv";
+    prepassPassInfo.fragFile = "prepass.frag.spv";
+    prepassPassInfo.debugName = "prepass render";
+    prepassPassInfo.execute = [&](vk::CommandBuffer commandBuffer, vk::PipelineLayout pipelineLayout) {
+        if (_scene)
+        {
+            _scene->BindAndDraw(commandBuffer, pipelineLayout);
+        }
+    };
+
+    graph->NewPass(prepassPassInfo);
 
     PassCreateInfo shadowMapPassInfo{};
     shadowMapPassInfo.writes = {shadowResource};
     shadowMapPassInfo.readsUniform = true;
     shadowMapPassInfo.vertexInputInfo = Mesh::Vertex::GetVertexInputInfo();
     shadowMapPassInfo.pushConstantSize = sizeof(Mesh::PushData);
-    shadowMapPassInfo.vertFile = "void.vert.spv";
-    shadowMapPassInfo.fragFile = "void.frag.spv";
+    shadowMapPassInfo.vertFile = "shadowmapping.vert.spv";
+    shadowMapPassInfo.fragFile = "shadowmapping.frag.spv";
     shadowMapPassInfo.debugName = "shadowMap render";
     shadowMapPassInfo.execute = [&](vk::CommandBuffer commandBuffer, vk::PipelineLayout pipelineLayout) {
         if (_scene)
@@ -136,24 +159,11 @@ Editor::Editor() : _scene{nullptr}
 
     graph->NewPass(shadowMapPassInfo);
 
-    PassCreateInfo backgroundPassInfo{};
-    backgroundPassInfo.writes = {colorResource, depthResource};
-    backgroundPassInfo.readsUniform = true;
-    backgroundPassInfo.staticTextures = {AssetsManager::Get()->GetStaticCubemaps()};
-    backgroundPassInfo.vertFile = "background.vert.spv";
-    backgroundPassInfo.fragFile = "background.frag.spv";
-    backgroundPassInfo.debugName = "background render";
-    backgroundPassInfo.execute = [](vk::CommandBuffer commandBuffer, vk::PipelineLayout) {
-        commandBuffer.draw(6u, 1u, 0u, 0u);
-    };
-
-    graph->NewPass(backgroundPassInfo);
-
     PassCreateInfo meshPassInfo{};
-    meshPassInfo.reads = {shadowResource};
+    meshPassInfo.reads = {shadowResource, prepassResource};
     meshPassInfo.writes = {colorResource, depthResource};
     meshPassInfo.readsUniform = true;
-    meshPassInfo.staticTextures = {AssetsManager::Get()->GetStaticTextures(),
+    meshPassInfo.staticTextures = {AssetsManager::Get()->GetStaticTextures(), AssetsManager::Get()->GetStaticNoises(),
                                    AssetsManager::Get()->GetStaticCubemaps()};
     meshPassInfo.vertexInputInfo = Mesh::Vertex::GetVertexInputInfo();
     meshPassInfo.pushConstantSize = sizeof(Mesh::PushData);
@@ -167,7 +177,21 @@ Editor::Editor() : _scene{nullptr}
         }
     };
 
-    graph->NewPass(meshPassInfo);
+    Pass const meshPass = graph->NewPass(meshPassInfo);
+
+    PassCreateInfo backgroundPassInfo{};
+    backgroundPassInfo.writes = {colorResource, depthResource};
+    backgroundPassInfo.passDependencies = {meshPass};
+    backgroundPassInfo.readsUniform = true;
+    backgroundPassInfo.staticTextures = {AssetsManager::Get()->GetStaticCubemaps()};
+    backgroundPassInfo.vertFile = "background.vert.spv";
+    backgroundPassInfo.fragFile = "background.frag.spv";
+    backgroundPassInfo.debugName = "background render";
+    backgroundPassInfo.execute = [](vk::CommandBuffer commandBuffer, vk::PipelineLayout) {
+        commandBuffer.draw(6u, 1u, 0u, 0u);
+    };
+
+    graph->NewPass(backgroundPassInfo);
 
     PassCreateInfo postPassInfo{};
     postPassInfo.writes = {postResource};
@@ -181,7 +205,7 @@ Editor::Editor() : _scene{nullptr}
 
     graph->NewPass(postPassInfo);
 
-    _rebuild = [graph, postResource]() { graph->Compile(postResource, Graph::eToDescriptorSet); };
+    _rebuild = [graph, colorResource]() { graph->Compile(colorResource, Graph::eToDescriptorSet); };
 
     _rebuild();
 }

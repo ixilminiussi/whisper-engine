@@ -51,9 +51,11 @@ struct Resource
 struct PassCreateInfo
 {
     std::vector<class StaticTextures const *> staticTextures{};
-    std::vector<Resource> reads;
-    std::vector<Resource> writes;
-    bool readsUniform;
+    std::vector<Resource> reads{};
+    std::vector<Resource> writes{};
+    bool readsUniform{false};
+
+    std::vector<Pass> passDependencies{};
 
     uint32_t pushConstantSize{0};
 
@@ -69,6 +71,8 @@ struct PassCreateInfo
 
   protected:
     bool rebuildOnChange{false};
+
+    std::vector<Pass> passDependants{};
 };
 
 enum ResourceUsage
@@ -91,8 +95,8 @@ struct ResourceCreateInfo
     friend class Graph;
 
   protected:
-    std::vector<Pass> writers;
-    std::vector<Pass> readers;
+    std::vector<Pass> writers{};
+    std::vector<Pass> readers{};
 };
 
 class StaticTextureAllocator

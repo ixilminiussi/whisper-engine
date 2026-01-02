@@ -4,7 +4,7 @@
 
 layout(location = 0) in vec3 in_ray;
 
-layout(set = 1, binding = 0) uniform samplerCube cubemaps[];
+layout(set = 1, binding = 0) uniform samplerCube sCubemaps[];
 
 #include "ubo.glsl"
 
@@ -13,7 +13,7 @@ layout(location = 0) out vec4 out_color;
 vec3 getSky(in vec3 ray)
 {
     int skyboxTexID = ubo.light.skyboxTex;
-    return skyboxTexID != INVALID_ID ? texture(cubemaps[skyboxTexID], ray).rgb : ubo.light.sun.color.rgb;
+    return skyboxTexID != INVALID_ID ? texture(sCubemaps[skyboxTexID], ray).rgb : ubo.light.sun.color.rgb;
 }
 
 void main()

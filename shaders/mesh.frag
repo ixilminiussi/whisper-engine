@@ -8,9 +8,11 @@ layout(location = 0) in v_info i;
 
 layout(location = 0) out vec4 out_color;
 
-layout(set = 1, binding = 0) uniform sampler2D shadowMap;
-layout(set = 2, binding = 0) uniform sampler2D textures[];
-layout(set = 3, binding = 0) uniform samplerCube cubemaps[];
+layout(set = 1, binding = 0) uniform sampler2D sShadowMap;
+layout(set = 2, binding = 0) uniform sampler2D sPrepass;
+layout(set = 3, binding = 0) uniform sampler2D sTextures[];
+layout(set = 4, binding = 0) uniform sampler2D sNoises[]; // 0 regular noise
+layout(set = 5, binding = 0) uniform samplerCube sCubemaps[];
 
 #include "ubo.glsl"
 
@@ -26,27 +28,26 @@ push;
 vec4 getSky(in vec3 ray, in float mipLevel)
 {
     int skyboxTexID = ubo.light.skyboxTex;
-    return skyboxTexID != INVALID_ID ? texture(cubemaps[skyboxTexID], ray, 7.) : vec4(ubo.light.sun.color.rgb, 0.);
+    return skyboxTexID != INVALID_ID ? texture(sCubemaps[skyboxTexID], ray, 7.) : vec4(ubo.light.sun.color.rgb, 0.);
 }
 
 vec4 getIrradiance(in vec3 ray)
 {
     int irradianceTexID = ubo.light.irradianceTex;
-    return irradianceTexID != INVALID_ID ? texture(cubemaps[irradianceTexID], ray) : vec4(ubo.light.sun.color.rgb, 0.);
+    return irradianceTexID != INVALID_ID ? texture(sCubemaps[irradianceTexID], ray) : vec4(ubo.light.sun.color.rgb, 0.);
 }
 
-vec3 getNormal(in Material material, in vec2 uv, in mat3 tangentMatrix)
+vec3 getNormal()
 {
-    int normalTexID = material.normalTex;
-    vec3 normal =
-        normalTexID != INVALID_ID ? tangentMatrix * (texture(textures[normalTexID], uv).rgb * 2. - 1.) : i.w_normal;
-    return normalize(normal);
+    vec2 uv = i.c_position.xy / i.c_position.w;
+    uv = uv / 2. + .5;
+    return normalize(texture(sPrepass, uv).rgb);
 }
 
 vec3 getAlbedo(in Material material, in vec2 uv)
 {
     int albedoTexID = material.albedoTex;
-    return albedoTexID != INVALID_ID ? texture(textures[albedoTexID], uv).rgb : material.albedoColor;
+    return albedoTexID != INVALID_ID ? texture(sTextures[albedoTexID], uv).rgb : material.albedoColor;
 }
 
 vec3 getPBRParams(in Material material, in vec2 uv)
@@ -59,11 +60,73 @@ vec3 getPBRParams(in Material material, in vec2 uv)
 
     if (metallicRoughnessTexID != INVALID_ID)
     {
-        params.r = texture(textures[metallicRoughnessTexID], uv).g;
-        params.g = texture(textures[metallicRoughnessTexID], uv).b;
+        params.r = texture(sTextures[metallicRoughnessTexID], uv).g;
+        params.g = texture(sTextures[metallicRoughnessTexID], uv).b;
     }
 
     return params;
+}
+
+vec3 getRandom()
+{
+    vec2 uv = i.c_position.xy / i.c_position.w;
+    uv = uv / 2. + .5;
+    vec2 screenSize = textureSize(sPrepass, 0);
+    vec2 noiseSize = textureSize(sNoises[0], 0);
+    return texture(sNoises[0], uv * screenSize / noiseSize).xyz * 2.0 - 1.0;
+}
+
+float computeSSAO(vec3 random)
+{
+    random = normalize(random);
+
+    const vec3 SSAO_DIRECTIONS[16] = {
+        {0.35, 0.20, 0.85},  {-0.30, -0.20, 0.90}, {0.15, -0.35, 0.92}, {-0.10, 0.45, 0.88},
+        {0.50, -0.10, 0.75}, {-0.45, 0.15, 0.70},  {0.20, 0.60, 0.65},  {-0.60, -0.25, 0.60},
+        {0.65, 0.40, 0.55},  {-0.70, 0.30, 0.50},  {0.25, -0.70, 0.45}, {-0.75, -0.35, 0.40},
+        {0.80, 0.10, 0.35},  {-0.20, 0.75, 0.30},  {0.10, -0.80, 0.25}, {-0.85, 0.00, 0.20}};
+
+    const float SSAO_RADIUS = .03;
+    float radius = SSAO_RADIUS * (-i.v_position.z / 5.0);
+
+    float occlusion = 0.;
+
+    const float bias = radius * .005f;
+
+    // random rotation
+    vec3 v_normal = normalize(i.v_normal);
+    vec3 v_tangent = normalize(random - v_normal * dot(random, v_normal));
+    vec3 v_bitangent = cross(v_tangent, v_normal);
+    mat3 TBN = mat3(v_tangent, v_bitangent, v_normal);
+
+    float total = 0.f;
+    for (int j = 0; j < 16; j++)
+    {
+        // sample point in direction
+        vec3 v_sampleDirection = TBN * SSAO_DIRECTIONS[j];
+        if (dot(v_sampleDirection, i.v_normal) < 0.f)
+        {
+            continue;
+        }
+        total += 1.f;
+
+        vec3 v_sample = i.v_position + v_sampleDirection * radius;
+        float v_sampleDepth = -v_sample.z;
+
+        // compare to the true point at xy according to depth texture
+        vec4 c_sample = ubo.camera.projection * vec4(v_sample, 1.);
+        c_sample /= c_sample.w;
+        float v_trueDepth = texture(sPrepass, c_sample.xy * .5 + .5).a;
+        vec3 v_truePos = vec3(v_sample.xy, -v_trueDepth);
+
+        // compare "collision" point to center
+        float dist = length(v_truePos - v_sample);
+        float rangeCheck = 1.0 - smoothstep(0.0, radius, dist);
+
+        occlusion += (v_trueDepth < v_sampleDepth - bias ? 1.0 : 0.0) * rangeCheck;
+    }
+
+    return 1. - occlusion / total;
 }
 
 float getOcclusion(in Material material, in vec2 uv)
@@ -74,7 +137,7 @@ float getOcclusion(in Material material, in vec2 uv)
 
     if (occlusionTexID != INVALID_ID)
     {
-        occlusion = saturate(texture(textures[occlusionTexID], uv).r);
+        occlusion = saturate(texture(sTextures[occlusionTexID], uv).r);
     }
 
     return occlusion;
@@ -109,7 +172,7 @@ float computeGGX(in float roughness, in float NdotL, in float NdotV)
 float isOccluded(in vec3 sc_position)
 {
     vec2 uv = 0.5 * sc_position.xy + 0.5;
-    float depth = texture(shadowMap, uv).r;
+    float depth = texture(sShadowMap, uv).r;
 
     if (depth < sc_position.z - 0.025)
     {
@@ -121,8 +184,7 @@ float isOccluded(in vec3 sc_position)
 
 void main()
 {
-    vec2 uv = i.uv.xy;
-    int materialID = int(i.uv.z);
+    int materialID = int(i.materialID);
 
     if (materialID == INVALID_ID)
     {
@@ -135,19 +197,17 @@ void main()
     vec3 lightColor = ubo.light.sun.color.rgb * ubo.light.sun.color.a;
 
     // TEXTURE SAMPLES
-    vec3 albedo = getAlbedo(material, uv);
-    float occlusion = getOcclusion(material, uv);
+    vec3 albedo = getAlbedo(material, i.uv);
+    float occlusion = getOcclusion(material, i.uv) * computeSSAO(getRandom());
 
     // PBR PARAMETERS
-    vec3 PBRParams = getPBRParams(material, uv);
+    vec3 PBRParams = getPBRParams(material, i.uv);
 
     float roughness = PBRParams.r;
     float metallic = PBRParams.g;
-
-    mat3 tangentMatrix = mat3(normalize(i.w_tangent), normalize(i.w_bitangent), normalize(i.w_normal));
     // FOUNDATION parameters
     vec3 V = -normalize(i.w_ray);
-    vec3 N = getNormal(material, uv, tangentMatrix); // normal
+    vec3 N = getNormal(); // normal
     vec3 L = -normalize(ubo.light.sun.direction);
     vec3 H = normalize(V + L);
     vec3 R = reflect(-V, N);
@@ -168,19 +228,14 @@ void main()
     // IBL
     vec4 irradiance = getIrradiance(-N);
 
-    // placeholder, will use mip maps
     vec3 specularIBL = getSky(-R, roughness).rgb * kS;
-
     vec3 diffuseIBL = (albedo * irradiance.rgb * irradiance.a) * kD * occlusion;
-
-    vec3 Ld = kD * (albedo / PI) * NdotL * lightColor;
-    vec3 Ls = kS * ((D * G * F) / (4. * NdotL * NdotV)) * lightColor * NdotL;
-
     vec3 IBLColor = specularIBL + diffuseIBL;
-    vec3 directColor = (Ld + Ls) * isOccluded(i.sc_position);
 
     // Direct lighting
+    vec3 Ld = kD * (albedo / PI) * NdotL * lightColor;
+    vec3 Ls = kS * ((D * G * F) / (4. * NdotL * NdotV)) * lightColor * NdotL;
+    vec3 directColor = (Ld + Ls) * isOccluded(i.sc_position);
 
-    out_color = vec4(IBLColor + directColor, 1.); // debug purposes
-    return;
+    out_color = vec4(directColor + IBLColor, 1.);
 }

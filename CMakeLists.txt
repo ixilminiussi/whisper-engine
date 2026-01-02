@@ -20,6 +20,7 @@ cmake_policy(VERSION 3.12...3.31)
 
 # -- tracy: Try to use system Tracy first
 set(TRACY_ENABLE ON)
+set(TRACY_VK_ENABLE ON)
 set(TRACY_NO_CONTEXT_SWITCH ON)
 set(TRACY_ON_DEMAND ON)
 set(TRACY_NO_SAMPLING ON)

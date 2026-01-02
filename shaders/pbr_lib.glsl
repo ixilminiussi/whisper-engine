@@ -3,16 +3,18 @@
 
 struct v_info
 {
-    vec3 uv;
-    vec3 w_normal;
+    vec3 v_position;
+    vec3 v_normal;
+    vec4 c_position;
     vec3 w_ray;
-    vec3 w_tangent;
-    vec3 w_bitangent;
 
     vec3 sc_position;
 
     vec3 m_tangent;
     vec3 m_bitangent;
+
+    vec2 uv;
+    float materialID;
 };
 
 float saturate(in float val)
