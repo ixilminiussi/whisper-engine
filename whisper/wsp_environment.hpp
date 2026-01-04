@@ -10,6 +10,8 @@
 #include <glm/mat4x4.hpp>
 #include <glm/vec3.hpp>
 
+#include <filesystem>
+
 #include <.generated/wsp_environment.generated.hpp>
 
 namespace wsp
@@ -19,8 +21,11 @@ WCLASS()
 class Environment
 {
   public:
-    Environment();
+    Environment(std::filesystem::path const &skyboxPath, std::filesystem::path const &irradiancePath,
+                glm::vec2 const &sunDirection, glm::vec3 const &color, float sunIntensity, float shadowMapRadius);
     ~Environment() = default;
+
+    void Load();
 
     void PopulateUbo(ubo::Ubo *) const;
     void SetShadowMapRadius(float);
@@ -45,6 +50,9 @@ class Environment
 
     TextureID _skyboxTexture;
     TextureID _irradianceTexture;
+
+    std::filesystem::path _skyboxPath;
+    std::filesystem::path _irradiancePath;
 };
 
 } // namespace wsp

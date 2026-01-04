@@ -28,7 +28,8 @@ push;
 vec4 getSky(in vec3 ray, in float mipLevel)
 {
     int skyboxTexID = ubo.light.skyboxTex;
-    return skyboxTexID != INVALID_ID ? texture(sCubemaps[skyboxTexID], ray, 7.) : vec4(ubo.light.sun.color.rgb, 0.);
+    return skyboxTexID != INVALID_ID ? texture(sCubemaps[skyboxTexID], ray, mipLevel * 7.)
+                                     : vec4(ubo.light.sun.color.rgb, 0.);
 }
 
 vec4 getIrradiance(in vec3 ray)
@@ -76,7 +77,7 @@ vec3 getRandom()
     return texture(sNoises[0], uv * screenSize / noiseSize).xyz * 2.0 - 1.0;
 }
 
-float computeSSAO(vec3 random)
+float computeSSAO(vec3 random, float ssaoRadius)
 {
     random = normalize(random);
 
@@ -86,8 +87,7 @@ float computeSSAO(vec3 random)
         {0.65, 0.40, 0.55},  {-0.70, 0.30, 0.50},  {0.25, -0.70, 0.45}, {-0.75, -0.35, 0.40},
         {0.80, 0.10, 0.35},  {-0.20, 0.75, 0.30},  {0.10, -0.80, 0.25}, {-0.85, 0.00, 0.20}};
 
-    const float SSAO_RADIUS = .03;
-    float radius = SSAO_RADIUS * (-i.v_position.z / 5.0);
+    float radius = ssaoRadius * (-i.v_position.z / 5.0);
 
     float occlusion = 0.;
 
@@ -100,6 +100,7 @@ float computeSSAO(vec3 random)
     mat3 TBN = mat3(v_tangent, v_bitangent, v_normal);
 
     float total = 0.f;
+    vec3 bentNormal = vec3(0.f);
     for (int j = 0; j < 16; j++)
     {
         // sample point in direction
@@ -123,9 +124,11 @@ float computeSSAO(vec3 random)
         float dist = length(v_truePos - v_sample);
         float rangeCheck = 1.0 - smoothstep(0.0, radius, dist);
 
+        // bentNormal = v_sampleDirection * rangeCheck;
         occlusion += (v_trueDepth < v_sampleDepth - bias ? 1.0 : 0.0) * rangeCheck;
     }
 
+    // return normalize(bentNormal);
     return 1. - occlusion / total;
 }
 
@@ -198,7 +201,7 @@ void main()
 
     // TEXTURE SAMPLES
     vec3 albedo = getAlbedo(material, i.uv);
-    float occlusion = getOcclusion(material, i.uv) * computeSSAO(getRandom());
+    float occlusion = getOcclusion(material, i.uv) * computeSSAO(getRandom(), .1);
 
     // PBR PARAMETERS
     vec3 PBRParams = getPBRParams(material, i.uv);
@@ -226,6 +229,8 @@ void main()
     vec3 kD = (1. - kS) * (1. - metallic);
 
     // IBL
+    // vec3 bentNormal = computeSSAO(getRandom(), .05);
+    // bentNormal = (ubo.camera.inverseView * vec4(bentNormal, 0.)).xyz;
     vec4 irradiance = getIrradiance(-N);
 
     vec3 specularIBL = getSky(-R, roughness).rgb * kS;
@@ -238,4 +243,5 @@ void main()
     vec3 directColor = (Ld + Ls) * isOccluded(i.sc_position);
 
     out_color = vec4(directColor + IBLColor, 1.);
+    // out_color = vec4(bentNormal, 1.);
 }

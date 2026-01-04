@@ -25,8 +25,14 @@ void main()
 {
     vec3 hdrColor = texture(hdrColor, in_uv).rgb;
 
-    vec3 toned = acesToneMap(hdrColor);
+    if (any(isnan(hdrColor)) || any(isinf(hdrColor)))
+    {
+        out_color = vec4(1.);
+    }
+    else
+    {
+        vec3 toned = acesToneMap(hdrColor);
+        out_color = vec4(toned, 1.0);
+    }
     // toned = pow(toned, vec3(1.0 / 2.2)); // gamma / sRGB
-
-    out_color = vec4(toned, 1.0);
 }

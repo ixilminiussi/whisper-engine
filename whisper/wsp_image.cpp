@@ -1,3 +1,4 @@
+#include <memory>
 #include <wsp_image.hpp>
 
 #include <wsp_device.hpp>
@@ -41,7 +42,7 @@ Image::Image(Device const *device, CreateInfo const &createInfo)
                 fmt::format("Image: asset '{}' couldn't be imported", createInfo.filepath.string()));
         }
 
-        if (createInfo.cubemap)
+        if (_cubemap)
         {
             BuildCubemap(device, pixels, width, height, size, channels, _format, _mipLevels);
         }
@@ -72,6 +73,7 @@ Image::Image(Device const *device, CreateInfo const &createInfo)
         size = 4;
 
         LoadEXR(&pixels, &width, &height, createInfo.filepath.c_str(), &err);
+        spdlog::critical("{}w, {}h, {}c, {}s", width, height, channels, size);
 
         build(pixels);
 

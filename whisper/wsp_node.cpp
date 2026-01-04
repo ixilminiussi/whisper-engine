@@ -32,6 +32,25 @@ void Node::Bind(vk::CommandBuffer commandBuffer) const
     }
 }
 
+Node *Node::BuildGlTF(cgltf_scene const *scene, cgltf_mesh const *pMesh, std::vector<MeshID> const &meshes)
+{
+    check(scene);
+    check(pMesh);
+
+    Transform transform{};
+    MeshID mesh{INVALID_ID};
+    std::vector<Node *> children{};
+    children.reserve(scene->nodes_count);
+
+    for (int i = 0; i < scene->nodes_count; i++)
+    {
+        Node *child = BuildGlTF(scene->nodes[i], pMesh, meshes);
+        children.push_back(child);
+    }
+
+    return new Node{mesh, children, transform};
+}
+
 Node *Node::BuildGlTF(cgltf_node const *node, cgltf_mesh const *pMesh, std::vector<MeshID> const &meshes)
 {
     check(node);

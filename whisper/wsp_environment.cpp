@@ -1,5 +1,3 @@
-#include "wsp_custom_imgui.hpp"
-#include <spdlog/spdlog.h>
 #include <wsp_environment.hpp>
 
 #include <wsp_assets_manager.hpp>
@@ -9,16 +7,30 @@
 
 #include <glm/gtc/quaternion.hpp>
 
+#include <spdlog/spdlog.h>
+
 using namespace wsp;
 
-Environment::Environment() : _sunDirection{3.35f, 0.87f}, _sunColor{1.f}, _sunIntensity{8.f}, _shadowMapRadius{20.f}
+Environment::Environment(std::filesystem::path const &skyboxPath, std::filesystem::path const &irradiancePath,
+                         glm::vec2 const &sunDirection, glm::vec3 const &color, float sunIntensity,
+                         float shadowMapRadius)
+    : _skyboxPath{skyboxPath}, _irradiancePath{irradiancePath}, _sunDirection{sunDirection}, _sunColor{color},
+      _sunIntensity{sunIntensity}, _shadowMapRadius{shadowMapRadius}, _skyboxTexture{0}, _irradianceTexture{0}
 {
+    Refresh();
+}
+
+void Environment::Load()
+{
+    if (_skyboxTexture != 0 && _irradianceTexture != 0)
+    {
+        return;
+    }
     AssetsManager *assetsManager = AssetsManager::Get();
     check(assetsManager);
 
     Image::CreateInfo skyboxImageInfo{};
-    skyboxImageInfo.filepath =
-        (std::filesystem::path(WSP_ENGINE_ASSETS) / std::filesystem::path("skybox.exr")).lexically_normal();
+    skyboxImageInfo.filepath = _skyboxPath;
     skyboxImageInfo.format = vk::Format::eR32G32B32A32Sfloat;
     skyboxImageInfo.cubemap = true;
     skyboxImageInfo.mipLevels = 8;
@@ -27,13 +39,12 @@ Environment::Environment() : _sunDirection{3.35f, 0.87f}, _sunColor{1.f}, _sunIn
     Texture::CreateInfo skyboxTextureInfo{};
     skyboxTextureInfo.pImage = skyboxImage;
     skyboxTextureInfo.pSampler = assetsManager->RequestSampler();
-    skyboxTextureInfo.name = "skybox";
+    skyboxTextureInfo.name = _skyboxPath.filename();
 
     _skyboxTexture = assetsManager->LoadTexture(skyboxTextureInfo);
 
     Image::CreateInfo irradianceImageInfo{};
-    irradianceImageInfo.filepath =
-        (std::filesystem::path(WSP_ENGINE_ASSETS) / std::filesystem::path("irradiance.exr")).lexically_normal();
+    irradianceImageInfo.filepath = _irradiancePath;
     irradianceImageInfo.format = vk::Format::eR32G32B32A32Sfloat;
     irradianceImageInfo.cubemap = true;
     Image const *irradianceImage = assetsManager->RequestImage(irradianceImageInfo);
@@ -41,13 +52,11 @@ Environment::Environment() : _sunDirection{3.35f, 0.87f}, _sunColor{1.f}, _sunIn
     Texture::CreateInfo irradianceTextureInfo{};
     irradianceTextureInfo.pImage = irradianceImage;
     irradianceTextureInfo.pSampler = assetsManager->RequestSampler();
-    irradianceTextureInfo.name = "irradiance";
+    irradianceTextureInfo.name = _skyboxPath.filename();
 
     _irradianceTexture = assetsManager->LoadTexture(irradianceTextureInfo);
 
     assetsManager->GetStaticCubemaps()->Push({_skyboxTexture, _irradianceTexture});
-
-    Refresh();
 }
 
 void Environment::PopulateUbo(ubo::Ubo *ubo) const

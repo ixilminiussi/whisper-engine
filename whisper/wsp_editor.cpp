@@ -79,8 +79,43 @@ Editor::Editor() : _scene{nullptr}
 
     Graph *graph = renderManager->GetGraph(_windowID);
 
+    _environments.emplace_back(
+        "alpes",
+        std::make_unique<Environment>(
+            (std::filesystem::path{WSP_ENGINE_ASSETS} / std::filesystem::path{"alpes-skybox.exr"}).lexically_normal(),
+            (std::filesystem::path{WSP_ENGINE_ASSETS} / std::filesystem::path{"alpes-irradiance.exr"})
+                .lexically_normal(),
+            glm::vec2{3.35f, .87f}, glm::vec3{1.f, 1.f, 1.f}, 8.f, 20.f));
+
+    _environments.emplace_back(
+        "puresky day",
+        std::make_unique<Environment>(
+            (std::filesystem::path{WSP_ENGINE_ASSETS} / std::filesystem::path{"puresky-day-skybox.exr"})
+                .lexically_normal(),
+            (std::filesystem::path{WSP_ENGINE_ASSETS} / std::filesystem::path{"puresky-day-irradiance.exr"})
+                .lexically_normal(),
+            glm::vec2{-.66f, -.97f}, glm::vec3{1.f, 1.f, 1.f}, 8.f, 20.f));
+
+    _environments.emplace_back(
+        "venice sunset",
+        std::make_unique<Environment>(
+            (std::filesystem::path{WSP_ENGINE_ASSETS} / std::filesystem::path{"venice-sunset-skybox.exr"})
+                .lexically_normal(),
+            (std::filesystem::path{WSP_ENGINE_ASSETS} / std::filesystem::path{"venice-sunset-irradiance.exr"})
+                .lexically_normal(),
+            glm::vec2{4.08f, 3.04f}, glm::vec3{1.f, .406, .177}, 4.7f, 20.f));
+
+    _environments.emplace_back(
+        "workshop", std::make_unique<Environment>(
+                        (std::filesystem::path{WSP_ENGINE_ASSETS} / std::filesystem::path{"workshop-skybox.exr"})
+                            .lexically_normal(),
+                        (std::filesystem::path{WSP_ENGINE_ASSETS} / std::filesystem::path{"workshop-irradiance.exr"})
+                            .lexically_normal(),
+                        glm::vec2{3.35f, .87f}, glm::vec3{1.f, 1.f, 1.f}, 0.f, 20.f));
+
     AssetsManager::Get()->LoadDefaults();
-    _environment = std::make_unique<Environment>();
+
+    SelectEnvironment(0);
 
     graph->SetUboSize(sizeof(ubo::Ubo));
     graph->SetPopulateUboFunction([this]() {
@@ -205,7 +240,7 @@ Editor::Editor() : _scene{nullptr}
 
     graph->NewPass(postPassInfo);
 
-    _rebuild = [graph, colorResource]() { graph->Compile(colorResource, Graph::eToDescriptorSet); };
+    _rebuild = [graph, postResource]() { graph->Compile(postResource, Graph::eToDescriptorSet); };
 
     _rebuild();
 }
@@ -286,24 +321,41 @@ void Editor::Render()
             RenderViewport(&showViewport);
         }
 
+        ImGui::Begin("View Settings", &showViewSettings);
         if (_viewportCamera)
         {
-            ImGui::Begin("View Settings", &showViewSettings);
             ImGui::SeparatorText("Viewport Camera");
             frost::RenderEditor(frost::Meta<ViewportCamera>{}, _viewportCamera.get());
-            ImGui::SeparatorText("Scene");
-            if (_scene)
-            {
-                frost::RenderEditor(frost::Meta<Node>{}, _scene);
-            }
-            ImGui::SeparatorText("Environment");
-            frost::RenderEditor(frost::Meta<Environment>{}, _environment.get());
-            ImGui::End();
         }
 
-        if (_environment)
+        if (_scene)
         {
+            ImGui::SeparatorText("Scene");
+            frost::RenderEditor(frost::Meta<Node>{}, _scene);
         }
+
+        ImGui::SeparatorText("Environment");
+        auto const &[selectedName, selectedEnvironment] = _environments[_selectedEnvironment];
+        if (ImGui::BeginCombo("environment", selectedName.c_str()))
+        {
+            int i = 0;
+            for (auto const &[name, environment] : _environments)
+            {
+                bool const isSelected = name.compare(selectedName) == 0;
+                if (ImGui::Selectable(name.c_str(), isSelected))
+                {
+                    _deferredQueue.push_back([i, this]() { SelectEnvironment(i); });
+                }
+                if (isSelected)
+                {
+                    ImGui::SetItemDefaultFocus();
+                }
+                i++;
+            }
+            ImGui::EndCombo();
+        }
+        frost::RenderEditor(frost::Meta<Environment>{}, _environments[_selectedEnvironment].second.get());
+        ImGui::End();
 
         if (showContentBrowser)
         {
@@ -357,8 +409,8 @@ void Editor::PopulateUbo(ubo::Ubo *ubo) const
     ubo->camera.inverseProjection = glm::inverse(_viewportCamera->GetCamera()->GetProjection());
     ubo->camera.position = _viewportCamera->GetCamera()->GetPosition();
 
-    check(_environment);
-    _environment->PopulateUbo(ubo);
+    check(_environments[_selectedEnvironment].second);
+    _environments[_selectedEnvironment].second->PopulateUbo(ubo);
 
     auto const &materialInfos = AssetsManager::Get()->GetMaterialInfos();
     memcpy(ubo->materials, materialInfos.data(), materialInfos.size() * sizeof(ubo::Material));
@@ -564,7 +616,7 @@ void Editor::RenderContentBrowser(bool *show)
 
                                 _viewportCamera->SetOrbitTarget({0.f, 0.f, 0.f});
 
-                                _environment->SetShadowMapRadius(100.f);
+                                _environments[_selectedEnvironment].second->SetShadowMapRadius(100.f);
                             }
                         }
                         catch (std::exception const &exception)
@@ -667,6 +719,14 @@ void Editor::RenderFrameInfoMenuBar() const
 
         break; // one heap only
     }
+}
+
+void Editor::SelectEnvironment(int i)
+{
+    check(_selectedEnvironment < _environments.size());
+    _selectedEnvironment = i;
+
+    _environments[i].second->Load();
 }
 
 #endif

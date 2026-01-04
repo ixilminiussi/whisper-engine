@@ -8,6 +8,7 @@
 
 class cgltf_node;
 class cgltf_mesh;
+class cgltf_scene;
 
 namespace wsp
 {
@@ -23,6 +24,7 @@ class Node : public Drawable
     virtual void Bind(vk::CommandBuffer) const override;
 
     static Node *BuildGlTF(cgltf_node const *, cgltf_mesh const *pMesh, std::vector<MeshID> const &meshes);
+    static Node *BuildGlTF(cgltf_scene const *, cgltf_mesh const *pMesh, std::vector<MeshID> const &meshes);
 
     WCLASS_BODY$Node();
 

@@ -55,7 +55,10 @@ class Editor
 
     std::unique_ptr<class ViewportCamera> _viewportCamera;
     std::unique_ptr<class InputManager> _inputManager;
-    std::unique_ptr<class Environment> _environment;
+
+    void SelectEnvironment(int i);
+    std::vector<std::pair<std::string, std::unique_ptr<class Environment>>> _environments;
+    int _selectedEnvironment;
 
     std::vector<std::function<void()>> _deferredQueue;
 

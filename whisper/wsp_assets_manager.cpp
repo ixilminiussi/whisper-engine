@@ -46,7 +46,7 @@ AssetsManager::AssetsManager() : _fileRoot{WSP_ASSETS}
 {
     _staticTextures = new StaticTextures{MAX_DYNAMIC_TEXTURES, false, "static 2d textures"};
     _staticNoises = new StaticTextures{1, false, "static 2d noises"};
-    _staticCubemaps = new StaticTextures{2, true, "static cube textures"};
+    _staticCubemaps = new StaticTextures{10, true, "static cube textures"};
 
     _meshes.reserve(1024);
 }
@@ -86,13 +86,28 @@ void AssetsManager::LoadDefaults()
     missingTextureInfo.pImage = missingImage;
     missingTextureInfo.pSampler = RequestSampler();
     missingTextureInfo.name = "missing";
-
     TextureID const missingTexture = LoadTexture(missingTextureInfo);
-    std::vector<TextureID> missingTextures{};
 
+    std::vector<TextureID> missingTextures{};
     missingTextures.resize(_staticTextures->GetSize(), missingTexture);
     _staticTextures->Push(missingTextures);
     _staticTextures->Clear();
+
+    missingImageInfo.filepath =
+        (std::filesystem::path(WSP_ENGINE_ASSETS) / std::filesystem::path("missing-texture.png")).lexically_normal();
+    missingImageInfo.format = vk::Format::eR8G8B8Srgb;
+    missingImageInfo.cubemap = true;
+    Image const *missingCubemapImage = RequestImage(missingImageInfo);
+
+    missingTextureInfo.pImage = missingCubemapImage;
+    missingTextureInfo.pSampler = RequestSampler();
+    missingTextureInfo.name = "missing";
+    TextureID const missingCubemapTexture = LoadTexture(missingTextureInfo);
+
+    std::vector<TextureID> missingCubemapTextures{};
+    missingCubemapTextures.resize(_staticCubemaps->GetSize(), missingCubemapTexture);
+    _staticCubemaps->Push(missingCubemapTextures);
+    _staticCubemaps->Clear();
 }
 
 AssetsManager::~AssetsManager()
@@ -287,7 +302,7 @@ Node *AssetsManager::ImportGlTF(std::filesystem::path const &relativePath)
     // Meshes END ======================================
 
     // Nodes BEGIN =====================================
-    Node *node = Node::BuildGlTF(data->nodes, data->meshes, meshes);
+    Node *node = Node::BuildGlTF(data->scene, data->meshes, meshes);
     _nodes[filepath] = node;
     // Nodes END =======================================
 
