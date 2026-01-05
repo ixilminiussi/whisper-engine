@@ -1,4 +1,3 @@
-#ifndef NDEBUG
 #ifndef WSP_EDITOR
 #define WSP_EDITOR
 
@@ -75,5 +74,4 @@ class Editor
 
 } // namespace wsp
 
-#endif
 #endif

@@ -124,7 +124,6 @@ Swapchain::~Swapchain()
     spdlog::debug("Swapchain: freed");
 }
 
-#ifndef NDEBUG
 void Swapchain::PopulateImGuiInitInfo(ImGui_ImplVulkan_InitInfo *initInfo) const
 {
     initInfo->MinImageCount = _minImageCount;
@@ -132,7 +131,6 @@ void Swapchain::PopulateImGuiInitInfo(ImGui_ImplVulkan_InitInfo *initInfo) const
     initInfo->MSAASamples = VK_SAMPLE_COUNT_1_BIT;
     initInfo->RenderPass = _renderPass;
 }
-#endif
 
 void Swapchain::SubmitCommandBuffer(vk::CommandBuffer commandBuffers)
 {

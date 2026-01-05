@@ -163,13 +163,11 @@ void AssetsManager::UnloadAll()
     Device const *device = SafeDeviceAccessor::Get();
     check(device);
 
-#ifndef NDEBUG
     for (auto &[image, pair] : _previewTextures)
     {
         ImGui_ImplVulkan_RemoveTexture((VkDescriptorSet)pair.first);
         device->DestroyImageView(&pair.second);
     }
-#endif
 
     _samplers.clear();
     _images.clear();
@@ -311,7 +309,6 @@ Node *AssetsManager::ImportGlTF(std::filesystem::path const &relativePath)
     return node;
 }
 
-#ifndef NDEBUG
 Image const *AssetsManager::FindImage(std::filesystem::path const &filepath)
 {
     for (auto &[createInfo, imageKey] : _imagesMap)
@@ -356,7 +353,6 @@ ImTextureID AssetsManager::RequestTextureID(Image const *image)
 
     return _previewTextures.at(image).first;
 }
-#endif
 
 std::array<ubo::Material, MAX_MATERIALS> const &AssetsManager::GetMaterialInfos() const
 {

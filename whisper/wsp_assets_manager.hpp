@@ -16,10 +16,8 @@
 #include <map>
 #include <vector>
 
-#ifndef NDEBUG
 #include <imgui.h>
 #include <vulkan/vulkan.hpp>
-#endif
 
 namespace wsp
 {
@@ -83,7 +81,6 @@ class AssetsManager
     std::map<Image::CreateInfo, dod::slot_map_key32<Image>> _imagesMap;
     std::map<Sampler::CreateInfo, dod::slot_map_key32<Sampler>> _samplersMap;
 
-#ifndef NDEBUG
     Image const *FindImage(std::filesystem::path const &);
     ImTextureID RequestTextureID(class Image const *image);
     std::map<class Image const *, std::pair<ImTextureID, vk::ImageView>> _previewTextures;
@@ -121,5 +118,3 @@ inline bool RenderNode<TextureID>(char const *label, TextureID *address, Edit ed
 }
 
 } // namespace frost
-
-#endif

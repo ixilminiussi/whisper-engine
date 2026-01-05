@@ -79,7 +79,6 @@ void Device::Free()
     spdlog::info("Device: freed");
 }
 
-#ifndef NDEBUG
 void Device::PopulateImGuiInitInfo(ImGui_ImplVulkan_InitInfo *initInfo) const
 {
     check(_physicalDevice);
@@ -89,9 +88,8 @@ void Device::PopulateImGuiInitInfo(ImGui_ImplVulkan_InitInfo *initInfo) const
     initInfo->Device = _device;
     initInfo->Queue = _graphicsQueue;
 }
-#endif
 
-void Device::PickPhysicalDevice(const std::vector<const char *> &requiredExtensions, vk::Instance instance,
+void Device::PickPhysicalDevice(std::vector<char const *> const &requiredExtensions, vk::Instance instance,
                                 vk::SurfaceKHR surface)
 {
     check(instance);

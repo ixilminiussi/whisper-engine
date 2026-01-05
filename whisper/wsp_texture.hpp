@@ -6,9 +6,7 @@
 #include <stb_image.h>
 #include <vulkan/vulkan.hpp>
 
-#ifndef NDEBUG
 #include <imgui.h>
-#endif
 
 class cgltf_texture;
 class cgltf_image;

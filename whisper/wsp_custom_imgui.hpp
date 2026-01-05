@@ -1,6 +1,5 @@
 #ifndef WSP_CUSTOM_IMGUI
 #define WSP_CUSTOM_IMGUI
-#ifndef NDEBUG
 
 #include <imgui.h>
 #include <wsp_static_utils.hpp>
@@ -251,5 +250,4 @@ inline void RedText(char const *fmt, ...)
 
 } // namespace wsp
 
-#endif
 #endif

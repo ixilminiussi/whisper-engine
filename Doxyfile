@@ -1,0 +1,27 @@
+INPUT                  = ./whisper
+FILE_PATTERNS          = *.h *.hpp *.cpp
+RECURSIVE              = YES
+
+EXTRACT_ALL            = YES
+EXTRACT_PRIVATE        = YES
+EXTRACT_STATIC         = YES
+EXTRACT_LOCAL_CLASSES  = YES
+EXTRACT_LOCAL_METHODS  = YES
+
+GENERATE_HTML          = YES
+GENERATE_LATEX         = NO
+GENERATE_XML           = NO
+GENERATE_MAN           = NO
+GENERATE_RTF           = NO
+GENERATE_TREEVIEW      = NO
+
+HAVE_DOT               = YES
+DOT_PATH               = /usr/bin       # path to dot binary
+DOT_IMAGE_FORMAT       = svg
+CLASS_GRAPH            = YES
+COLLABORATION_GRAPH    = NO
+CALL_GRAPH             = NO
+CALLER_GRAPH           = NO
+
+QUIET                  = YES
+WARNINGS               = NO

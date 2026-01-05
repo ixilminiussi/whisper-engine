@@ -15,14 +15,12 @@
 
 #include <vulkan/vulkan.hpp>
 
-#ifndef NDEBUG
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_vulkan.h>
 #include <imgui_internal.h>
 
 #include <IconsMaterialSymbols.h>
-#endif
 
 #include <tracy/TracyVulkan.hpp>
 
@@ -280,6 +278,7 @@ GLFWwindow *RenderManager::GetGLFWHandle(WindowID windowID) const
 
 vk::CommandBuffer RenderManager::BeginRender(WindowID windowID, bool blit)
 {
+    ZoneScopedN("begin render");
     check(Validate(windowID));
 
     WindowRenderer &windowRenderer = _windowRenderers.at(windowID);
@@ -309,6 +308,7 @@ vk::CommandBuffer RenderManager::BeginRender(WindowID windowID, bool blit)
 
 void RenderManager::EndRender(vk::CommandBuffer commandBuffer, WindowID windowID)
 {
+    ZoneScopedN("end render");
     check(Validate(windowID));
 
     WindowRenderer &windowRenderer = _windowRenderers.at(windowID);
@@ -318,18 +318,13 @@ void RenderManager::EndRender(vk::CommandBuffer commandBuffer, WindowID windowID
 static int ImGui_CreateVkSurface(ImGuiViewport *viewport, ImU64 vk_instance, void const *vk_allocator,
                                  ImU64 *out_surface)
 {
-#ifndef NDEBUG
     return (int)glfwCreateWindowSurface(
         reinterpret_cast<VkInstance>(vk_instance), static_cast<GLFWwindow *>(viewport->PlatformHandle),
         reinterpret_cast<VkAllocationCallbacks const *>(vk_allocator), reinterpret_cast<VkSurfaceKHR *>(out_surface));
-#else
-    return INVALID_ID;
-#endif
 }
 
 void RenderManager::InitImGui(WindowID windowID)
 {
-#ifndef NDEBUG
     Device *device = DeviceAccessor::Get();
     check(device);
 
@@ -400,7 +395,6 @@ void RenderManager::InitImGui(WindowID windowID)
                                  iconFontSize, &icons_config, icons_ranges);
 
     ApplyImGuiTheme();
-#endif
 }
 
 void RenderManager::ExtensionsCompatibilityTest()

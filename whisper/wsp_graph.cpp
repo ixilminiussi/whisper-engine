@@ -503,6 +503,8 @@ void Graph::FlushUbo(void *ubo)
 
 void Graph::Render(vk::CommandBuffer commandBuffer, uint32_t frameIndex)
 {
+    ZoneScopedN("graph render");
+
     _currentFrameIndex = 1;
 
     extern TracyVkCtx TRACY_CTX;
@@ -510,12 +512,14 @@ void Graph::Render(vk::CommandBuffer commandBuffer, uint32_t frameIndex)
 
     if (_populateUbo)
     {
+        ZoneScopedN("populate ubo");
         void *ubo = _populateUbo();
         FlushUbo(ubo);
     }
 
     for (Pass const pass : _orderedPasses)
     {
+        ZoneScopedN("run passes");
         if (auto it = _imageMemoryBarriers.find(pass); it != _imageMemoryBarriers.end())
         {
             int i = 0;
@@ -532,44 +536,14 @@ void Graph::Render(vk::CommandBuffer commandBuffer, uint32_t frameIndex)
             }
         }
 
+        commandBuffer.beginRenderPass(_renderPassBeginInfos.at(pass), vk::SubpassContents::eInline);
+
         PassCreateInfo const &passInfo = GetPassInfo(pass);
-
-        vk::RenderPassBeginInfo renderPassInfo{};
-        renderPassInfo.renderPass = _renderPasses.at(pass);
-        renderPassInfo.framebuffer = _framebuffers.at(pass)[_currentFrameIndex];
-
-        renderPassInfo.renderArea.offset = vk::Offset2D{0, 0};
-
-        if (ResourceCreateInfo const &resourceInfo = GetResourceInfo(passInfo.writes.at(0));
-            resourceInfo.extent != vk::Extent2D{0u, 0u})
-        {
-            renderPassInfo.renderArea.extent = resourceInfo.extent;
-        }
-        else
-        {
-            renderPassInfo.renderArea.extent = vk::Extent2D{uint32_t(_width), (uint32_t)_height};
-        }
-
-        std::vector<vk::ClearValue> clearValues;
-        clearValues.reserve(passInfo.writes.size());
-
-        for (Resource const resource : passInfo.writes)
-        {
-            clearValues.push_back(GetResourceInfo(resource).clear);
-        }
-        renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
-        renderPassInfo.pClearValues = clearValues.data();
-
-        commandBuffer.beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);
 
         extern TracyVkCtx TRACY_CTX;
         TracyVkZoneTransient(TRACY_CTX, __tracy, commandBuffer, passInfo.debugName.c_str(), true);
 
-        static vk::Viewport viewport{};
-        viewport.x = 0.0f;
-        viewport.y = 0.0f;
-        viewport.minDepth = 0.0f;
-        viewport.maxDepth = 1.0f;
+        static vk::Viewport viewport{0.f, 0.f, 0.f, 0.f, 0.f, 1.f};
 
         static vk::Rect2D scissor{};
         scissor.offset = vk::Offset2D{0, 0};
@@ -1064,14 +1038,14 @@ void Graph::Build(Pass pass)
     subpass.pDepthStencilAttachment =
         depthAttachmentReference.has_value() ? &depthAttachmentReference.value() : nullptr;
 
-    vk::RenderPassCreateInfo renderPassInfo{};
-    renderPassInfo.attachmentCount = attachmentDescriptions.size();
-    renderPassInfo.pAttachments = attachmentDescriptions.data();
-    renderPassInfo.subpassCount = 1;
-    renderPassInfo.pSubpasses = &subpass;
+    vk::RenderPassCreateInfo renderPassCreateInfo{};
+    renderPassCreateInfo.attachmentCount = attachmentDescriptions.size();
+    renderPassCreateInfo.pAttachments = attachmentDescriptions.data();
+    renderPassCreateInfo.subpassCount = 1;
+    renderPassCreateInfo.pSubpasses = &subpass;
 
     vk::RenderPass renderPass;
-    device->CreateRenderPass(renderPassInfo, &renderPass, createInfo.debugName + "<render_pass>");
+    device->CreateRenderPass(renderPassCreateInfo, &renderPass, createInfo.debugName + "<render_pass>");
     _renderPasses[pass] = renderPass;
 
     for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
@@ -1095,6 +1069,35 @@ void Graph::Build(Pass pass)
         device->CreateFramebuffer(framebufferInfo, &framebuffer, createInfo.debugName + "<framebuffer>");
         _framebuffers[pass][i] = framebuffer;
     }
+
+    vk::RenderPassBeginInfo renderPassBeginInfo{};
+    renderPassBeginInfo.renderPass = _renderPasses.at(pass);
+    renderPassBeginInfo.framebuffer = _framebuffers.at(pass)[_currentFrameIndex];
+
+    renderPassBeginInfo.renderArea.offset = vk::Offset2D{0, 0};
+
+    if (ResourceCreateInfo const &resourceInfo = GetResourceInfo(createInfo.writes.at(0));
+        resourceInfo.extent != vk::Extent2D{0u, 0u})
+    {
+        renderPassBeginInfo.renderArea.extent = resourceInfo.extent;
+    }
+    else
+    {
+        renderPassBeginInfo.renderArea.extent = vk::Extent2D{uint32_t(_width), (uint32_t)_height};
+    }
+
+    std::vector<vk::ClearValue> &clearValues = _clearValues[pass];
+    _clearValues.clear();
+    clearValues.reserve(createInfo.writes.size());
+
+    for (Resource const resource : createInfo.writes)
+    {
+        clearValues.push_back(GetResourceInfo(resource).clear);
+    }
+    renderPassBeginInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
+    renderPassBeginInfo.pClearValues = clearValues.data();
+
+    _renderPassBeginInfos[pass] = renderPassBeginInfo;
 
     spdlog::debug("Graph: built {0} pass", createInfo.debugName);
 }

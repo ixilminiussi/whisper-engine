@@ -35,6 +35,8 @@ Renderer::~Renderer()
 
 void Renderer::Render(vk::CommandBuffer commandBuffer, uint32_t frameIndex) const
 {
+    ZoneScopedN("graph render");
+
     Device const *device = SafeDeviceAccessor::Get();
     check(device);
 

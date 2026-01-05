@@ -32,18 +32,15 @@ inline float decodeSRGB(float c)
         return powf((c + 0.055f) / 1.055f, 2.4f);
 }
 
-#ifndef NDEBUG
 inline ImVec4 decodeSRGB(ImVec4 const &srgb)
 {
     return ImVec4(decodeSRGB(srgb.x), decodeSRGB(srgb.y), decodeSRGB(srgb.z), srgb.w);
 }
-#endif
+
 inline glm::vec4 decodeSRGB(glm::vec4 const &srgb)
 {
     return glm::vec4{decodeSRGB(srgb.x), decodeSRGB(srgb.y), decodeSRGB(srgb.z), srgb.w};
 }
-
-#ifndef NDEBUG
 
 static vk::DebugUtilsMessengerEXT debugMessenger{nullptr};
 
@@ -98,7 +95,6 @@ inline void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMesse
         func(instance, debugMessenger, pAllocator);
     }
 }
-#endif
 
 inline std::vector<char> ReadShaderFile(std::string const &filepath)
 {

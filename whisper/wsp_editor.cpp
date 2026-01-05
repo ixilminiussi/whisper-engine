@@ -1,5 +1,4 @@
 #include <wsp_device.hpp>
-#ifndef NDEBUG
 #include <wsp_editor.hpp>
 
 #include <wsp_constants.hpp>
@@ -169,6 +168,7 @@ Editor::Editor() : _scene{nullptr}
     prepassPassInfo.fragFile = "prepass.frag.spv";
     prepassPassInfo.debugName = "prepass render";
     prepassPassInfo.execute = [&](vk::CommandBuffer commandBuffer, vk::PipelineLayout pipelineLayout) {
+        ZoneScopedN("draw calls");
         if (_scene)
         {
             _scene->BindAndDraw(commandBuffer, pipelineLayout);
@@ -186,6 +186,7 @@ Editor::Editor() : _scene{nullptr}
     shadowMapPassInfo.fragFile = "shadowmapping.frag.spv";
     shadowMapPassInfo.debugName = "shadowMap render";
     shadowMapPassInfo.execute = [&](vk::CommandBuffer commandBuffer, vk::PipelineLayout pipelineLayout) {
+        ZoneScopedN("draw calls");
         if (_scene)
         {
             _scene->BindAndDraw(commandBuffer, pipelineLayout);
@@ -269,6 +270,8 @@ void Editor::Render()
     vk::CommandBuffer const commandBuffer = RenderManager::Get()->BeginRender(_windowID);
 
     { // so that TracyCtx dies BEFORE flushing
+        ZoneScopedN("render editor");
+
         extern TracyVkCtx TRACY_CTX;
         TracyVkZone(TRACY_CTX, commandBuffer, "editor");
 
@@ -728,5 +731,3 @@ void Editor::SelectEnvironment(int i)
 
     _environments[i].second->Load();
 }
-
-#endif

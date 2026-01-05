@@ -104,6 +104,8 @@ class Graph
     std::map<Pass, std::array<vk::Framebuffer, MAX_FRAMES_IN_FLIGHT>> _framebuffers;
     std::map<Pass, std::vector<std::array<vk::ImageMemoryBarrier, MAX_FRAMES_IN_FLIGHT>>> _imageMemoryBarriers;
     std::map<Pass, vk::RenderPass> _renderPasses;
+    std::map<Pass, vk::RenderPassBeginInfo> _renderPassBeginInfos;
+    std::map<Pass, std::vector<vk::ClearValue>> _clearValues;
     std::map<Pass, PipelineHolder> _pipelines; // in future, maybe point to an array of pipelines..? Or focus on the ONE
                                                // GIGA SHADER Unity approach?
 

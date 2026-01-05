@@ -23,9 +23,7 @@ class Swapchain
     Swapchain(Swapchain const &) = delete;
     Swapchain &operator=(Swapchain const &) = delete;
 
-#ifndef NDEBUG
     void PopulateImGuiInitInfo(ImGui_ImplVulkan_InitInfo *initInfo) const;
-#endif
 
     void SubmitCommandBuffer(vk::CommandBuffer commandBuffer);
 
