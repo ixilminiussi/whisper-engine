@@ -169,7 +169,7 @@ void ViewportCamera::OnMouseScroll(double dt, glm::vec2 value)
 
 void ViewportCamera::OnMouseMovement(double dt, glm::vec2 value)
 {
-    dt = std::min(dt, 0.02);
+    dt = std::min(dt, 0.008);
 
     value.x *= -1;
     if (_possessionMode == eOrbit)

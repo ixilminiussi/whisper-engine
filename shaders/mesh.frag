@@ -201,7 +201,7 @@ void main()
 
     // TEXTURE SAMPLES
     vec3 albedo = getAlbedo(material, i.uv);
-    float occlusion = getOcclusion(material, i.uv) * computeSSAO(getRandom(), .1);
+    float occlusion = getOcclusion(material, i.uv); // * computeSSAO(getRandom(), .1);
 
     // PBR PARAMETERS
     vec3 PBRParams = getPBRParams(material, i.uv);
