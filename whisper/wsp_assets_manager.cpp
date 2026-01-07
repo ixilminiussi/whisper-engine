@@ -1,4 +1,3 @@
-#include "wsp_node.hpp"
 #include <wsp_device.hpp>
 
 #include <wsp_assets_manager.hpp>
@@ -11,6 +10,7 @@
 #include <wsp_mesh.hpp>
 #include <wsp_render_manager.hpp>
 #include <wsp_sampler.hpp>
+#include <wsp_scene.hpp>
 #include <wsp_static_textures.hpp>
 #include <wsp_texture.hpp>
 
@@ -186,7 +186,7 @@ void AssetsManager::UnloadAll()
     _imagesMap.clear();
     _samplersMap.clear();
 
-    for (auto const &[path, node] : _nodes)
+    for (auto const &[path, node] : _scenes)
     {
         delete node;
     }
@@ -199,7 +199,7 @@ void AssetsManager::UnloadAll()
     spdlog::info("AssetsManager: terminated");
 }
 
-Node *AssetsManager::ImportGlTF(std::filesystem::path const &relativePath)
+Scene *AssetsManager::ImportGlTF(std::filesystem::path const &relativePath)
 {
     Device const *device = SafeDeviceAccessor::Get();
     check(device);
@@ -209,7 +209,7 @@ Node *AssetsManager::ImportGlTF(std::filesystem::path const &relativePath)
     std::filesystem::path const filepath = (_fileRoot / relativePath).lexically_normal();
 
     // if we already imported file return the meshes without reimporting
-    if (auto it = _nodes.find(filepath); it != _nodes.end())
+    if (auto it = _scenes.find(filepath); it != _scenes.end())
     {
         return it->second;
     }
@@ -300,13 +300,13 @@ Node *AssetsManager::ImportGlTF(std::filesystem::path const &relativePath)
     // Meshes END ======================================
 
     // Nodes BEGIN =====================================
-    Node *node = Node::BuildGlTF(data->scene, data->meshes, meshes);
-    _nodes[filepath] = node;
+    Scene *scene = Scene::BuildGlTF(data->scene, data->meshes, meshes);
+    _scenes[filepath] = scene;
     // Nodes END =======================================
 
     cgltf_free(data);
 
-    return node;
+    return scene;
 }
 
 Image const *AssetsManager::FindImage(std::filesystem::path const &filepath)

@@ -152,8 +152,6 @@ void Window::SwapchainFlush(vk::CommandBuffer commandBuffer)
     commandBuffer.end();
 
     _swapchain->SubmitCommandBuffer(commandBuffer);
-
-    device->WaitIdle();
 }
 
 bool Window::ShouldClose() const

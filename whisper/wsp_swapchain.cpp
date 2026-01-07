@@ -138,11 +138,8 @@ void Swapchain::SubmitCommandBuffer(vk::CommandBuffer commandBuffers)
     check(device);
 
     check(_currentImageIndex < _imagesInFlight.size());
+    check(_currentFrameIndex < _inFlightFences.size());
 
-    if (_imagesInFlight[_currentImageIndex] != nullptr)
-    {
-        device->WaitForFences({_imagesInFlight[_currentImageIndex]});
-    }
     _imagesInFlight[_currentImageIndex] = _inFlightFences[_currentFrameIndex];
 
     vk::SubmitInfo submitInfo = {};
@@ -206,10 +203,18 @@ void Swapchain::AcquireNextImage()
     Device const *device = SafeDeviceAccessor::Get();
     check(device);
 
-    device->WaitForFences({_inFlightFences[_currentFrameIndex]});
+    if (_inFlightFences[_currentFrameIndex] != VK_NULL_HANDLE)
+    {
+        device->WaitForFences({_inFlightFences[_currentFrameIndex]});
+    }
 
     device->AcquireNextImageKHR(_swapchain, _imageAvailableSemaphores[_currentFrameIndex], VK_NULL_HANDLE,
                                 &_currentImageIndex);
+
+    if (_imagesInFlight[_currentImageIndex] != VK_NULL_HANDLE)
+    {
+        device->WaitForFences({_imagesInFlight[_currentImageIndex]});
+    }
 }
 
 vk::SwapchainKHR Swapchain::GetHandle() const

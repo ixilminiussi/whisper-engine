@@ -5,9 +5,7 @@
 #include <wsp_handles.hpp>
 
 #include <vulkan/vulkan.hpp>
-#include <vulkan/vulkan_handles.hpp>
 
-#include <map>
 #include <set>
 #include <variant>
 
@@ -60,7 +58,33 @@ class Graph
         vk::Pipeline pipeline;
     };
 
-    bool IsSampled(Resource resouce);
+    struct ResourceHolder
+    {
+        std::array<class Image *, MAX_FRAMES_IN_FLIGHT> images;
+        std::array<class Texture *, MAX_FRAMES_IN_FLIGHT> textures;
+        std::array<vk::DescriptorSet, MAX_FRAMES_IN_FLIGHT> descriptorSets;
+
+        std::vector<Pass> writers{};
+        std::vector<Pass> readers{};
+    };
+
+    struct PassHolder
+    {
+        std::array<vk::Framebuffer, MAX_FRAMES_IN_FLIGHT> frameBuffers;
+        vk::RenderPass renderPass;
+        std::array<vk::RenderPassBeginInfo, MAX_FRAMES_IN_FLIGHT> renderPassBeginInfo;
+        vk::Viewport viewport;
+        vk::Rect2D scissor;
+        PipelineHolder pipeline; // in future, maybe point to an array of pipelines..? Or focus on the ONE
+                                 // GIGA SHADER Unity approach?
+        std::vector<vk::ClearValue> clearValues;
+
+        bool rebuildOnChange{false};
+        std::vector<Pass> dependencies{};
+        std::vector<std::array<vk::ImageMemoryBarrier, MAX_FRAMES_IN_FLIGHT>> imageMemoryBarriers{};
+    };
+
+    bool IsSampled(Resource);
 
     void KhanFindOrder(std::set<Resource> const &, std::set<Pass> const &);
 
@@ -89,29 +113,20 @@ class Graph
 
     std::function<void *()> _populateUbo;
 
-    PassCreateInfo const &GetPassInfo(Pass) const;
-    ResourceCreateInfo const &GetResourceInfo(Resource) const;
-    vk::RenderPass GetRenderPass(Pass) const;
-
     std::vector<PassCreateInfo> _passInfos;
     std::vector<ResourceCreateInfo> _resourceInfos;
     Resource _target;
     GraphUsage _usage;
 
-    std::map<Resource, std::array<class Image *, MAX_FRAMES_IN_FLIGHT>> _images;
-    std::map<Resource, std::array<class Texture *, MAX_FRAMES_IN_FLIGHT>> _textures;
+    std::vector<PassHolder> _passes;
+    std::vector<ResourceHolder> _resources;
 
-    std::map<Pass, std::array<vk::Framebuffer, MAX_FRAMES_IN_FLIGHT>> _framebuffers;
-    std::map<Pass, std::vector<std::array<vk::ImageMemoryBarrier, MAX_FRAMES_IN_FLIGHT>>> _imageMemoryBarriers;
-    std::map<Pass, vk::RenderPass> _renderPasses;
-    std::map<Pass, vk::RenderPassBeginInfo> _renderPassBeginInfos;
-    std::map<Pass, std::vector<vk::ClearValue>> _clearValues;
-    std::map<Pass, PipelineHolder> _pipelines; // in future, maybe point to an array of pipelines..? Or focus on the ONE
-                                               // GIGA SHADER Unity approach?
+    std::set<Resource> _validResources;
+    std::set<Pass> _validPasses;
+    std::vector<Pass> _orderedPasses;
 
     vk::DescriptorPool _descriptorPool;
     vk::DescriptorSetLayout _descriptorSetLayout;
-    std::map<Resource, std::array<vk::DescriptorSet, MAX_FRAMES_IN_FLIGHT>> _descriptorSets;
 
     bool _requestsUniform;
     uint32_t _uboSize;
@@ -121,10 +136,6 @@ class Graph
     std::array<void *, MAX_FRAMES_IN_FLIGHT> _uboMappedMemories;
     vk::DescriptorPool _uboDescriptorPool;
     vk::DescriptorSetLayout _uboDescriptorSetLayout;
-
-    std::vector<Pass> _orderedPasses;
-    std::set<Resource> _validResources;
-    std::set<Pass> _validPasses;
 
     uint32_t _width, _height;
     uint32_t _currentFrameIndex; // only accurate when calling FlushUbo to update

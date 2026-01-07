@@ -1,12 +1,11 @@
-#include <wsp_device.hpp>
 #include <wsp_editor.hpp>
-
-#include <wsp_constants.hpp>
-#include <wsp_devkit.hpp>
 
 #include <wsp_assets_manager.hpp>
 #include <wsp_camera.hpp>
+#include <wsp_constants.hpp>
 #include <wsp_custom_imgui.hpp>
+#include <wsp_device.hpp>
+#include <wsp_devkit.hpp>
 #include <wsp_drawable.hpp>
 #include <wsp_engine.hpp>
 #include <wsp_environment.hpp>
@@ -16,9 +15,9 @@
 #include <wsp_input_manager.hpp>
 #include <wsp_inputs.hpp>
 #include <wsp_mesh.hpp>
-#include <wsp_node.hpp>
 #include <wsp_render_manager.hpp>
 #include <wsp_renderer.hpp>
+#include <wsp_scene.hpp>
 #include <wsp_static_utils.hpp>
 #include <wsp_swapchain.hpp>
 #include <wsp_texture.hpp>
@@ -171,7 +170,7 @@ Editor::Editor() : _scene{nullptr}
         ZoneScopedN("draw calls");
         if (_scene)
         {
-            _scene->BindAndDraw(commandBuffer, pipelineLayout);
+            _scene->Draw(commandBuffer, pipelineLayout, {});
         }
     };
 
@@ -189,7 +188,7 @@ Editor::Editor() : _scene{nullptr}
         ZoneScopedN("draw calls");
         if (_scene)
         {
-            _scene->BindAndDraw(commandBuffer, pipelineLayout);
+            _scene->Draw(commandBuffer, pipelineLayout, {});
         }
     };
 
@@ -207,9 +206,10 @@ Editor::Editor() : _scene{nullptr}
     meshPassInfo.fragFile = "mesh.frag.spv";
     meshPassInfo.debugName = "mesh render";
     meshPassInfo.execute = [&](vk::CommandBuffer commandBuffer, vk::PipelineLayout pipelineLayout) {
+        ZoneScopedN("draw calls");
         if (_scene)
         {
-            _scene->BindAndDraw(commandBuffer, pipelineLayout);
+            _scene->Draw(commandBuffer, pipelineLayout, {});
         }
     };
 
@@ -248,6 +248,8 @@ Editor::Editor() : _scene{nullptr}
 
 Editor::~Editor()
 {
+    SafeDeviceAccessor::Get()->WaitIdle();
+
     AssetsManager::Get()->UnloadAll();
 
     ImGui_ImplVulkan_Shutdown();
@@ -329,12 +331,6 @@ void Editor::Render()
         {
             ImGui::SeparatorText("Viewport Camera");
             frost::RenderEditor(frost::Meta<ViewportCamera>{}, _viewportCamera.get());
-        }
-
-        if (_scene)
-        {
-            ImGui::SeparatorText("Scene");
-            frost::RenderEditor(frost::Meta<Node>{}, _scene);
         }
 
         ImGui::SeparatorText("Environment");

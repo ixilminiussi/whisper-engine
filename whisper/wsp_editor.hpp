@@ -61,7 +61,7 @@ class Editor
 
     std::vector<std::function<void()>> _deferredQueue;
 
-    class Node *_scene;
+    class Scene *_scene;
 
     class Sampler *_previewSampler;
 

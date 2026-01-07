@@ -66,13 +66,6 @@ struct PassCreateInfo
 
     std::function<void(vk::CommandBuffer, vk::PipelineLayout)> execute;
     vk::PipelineVertexInputStateCreateInfo vertexInputInfo{{}, 0, nullptr, 0, nullptr};
-
-    friend class Graph;
-
-  protected:
-    bool rebuildOnChange{false};
-
-    std::vector<Pass> passDependants{};
 };
 
 enum ResourceUsage
@@ -95,8 +88,6 @@ struct ResourceCreateInfo
     friend class Graph;
 
   protected:
-    std::vector<Pass> writers{};
-    std::vector<Pass> readers{};
 };
 
 class StaticTextureAllocator

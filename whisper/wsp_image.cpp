@@ -73,7 +73,6 @@ Image::Image(Device const *device, CreateInfo const &createInfo)
         size = 4;
 
         LoadEXR(&pixels, &width, &height, createInfo.filepath.c_str(), &err);
-        spdlog::critical("{}w, {}h, {}c, {}s", width, height, channels, size);
 
         build(pixels);
 

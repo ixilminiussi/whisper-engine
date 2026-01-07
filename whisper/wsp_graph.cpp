@@ -17,6 +17,7 @@
 #include <client/TracyScoped.hpp>
 #include <tracy/TracyC.h>
 
+#include <spdlog/fmt/bundled/base.h>
 #include <spdlog/spdlog.h>
 
 #include <vulkan/vulkan.hpp>
@@ -33,9 +34,8 @@ uint32_t const Graph::SAMPLER_COLOR_CLAMPED{1};
 uint32_t const Graph::SAMPLER_COLOR_REPEATED{2};
 
 Graph::Graph(uint32_t width, uint32_t height)
-    : _passInfos{}, _resourceInfos{}, _images{}, _textures{}, _framebuffers{}, _descriptorSets{}, _target{0},
-      _width{width}, _height{height}, _uboSize{0}, _uboDescriptorSets{}, _uboBuffers{}, _uboDeviceMemories{},
-      _currentFrameIndex{0}
+    : _passInfos{}, _resourceInfos{}, _passes{}, _resources{}, _target{0}, _width{width}, _height{height}, _uboSize{0},
+      _uboDescriptorSets{}, _uboBuffers{}, _uboDeviceMemories{}, _currentFrameIndex{0}
 {
     Device const *device = SafeDeviceAccessor::Get();
     check(device);
@@ -94,6 +94,8 @@ Graph::~Graph()
     Device const *device = SafeDeviceAccessor::Get();
     check(device);
 
+    device->WaitIdle();
+
     Reset();
 
     delete _depthSampler;
@@ -114,6 +116,7 @@ Resource Graph::NewResource(ResourceCreateInfo const &createInfo)
 Pass Graph::NewPass(PassCreateInfo const &createInfo)
 {
     _passInfos.push_back(createInfo);
+    _passes.push_back({});
     return Pass{(uint32_t)_passInfos.size() - 1};
 }
 
@@ -141,7 +144,7 @@ void Graph::FindDependencies(std::set<Resource> *validResources, std::set<Pass> 
     visitingStack.insert(resource);
     validResources->insert(resource);
 
-    for (Pass const &writer : GetResourceInfo(resource).writers)
+    for (Pass const writer : _resources[resource.index].writers)
     {
         FindDependencies(validResources, validPasses, writer, visitingStack);
     }
@@ -163,12 +166,12 @@ void Graph::FindDependencies(std::set<Resource> *validResources, std::set<Pass> 
     visitingStack.insert(pass);
     validPasses->insert(pass);
 
-    for (Resource const &write : GetPassInfo(pass).writes)
+    for (Resource const &write : _passInfos[pass.index].writes)
     {
         FindDependencies(validResources, validPasses, write, visitingStack);
     }
 
-    for (Resource const &read : GetPassInfo(pass).reads)
+    for (Resource const &read : _passInfos[pass.index].reads)
     {
         FindDependencies(validResources, validPasses, read, visitingStack);
     }
@@ -181,6 +184,8 @@ void Graph::Compile(Resource target, GraphUsage usage)
     Device const *device = SafeDeviceAccessor::Get();
     check(device);
 
+    device->WaitIdle();
+
     _target = target;
     _usage = usage;
 
@@ -188,11 +193,11 @@ void Graph::Compile(Resource target, GraphUsage usage)
 
     for (uint32_t pass = 0; pass < _passInfos.size(); pass++)
     {
-        PassCreateInfo const &passInfo = GetPassInfo(Pass{pass});
+        PassCreateInfo const &passInfo = _passInfos[pass];
 
         if (!(passInfo.writes.empty() ||
               std::all_of(passInfo.writes.begin() + 1, passInfo.writes.end(), [&](Resource resource) {
-                  return GetResourceInfo(resource).extent == GetResourceInfo(passInfo.writes[0]).extent;
+                  return _resourceInfos[resource.index].extent == _resourceInfos[passInfo.writes[0].index].extent;
               })))
         {
             std::ostringstream oss;
@@ -203,18 +208,17 @@ void Graph::Compile(Resource target, GraphUsage usage)
         for (Resource const resource : passInfo.reads)
         {
             check(_resourceInfos.size() > resource.index);
-            _resourceInfos.at(resource.index).readers.push_back(Pass{pass});
+            _resources[resource.index].readers.emplace_back(pass);
         }
         for (Resource const resource : passInfo.writes)
         {
             check(_resourceInfos.size() > resource.index);
-            _resourceInfos.at(resource.index).writers.push_back(Pass{pass});
-            _passInfos.at(pass).rebuildOnChange = true;
+            _resources[resource.index].writers.emplace_back(pass);
+            _passes[pass].rebuildOnChange = true;
         }
         for (Pass const dependency : passInfo.passDependencies)
         {
-            check(_passInfos.size() > dependency.index);
-            _passInfos.at(dependency.index).passDependants.push_back(Pass{pass});
+            _passes[dependency.index].dependencies.push_back(Pass{pass});
         }
     }
 
@@ -228,11 +232,11 @@ void Graph::Compile(Resource target, GraphUsage usage)
     oss << "Graph: dependencies : ";
     for (Resource const resource : _validResources)
     {
-        oss << GetResourceInfo(resource).debugName << ", ";
+        oss << _resourceInfos[resource.index].debugName << ", ";
     }
     for (Pass const pass : _validPasses)
     {
-        oss << GetPassInfo(pass).debugName << ", ";
+        oss << _passInfos[pass.index].debugName << ", ";
     }
     spdlog::info("{0}", oss.str());
 
@@ -242,7 +246,7 @@ void Graph::Compile(Resource target, GraphUsage usage)
 
     for (Pass const pass : _validPasses)
     {
-        if (GetPassInfo(pass).readsUniform)
+        if (_passInfos[pass.index].readsUniform)
         {
             if (_uboSize == 0)
             {
@@ -278,12 +282,8 @@ Image *Graph::GetTargetImage() const
     {
         throw std::runtime_error("Graph: usage must be eToTransfer in order to get target image");
     }
-    check(_images.find(_target) != _images.end());
 
-    Image *image = _images.at(_target)[_currentFrameIndex];
-    check(image);
-
-    return image;
+    return _resources[_target.index].images[_currentFrameIndex];
 }
 
 vk::DescriptorSet Graph::GetTargetDescriptorSet() const
@@ -292,7 +292,8 @@ vk::DescriptorSet Graph::GetTargetDescriptorSet() const
     {
         throw std::runtime_error("Graph: usage must be eToDescriptorSet in order to get target descriptor set");
     }
-    return _descriptorSets.at(_target)[_currentFrameIndex];
+
+    return _resources[_target.index].descriptorSets[_currentFrameIndex];
 }
 
 void Graph::ChangeUsage(GraphUsage usage)
@@ -305,12 +306,12 @@ void Graph::BuildPipeline(Pass pass)
     Device const *device = SafeDeviceAccessor::Get();
     check(device);
 
-    PassCreateInfo const &passInfo = GetPassInfo(pass);
+    PassCreateInfo const &passInfo = _passInfos[pass.index];
 
     std::vector<char> const vertCode = ReadShaderFile(passInfo.vertFile);
     std::vector<char> const fragCode = ReadShaderFile(passInfo.fragFile);
 
-    PipelineHolder &pipelineHolder = _pipelines[pass];
+    PipelineHolder &pipelineHolder = _passes[pass.index].pipeline;
     device->CreateShaderModule(vertCode, &pipelineHolder.vertShaderModule,
                                passInfo.debugName + "_vertex_shader_module");
     device->CreateShaderModule(fragCode, &pipelineHolder.fragShaderModule,
@@ -375,7 +376,7 @@ void Graph::BuildPipeline(Pass pass)
 
     for (Resource const resource : passInfo.writes)
     {
-        ResourceCreateInfo const &resourceInfo = GetResourceInfo(resource);
+        ResourceCreateInfo const &resourceInfo = _resourceInfos[resource.index];
         if (resourceInfo.usage == ResourceUsage::eColor)
         {
             vk::PipelineColorBlendAttachmentState colorBlendAttachment{};
@@ -463,7 +464,7 @@ void Graph::BuildPipeline(Pass pass)
     pipelineInfo.pDynamicState = &dynamicStateInfo;
 
     pipelineInfo.layout = pipelineHolder.pipelineLayout;
-    pipelineInfo.renderPass = _renderPasses.at(pass);
+    pipelineInfo.renderPass = _passes[pass.index].renderPass;
     pipelineInfo.subpass = 0u;
 
     pipelineInfo.basePipelineIndex = -1;
@@ -505,7 +506,7 @@ void Graph::Render(vk::CommandBuffer commandBuffer, uint32_t frameIndex)
 {
     ZoneScopedN("graph render");
 
-    _currentFrameIndex = 1;
+    _currentFrameIndex = frameIndex;
 
     extern TracyVkCtx TRACY_CTX;
     TracyVkZone(TRACY_CTX, commandBuffer, "graph");
@@ -520,56 +521,38 @@ void Graph::Render(vk::CommandBuffer commandBuffer, uint32_t frameIndex)
     for (Pass const pass : _orderedPasses)
     {
         ZoneScopedN("run passes");
-        if (auto it = _imageMemoryBarriers.find(pass); it != _imageMemoryBarriers.end())
+
+        PassHolder const &passHolder = _passes[pass.index];
+
+        int i = 0;
+        for (std::array<vk::ImageMemoryBarrier, MAX_FRAMES_IN_FLIGHT> const &barriers : passHolder.imageMemoryBarriers)
         {
-            int i = 0;
-            for (std::array<vk::ImageMemoryBarrier, MAX_FRAMES_IN_FLIGHT> const &barriers : it->second)
-            {
-                vk::ImageMemoryBarrier const &barrier = barriers[_currentFrameIndex];
+            vk::ImageMemoryBarrier const &barrier = barriers[_currentFrameIndex];
 
-                commandBuffer.pipelineBarrier(
-                    vk::PipelineStageFlagBits::eLateFragmentTests | vk::PipelineStageFlagBits::eColorAttachmentOutput,
-                    vk::PipelineStageFlagBits::eColorAttachmentOutput | vk::PipelineStageFlagBits::eEarlyFragmentTests,
-                    vk::DependencyFlagBits::eByRegion, 0, nullptr, 0, nullptr, 1, &barrier);
+            commandBuffer.pipelineBarrier(
+                vk::PipelineStageFlagBits::eLateFragmentTests | vk::PipelineStageFlagBits::eColorAttachmentOutput,
+                vk::PipelineStageFlagBits::eColorAttachmentOutput | vk::PipelineStageFlagBits::eEarlyFragmentTests |
+                    vk::PipelineStageFlagBits::eFragmentShader,
+                vk::DependencyFlagBits::eByRegion, 0, nullptr, 0, nullptr, 1, &barrier);
 
-                i++;
-            }
+            i++;
         }
 
-        commandBuffer.beginRenderPass(_renderPassBeginInfos.at(pass), vk::SubpassContents::eInline);
+        commandBuffer.beginRenderPass(passHolder.renderPassBeginInfo[_currentFrameIndex], vk::SubpassContents::eInline);
 
-        PassCreateInfo const &passInfo = GetPassInfo(pass);
+        PassCreateInfo const &passInfo = _passInfos[pass.index];
 
         extern TracyVkCtx TRACY_CTX;
         TracyVkZoneTransient(TRACY_CTX, __tracy, commandBuffer, passInfo.debugName.c_str(), true);
 
-        static vk::Viewport viewport{0.f, 0.f, 0.f, 0.f, 0.f, 1.f};
-
-        static vk::Rect2D scissor{};
-        scissor.offset = vk::Offset2D{0, 0};
-
-        if (ResourceCreateInfo const &resourceInfo = GetResourceInfo(passInfo.writes.at(0));
-            resourceInfo.extent != vk::Extent2D{0u, 0u})
-        {
-            viewport.width = resourceInfo.extent.width; // WARN: important fix, need to send to tauri
-            viewport.height = resourceInfo.extent.height;
-            scissor.extent = resourceInfo.extent;
-        }
-        else
-        {
-            viewport.width = static_cast<float>(_width);
-            viewport.height = static_cast<float>(_height);
-            scissor.extent = vk::Extent2D{(uint32_t)_width, (uint32_t)_height};
-        }
-
-        commandBuffer.setViewport(0, 1, &viewport);
-        commandBuffer.setScissor(0, 1, &scissor);
+        commandBuffer.setViewport(0, 1, &passHolder.viewport);
+        commandBuffer.setScissor(0, 1, &passHolder.scissor);
 
         uint32_t offset = 0;
 
         if (passInfo.readsUniform)
         {
-            commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, _pipelines.at(pass).pipelineLayout,
+            commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, passHolder.pipeline.pipelineLayout,
                                              offset, 1u, &_uboDescriptorSets[_currentFrameIndex], 0u, nullptr);
             offset++;
         }
@@ -580,10 +563,10 @@ void Graph::Render(vk::CommandBuffer commandBuffer, uint32_t frameIndex)
 
             for (Resource const resource : passInfo.reads)
             {
-                descriptorSets.push_back(_descriptorSets.at(resource)[_currentFrameIndex]);
+                descriptorSets.push_back(_resources[resource.index].descriptorSets[_currentFrameIndex]);
             }
 
-            commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, _pipelines.at(pass).pipelineLayout,
+            commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, passHolder.pipeline.pipelineLayout,
                                              offset, descriptorSets.size(), descriptorSets.data(), 0u, nullptr);
 
             offset += passInfo.reads.size();
@@ -592,19 +575,20 @@ void Graph::Render(vk::CommandBuffer commandBuffer, uint32_t frameIndex)
         for (StaticTextures const *staticTextures : passInfo.staticTextures)
         {
             vk::DescriptorSet const staticDescriptorSet = staticTextures->GetDescriptorSet();
-            commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, _pipelines.at(pass).pipelineLayout,
+            commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, passHolder.pipeline.pipelineLayout,
                                              offset, 1u, &staticDescriptorSet, 0u, nullptr);
             offset++;
         }
 
-        commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, _pipelines.at(pass).pipeline);
-        passInfo.execute(commandBuffer, _pipelines.at(pass).pipelineLayout);
+        commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, passHolder.pipeline.pipeline);
+        passInfo.execute(commandBuffer, passHolder.pipeline.pipelineLayout);
         commandBuffer.endRenderPass();
     }
 }
 
 void Graph::Reset()
 {
+    ZoneScopedN("resetting graph");
     spdlog::debug("Graph: resetting began...");
 
     Device const *device = SafeDeviceAccessor::Get();
@@ -615,14 +599,14 @@ void Graph::Reset()
         FreeUbo();
     }
 
-    for (ResourceCreateInfo &resourceInfo : _resourceInfos)
+    for (ResourceHolder &resource : _resources)
     {
-        resourceInfo.writers.clear();
-        resourceInfo.readers.clear();
+        resource.writers.clear();
+        resource.readers.clear();
     }
-    for (PassCreateInfo &passInfo : _passInfos)
+    for (PassHolder &pass : _passes)
     {
-        passInfo.passDependants.clear();
+        pass.dependencies.clear();
     }
 
     for (Resource const resource : _validResources)
@@ -634,13 +618,10 @@ void Graph::Reset()
         Free(pass);
     }
 
-    _descriptorSets.clear();
-    _pipelines.clear();
-    _images.clear();
-    _textures.clear();
-    _framebuffers.clear();
-    _renderPasses.clear();
-    _imageMemoryBarriers.clear();
+    _passes.clear();
+    _passes.resize(_passInfos.size(), {});
+    _resources.clear();
+    _resources.resize(_resourceInfos.size(), {});
 
     spdlog::debug("Graph: resetting complete...");
 }
@@ -652,31 +633,27 @@ void Graph::Free(Resource resource)
 
     check(_validResources.find(resource) != _validResources.end());
 
-    if (_descriptorSets.find(resource) != _descriptorSets.end())
-    {
-        for (vk::DescriptorSet &descriptorSet : _descriptorSets.at(resource))
-        {
-            device->FreeDescriptorSet(_descriptorPool, &descriptorSet);
-        }
-        _descriptorSets.erase(resource);
-    }
+    ResourceHolder &resourceHolder = _resources[resource.index];
 
-    check(_images.find(resource) != _images.end());
-    for (Image *image : _images.at(resource))
+    for (vk::DescriptorSet &descriptorSet : resourceHolder.descriptorSets)
+    {
+        device->FreeDescriptorSet(_descriptorPool, &descriptorSet);
+    }
+    resourceHolder.descriptorSets = {};
+
+    for (Image *image : resourceHolder.images)
     {
         delete image;
     }
-    _images.erase(resource);
+    resourceHolder.images = {};
 
-    check(_textures.find(resource) != _textures.end());
-    for (Texture *texture : _textures.at(resource))
+    for (Texture *texture : resourceHolder.textures)
     {
         delete texture;
     }
-    _textures.erase(resource);
+    resourceHolder.textures = {};
 
-    ResourceCreateInfo createInfo = GetResourceInfo(resource);
-    spdlog::debug("Graph: freed resource '{}'", createInfo.debugName);
+    spdlog::debug("Graph: freed resource '{}'", _resourceInfos[resource.index].debugName);
 }
 
 void Graph::Free(Pass pass)
@@ -684,15 +661,11 @@ void Graph::Free(Pass pass)
     Device const *device = SafeDeviceAccessor::Get();
     check(device);
 
-    auto it = _imageMemoryBarriers.find(pass);
-    if (it != _imageMemoryBarriers.end())
-    {
-        _imageMemoryBarriers.erase(it);
-    }
-
     check(_validPasses.find(pass) != _validPasses.end());
 
-    PipelineHolder &pipelineHolder = _pipelines.at(pass);
+    PassHolder &passHolder = _passes[pass.index];
+
+    PipelineHolder &pipelineHolder = passHolder.pipeline;
     device->DestroyShaderModule(&pipelineHolder.vertShaderModule);
     device->DestroyShaderModule(&pipelineHolder.fragShaderModule);
     device->DestroyPipelineLayout(&pipelineHolder.pipelineLayout);
@@ -700,15 +673,16 @@ void Graph::Free(Pass pass)
 
     for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
     {
-        vk::Framebuffer &framebuffer = _framebuffers.at(pass)[i];
+        vk::Framebuffer &framebuffer = passHolder.frameBuffers[i];
         device->DestroyFramebuffer(&framebuffer);
     }
 
-    vk::RenderPass &renderPass = _renderPasses.at(pass);
+    passHolder.imageMemoryBarriers.clear();
+
+    vk::RenderPass &renderPass = passHolder.renderPass;
     device->DestroyRenderPass(&renderPass);
 
-    PassCreateInfo createInfo = GetPassInfo(pass);
-    spdlog::debug("Graph: freed pass '{}'", createInfo.debugName);
+    spdlog::debug("Graph: freed pass '{}'", _passInfos[pass.index].debugName);
 }
 
 void Graph::KhanFindOrder(std::set<Resource> const &resources, std::set<Pass> const &passes)
@@ -720,13 +694,12 @@ void Graph::KhanFindOrder(std::set<Resource> const &resources, std::set<Pass> co
 
     for (Resource const resource : resources)
     {
-        ResourceCreateInfo const &resourceInfo = GetResourceInfo(resource);
-        resourceDegrees[resource] = resourceInfo.writers.size();
+        resourceDegrees[resource] = _resources[resource.index].writers.size();
     }
 
     for (Pass const pass : passes)
     {
-        PassCreateInfo const &passInfo = GetPassInfo(pass);
+        PassCreateInfo const &passInfo = _passInfos[pass.index];
         passDegrees[pass] = passInfo.reads.size() + passInfo.passDependencies.size();
     }
 
@@ -738,8 +711,8 @@ void Graph::KhanFindOrder(std::set<Resource> const &resources, std::set<Pass> co
         {
             if (it->second == 0)
             {
-                ResourceCreateInfo const &resourceInfo = GetResourceInfo(it->first);
-                for (Pass const reader : resourceInfo.readers)
+                ResourceHolder const &resourceHolder = _resources[it->first.index];
+                for (Pass const reader : resourceHolder.readers)
                 {
                     passDegrees.at(reader)--;
                 }
@@ -755,12 +728,13 @@ void Graph::KhanFindOrder(std::set<Resource> const &resources, std::set<Pass> co
         {
             if (it->second == 0)
             {
-                PassCreateInfo const &passInfo = GetPassInfo(it->first);
+                PassCreateInfo const &passInfo = _passInfos[it->first.index];
                 for (Resource const writey : passInfo.writes)
                 {
                     resourceDegrees.at(writey)--;
                 }
-                for (Pass const dependant : passInfo.passDependants)
+                PassHolder const &passHolder = _passes[it->first.index];
+                for (Pass const dependant : passHolder.dependencies)
                 {
                     passDegrees.at(dependant)--;
                 }
@@ -779,12 +753,12 @@ void Graph::KhanFindOrder(std::set<Resource> const &resources, std::set<Pass> co
             oss << "Graph: circular dependency found! cannot compile: ";
             for (auto const &[resource, degree] : resourceDegrees)
             {
-                ResourceCreateInfo const &resourceInfo = GetResourceInfo(resource);
+                ResourceCreateInfo const &resourceInfo = _resourceInfos[resource.index];
                 oss << resourceInfo.debugName << ": " << degree << ", ";
             }
             for (auto const &[pass, degree] : passDegrees)
             {
-                PassCreateInfo const &passInfo = GetPassInfo(pass);
+                PassCreateInfo const &passInfo = _passInfos[pass.index];
                 oss << passInfo.debugName << ": " << degree << ", ";
             }
             throw std::runtime_error(oss.str());
@@ -795,11 +769,13 @@ void Graph::KhanFindOrder(std::set<Resource> const &resources, std::set<Pass> co
     oss << "Graph: pass order selected: ";
     for (int i = 0; i < _orderedPasses.size(); i++)
     {
+        PassCreateInfo const &passInfo = _passInfos[_orderedPasses[i].index];
+
         if (i != 0)
         {
             oss << " -> ";
         }
-        oss << GetPassInfo(_orderedPasses[i]).debugName;
+        oss << passInfo.debugName;
     }
     spdlog::info("{0}", oss.str());
 }
@@ -809,7 +785,7 @@ void Graph::Build(Resource resource)
     Device const *device = SafeDeviceAccessor::Get();
     check(device);
 
-    ResourceCreateInfo const &createInfo = GetResourceInfo(resource);
+    ResourceCreateInfo const &createInfo = _resourceInfos[resource.index];
 
     vk::ImageCreateInfo imageInfo{};
     imageInfo.imageType = vk::ImageType::e2D;
@@ -832,7 +808,8 @@ void Graph::Build(Resource resource)
         imageInfo.extent = vk::Extent3D{createInfo.extent.width, createInfo.extent.height, 1u};
     }
 
-    if (createInfo.writers.size() > 0)
+    ResourceHolder const &resourceHolder = _resources[resource.index];
+    if (resourceHolder.writers.size() > 0)
     {
         switch (createInfo.usage)
         {
@@ -858,10 +835,12 @@ void Graph::Build(Resource resource)
 
     for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
     {
-        _images[resource][i] = new Image(device, imageInfo, createInfo.debugName + std::string("_image"));
+        ResourceHolder &resourceHolder = _resources[resource.index];
+
+        resourceHolder.images[i] = new Image(device, imageInfo, createInfo.debugName + std::string("_image"));
 
         Texture::CreateInfo textureCreateInfo{};
-        textureCreateInfo.pImage = _images[resource][i];
+        textureCreateInfo.pImage = resourceHolder.images[i];
         textureCreateInfo.name = createInfo.debugName;
         textureCreateInfo.pSampler = _colorSampler;
 
@@ -871,7 +850,7 @@ void Graph::Build(Resource resource)
             textureCreateInfo.pSampler = _depthSampler;
         }
 
-        _textures[resource][i] = new Texture(device, textureCreateInfo);
+        resourceHolder.textures[i] = new Texture(device, textureCreateInfo);
     }
 
     if (IsSampled(resource))
@@ -887,7 +866,8 @@ void Graph::Build(Pass pass)
     Device const *device = SafeDeviceAccessor::Get();
     check(device);
 
-    PassCreateInfo const &createInfo = GetPassInfo(pass);
+    PassCreateInfo const &createInfo = _passInfos[pass.index];
+    PassHolder &passHolder = _passes[pass.index];
 
     vk::Extent2D outResolution{(uint32_t)_width, (uint32_t)_height};
 
@@ -901,78 +881,61 @@ void Graph::Build(Pass pass)
     int i = 0;
     for (Resource const resource : createInfo.writes)
     {
-        ResourceCreateInfo const &resourceInfo = GetResourceInfo(resource);
+        ResourceCreateInfo const &resourceInfo = _resourceInfos[resource.index];
 
         if (resourceInfo.extent != vk::Extent2D{0, 0})
         {
             outResolution = resourceInfo.extent;
         }
 
-        // if we aren't the only one to write to a resource, instead of clearing it, we want to load it and create an
-        // imagebarrier to ensure it is only cleared once at the start
-        std::vector<Pass> orderedWriters;
-        orderedWriters.reserve(resourceInfo.writers.size());
+        ResourceHolder const &resourceHolder = _resources[resource.index];
 
-        for (Pass const potentialWriter : _orderedPasses)
+        bool firstWriter = false;
+        bool nextIsRead = false;
+
+        if (resourceHolder.writers[0] == pass)
         {
-            if (std::find(resourceInfo.writers.begin(), resourceInfo.writers.end(), potentialWriter) !=
-                resourceInfo.writers.end())
-            {
-                orderedWriters.push_back(potentialWriter);
-            }
+            firstWriter = true;
+        }
+        if (resourceHolder.writers[resourceHolder.writers.size() - 1] == pass && IsSampled(resource))
+        {
+            nextIsRead = true;
         }
 
-        int pos = 0;
-        for (Pass const writer : orderedWriters)
+        std::array<vk::ImageMemoryBarrier, MAX_FRAMES_IN_FLIGHT> imageMemoryBarriers;
+        vk::ImageMemoryBarrier imageMemoryBarrier{};
+
+        imageMemoryBarrier.subresourceRange.baseMipLevel = 0;
+        imageMemoryBarrier.subresourceRange.levelCount = 1;
+        imageMemoryBarrier.subresourceRange.baseArrayLayer = 0;
+        imageMemoryBarrier.subresourceRange.layerCount = 1;
+        imageMemoryBarrier.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
+        imageMemoryBarrier.srcQueueFamilyIndex = vk::QueueFamilyIgnored;
+        imageMemoryBarrier.dstQueueFamilyIndex = vk::QueueFamilyIgnored;
+        imageMemoryBarrier.oldLayout = vk::ImageLayout::eColorAttachmentOptimal;
+        imageMemoryBarrier.srcAccessMask = vk::AccessFlagBits::eColorAttachmentWrite;
+        imageMemoryBarrier.newLayout = vk::ImageLayout::eColorAttachmentOptimal;
+        imageMemoryBarrier.dstAccessMask = vk::AccessFlagBits::eColorAttachmentWrite;
+
+        if (resourceInfo.usage == ResourceUsage::eDepth)
         {
-            if (writer == pass)
-            {
-                break;
-            }
-            pos++;
+            imageMemoryBarrier.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eDepth;
+            imageMemoryBarrier.oldLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
+            imageMemoryBarrier.newLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
+            imageMemoryBarrier.srcAccessMask = vk::AccessFlagBits::eDepthStencilAttachmentWrite;
+            imageMemoryBarrier.dstAccessMask = vk::AccessFlagBits::eDepthStencilAttachmentWrite;
         }
 
-        // if we're not the first to write to a resource, we need to create a barrier to ensure the correct order of
-        // operations
-        if (pos != 0)
+        if (!firstWriter && !nextIsRead)
         {
-            std::array<vk::ImageMemoryBarrier, MAX_FRAMES_IN_FLIGHT> imageMemoryBarriers;
-            vk::ImageMemoryBarrier imageMemoryBarrier{};
-
-            imageMemoryBarrier.subresourceRange.baseMipLevel = 0;
-            imageMemoryBarrier.subresourceRange.levelCount = 1;
-            imageMemoryBarrier.subresourceRange.baseArrayLayer = 0;
-            imageMemoryBarrier.subresourceRange.layerCount = 1;
-
-            if (resourceInfo.usage == ResourceUsage::eDepth)
-            {
-                imageMemoryBarrier.srcQueueFamilyIndex = vk::QueueFamilyIgnored;
-                imageMemoryBarrier.dstQueueFamilyIndex = vk::QueueFamilyIgnored;
-                imageMemoryBarrier.oldLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
-                imageMemoryBarrier.newLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
-                imageMemoryBarrier.srcAccessMask = vk::AccessFlagBits::eDepthStencilAttachmentWrite;
-                imageMemoryBarrier.dstAccessMask = vk::AccessFlagBits::eDepthStencilAttachmentWrite;
-                imageMemoryBarrier.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eDepth;
-            }
-            if (resourceInfo.usage == ResourceUsage::eColor)
-            {
-                imageMemoryBarrier.srcQueueFamilyIndex = vk::QueueFamilyIgnored;
-                imageMemoryBarrier.dstQueueFamilyIndex = vk::QueueFamilyIgnored;
-                imageMemoryBarrier.oldLayout = vk::ImageLayout::eColorAttachmentOptimal;
-                imageMemoryBarrier.newLayout = vk::ImageLayout::eColorAttachmentOptimal;
-                imageMemoryBarrier.srcAccessMask = vk::AccessFlagBits::eColorAttachmentWrite;
-                imageMemoryBarrier.dstAccessMask = vk::AccessFlagBits::eColorAttachmentWrite;
-                imageMemoryBarrier.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
-            }
-
             for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
             {
-                imageMemoryBarrier.image = _images.at(resource)[i]->GetImage();
+                imageMemoryBarrier.image = _resources[resource.index].images[i]->GetImage();
 
                 imageMemoryBarriers[i] = imageMemoryBarrier;
             }
 
-            _imageMemoryBarriers[pass].push_back(imageMemoryBarriers);
+            passHolder.imageMemoryBarriers.push_back(imageMemoryBarriers);
         }
 
         vk::AttachmentDescription attachment = {};
@@ -987,16 +950,20 @@ void Graph::Build(Pass pass)
         switch (resourceInfo.usage)
         {
         case ResourceUsage::eColor:
-            if (pos != 0)
+            imageMemoryBarrier.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
+            if (!firstWriter)
             {
                 attachment.loadOp = vk::AttachmentLoadOp::eLoad;
                 attachment.initialLayout = vk::ImageLayout::eColorAttachmentOptimal;
             }
             attachment.storeOp = vk::AttachmentStoreOp::eStore;
-            attachment.finalLayout = vk::ImageLayout::eColorAttachmentOptimal;
-            if (pos == orderedWriters.size() - 1 && IsSampled(resource))
+            if (nextIsRead)
             {
                 attachment.finalLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+            }
+            else
+            {
+                attachment.finalLayout = vk::ImageLayout::eColorAttachmentOptimal;
             }
 
             attachmentRef.layout = vk::ImageLayout::eColorAttachmentOptimal;
@@ -1004,16 +971,20 @@ void Graph::Build(Pass pass)
             colorAttachmentReferences.push_back(attachmentRef);
             break;
         case ResourceUsage::eDepth:
-            if (pos != 0)
+            imageMemoryBarrier.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eDepth;
+            if (!firstWriter)
             {
                 attachment.loadOp = vk::AttachmentLoadOp::eLoad;
                 attachment.initialLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
             }
             attachment.storeOp = vk::AttachmentStoreOp::eDontCare;
-            attachment.finalLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
-            if (pos == orderedWriters.size() - 1 && IsSampled(resource))
+            if (nextIsRead)
             {
                 attachment.finalLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+            }
+            else
+            {
+                attachment.finalLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
             }
 
             attachmentRef.layout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
@@ -1046,19 +1017,27 @@ void Graph::Build(Pass pass)
 
     vk::RenderPass renderPass;
     device->CreateRenderPass(renderPassCreateInfo, &renderPass, createInfo.debugName + "<render_pass>");
-    _renderPasses[pass] = renderPass;
+    passHolder.renderPass = renderPass;
+
+    std::vector<vk::ClearValue> &clearValues = passHolder.clearValues;
+    clearValues.clear();
+    clearValues.reserve(createInfo.writes.size());
+
+    for (Resource const resource : createInfo.writes)
+    {
+        clearValues.push_back(_resourceInfos[resource.index].clear);
+    }
 
     for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
     {
         std::vector<vk::ImageView> imageViews{};
         for (Resource const resource : createInfo.writes)
         {
-            check(_textures.find(resource) != _textures.end());
-            imageViews.push_back(_textures.at(resource)[i]->GetImageView());
+            imageViews.push_back(_resources[resource.index].textures[i]->GetImageView());
         }
 
         vk::FramebufferCreateInfo framebufferInfo{};
-        framebufferInfo.renderPass = _renderPasses.at(pass);
+        framebufferInfo.renderPass = passHolder.renderPass;
         framebufferInfo.attachmentCount = imageViews.size();
         framebufferInfo.pAttachments = imageViews.data();
         framebufferInfo.width = outResolution.width;
@@ -1067,37 +1046,55 @@ void Graph::Build(Pass pass)
 
         vk::Framebuffer framebuffer;
         device->CreateFramebuffer(framebufferInfo, &framebuffer, createInfo.debugName + "<framebuffer>");
-        _framebuffers[pass][i] = framebuffer;
+        passHolder.frameBuffers[i] = framebuffer;
+
+        vk::RenderPassBeginInfo renderPassBeginInfo{};
+        renderPassBeginInfo.renderPass = passHolder.renderPass;
+        renderPassBeginInfo.framebuffer = framebuffer;
+
+        renderPassBeginInfo.renderArea.offset = vk::Offset2D{0, 0};
+
+        if (ResourceCreateInfo const &resourceInfo = _resourceInfos[createInfo.writes.at(0).index];
+            resourceInfo.extent != vk::Extent2D{0u, 0u})
+        {
+            renderPassBeginInfo.renderArea.extent = resourceInfo.extent;
+        }
+        else
+        {
+            renderPassBeginInfo.renderArea.extent = vk::Extent2D{uint32_t(_width), (uint32_t)_height};
+        }
+
+        renderPassBeginInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
+        renderPassBeginInfo.pClearValues = clearValues.data();
+
+        passHolder.renderPassBeginInfo[i] = renderPassBeginInfo;
     }
 
-    vk::RenderPassBeginInfo renderPassBeginInfo{};
-    renderPassBeginInfo.renderPass = _renderPasses.at(pass);
-    renderPassBeginInfo.framebuffer = _framebuffers.at(pass)[_currentFrameIndex];
+    vk::Viewport viewport{};
+    viewport.x = 0.f;
+    viewport.y = 0.f;
+    viewport.minDepth = 0.f;
+    viewport.maxDepth = 1.f;
 
-    renderPassBeginInfo.renderArea.offset = vk::Offset2D{0, 0};
+    vk::Rect2D scissor{};
+    scissor.offset = vk::Offset2D{0, 0};
 
-    if (ResourceCreateInfo const &resourceInfo = GetResourceInfo(createInfo.writes.at(0));
+    if (ResourceCreateInfo const &resourceInfo = _resourceInfos[createInfo.writes.at(0).index];
         resourceInfo.extent != vk::Extent2D{0u, 0u})
     {
-        renderPassBeginInfo.renderArea.extent = resourceInfo.extent;
+        viewport.width = resourceInfo.extent.width; // WARN: important fix, need to send to tauri
+        viewport.height = resourceInfo.extent.height;
+        scissor.extent = resourceInfo.extent;
     }
     else
     {
-        renderPassBeginInfo.renderArea.extent = vk::Extent2D{uint32_t(_width), (uint32_t)_height};
+        viewport.width = static_cast<float>(_width);
+        viewport.height = static_cast<float>(_height);
+        scissor.extent = vk::Extent2D{(uint32_t)_width, (uint32_t)_height};
     }
 
-    std::vector<vk::ClearValue> &clearValues = _clearValues[pass];
-    _clearValues.clear();
-    clearValues.reserve(createInfo.writes.size());
-
-    for (Resource const resource : createInfo.writes)
-    {
-        clearValues.push_back(GetResourceInfo(resource).clear);
-    }
-    renderPassBeginInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
-    renderPassBeginInfo.pClearValues = clearValues.data();
-
-    _renderPassBeginInfos[pass] = renderPassBeginInfo;
+    passHolder.viewport = viewport;
+    passHolder.scissor = scissor;
 
     spdlog::debug("Graph: built {0} pass", createInfo.debugName);
 }
@@ -1213,7 +1210,7 @@ void Graph::BuildDescriptors(Resource resource)
     Device const *device = SafeDeviceAccessor::Get();
     check(device);
 
-    ResourceCreateInfo const &resourceInfo = GetResourceInfo(resource);
+    ResourceCreateInfo const &resourceInfo = _resourceInfos[resource.index];
 
     check(IsSampled(resource));
     check(_validResources.find(resource) != _validResources.end());
@@ -1229,11 +1226,11 @@ void Graph::BuildDescriptors(Resource resource)
 
         device->AllocateDescriptorSet(setAllocInfo, &descriptorSet, resourceInfo.debugName + "<descriptor_set>");
 
-        check(_textures.find(resource) != _textures.end());
+        ResourceHolder &resourceHolder = _resources[resource.index];
 
         vk::DescriptorImageInfo imageInfo{};
         imageInfo.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
-        imageInfo.imageView = _textures.at(resource)[i]->GetImageView();
+        imageInfo.imageView = resourceHolder.textures[i]->GetImageView();
 
         if (resourceInfo.usage == ResourceUsage::eDepth)
         {
@@ -1254,7 +1251,7 @@ void Graph::BuildDescriptors(Resource resource)
 
         device->UpdateDescriptorSets({writeDescriptor});
 
-        _descriptorSets[resource][i] = descriptorSet;
+        resourceHolder.descriptorSets[i] = descriptorSet;
     }
 
     spdlog::debug("Graph: built descriptors for '{}'", resourceInfo.debugName);
@@ -1267,6 +1264,8 @@ void Graph::Resize(uint32_t width, uint32_t height)
     Device const *device = SafeDeviceAccessor::Get();
     check(device);
 
+    device->WaitIdle();
+
     _width = width;
     _height = height;
 
@@ -1277,7 +1276,7 @@ void Graph::Resize(uint32_t width, uint32_t height)
 
     for (Resource const resource : _validResources)
     {
-        ResourceCreateInfo const &resourceInfo = GetResourceInfo(resource);
+        ResourceCreateInfo const &resourceInfo = _resourceInfos[resource.index];
 
         if (resourceInfo.extent == vk::Extent2D{0, 0})
         {
@@ -1287,9 +1286,9 @@ void Graph::Resize(uint32_t width, uint32_t height)
     }
     for (Pass const pass : _validPasses)
     {
-        PassCreateInfo const &passInfo = GetPassInfo(pass);
+        PassHolder const &passHolder = _passes[pass.index];
 
-        if (passInfo.rebuildOnChange)
+        if (passHolder.rebuildOnChange)
         {
             Free(pass);
             passesToRebuild.push_back(pass);
@@ -1320,19 +1319,7 @@ bool Graph::IsSampled(Resource resource)
 {
     if (_usage == eToTransfer)
     {
-        return GetResourceInfo(resource).readers.size() > 0 && resource != _target;
+        return _resources[resource.index].readers.size() > 0 && resource != _target;
     }
-    return GetResourceInfo(resource).readers.size() > 0 || resource == _target;
-}
-
-PassCreateInfo const &Graph::GetPassInfo(Pass pass) const
-{
-    check(_passInfos.size() > pass.index);
-    return _passInfos.at(pass.index);
-}
-
-ResourceCreateInfo const &Graph::GetResourceInfo(Resource resource) const
-{
-    check(_resourceInfos.size() > resource.index);
-    return _resourceInfos.at(resource.index);
+    return _resources[resource.index].readers.size() > 0 || resource == _target;
 }

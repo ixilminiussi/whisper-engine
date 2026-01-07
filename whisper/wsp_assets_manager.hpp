@@ -44,7 +44,7 @@ class AssetsManager
 
     void UnloadAll();
 
-    class Node *ImportGlTF(std::filesystem::path const &relativePath);
+    class Scene *ImportGlTF(std::filesystem::path const &relativePath);
 
     std::array<ubo::Material, MAX_MATERIALS> const &GetMaterialInfos() const;
 
@@ -76,7 +76,7 @@ class AssetsManager
     dod::slot_map32<Image> _images;
     dod::slot_map32<Sampler, 128> _samplers;
 
-    std::map<std::filesystem::path, class Node *> _nodes;
+    std::map<std::filesystem::path, class Scene *> _scenes;
 
     std::map<Image::CreateInfo, dod::slot_map_key32<Image>> _imagesMap;
     std::map<Sampler::CreateInfo, dod::slot_map_key32<Sampler>> _samplersMap;
