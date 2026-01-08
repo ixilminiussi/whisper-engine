@@ -45,6 +45,12 @@ vec3 getNormal()
     return normalize(texture(sPrepass, uv).rgb);
 }
 
+vec3 getSpecular(in Material material, in vec2 uv)
+{
+    int specularTexID = material.specularTex;
+    return specularTexID != INVALID_ID ? texture(sTextures[specularTexID], uv).rgb : material.specularColor;
+}
+
 vec3 getAlbedo(in Material material, in vec2 uv)
 {
     int albedoTexID = material.albedoTex;
@@ -146,9 +152,9 @@ float getOcclusion(in Material material, in vec2 uv)
     return occlusion;
 }
 
-vec3 computeFresnel(in float metallic, in vec3 albedo, in float NdotV)
+vec3 computeFresnel(in float metallic, in vec3 albedo, in float NdotV, vec3 specular)
 {
-    vec3 F0 = mix(vec3(0.04), albedo, metallic);
+    vec3 F0 = mix(specular, albedo, metallic);
     return F0 + (1. - F0) * pow(1. - NdotV, 5.);
 }
 
@@ -202,6 +208,7 @@ void main()
     // TEXTURE SAMPLES
     vec3 albedo = getAlbedo(material, i.uv);
     float occlusion = getOcclusion(material, i.uv); // * computeSSAO(getRandom(), .1);
+    vec3 specular = getSpecular(material, i.uv);
 
     // PBR PARAMETERS
     vec3 PBRParams = getPBRParams(material, i.uv);
@@ -221,7 +228,7 @@ void main()
     float NdotL = max(dot(N, L), EPS);
     float NdotH = max(dot(N, H), 0.);
 
-    vec3 F = computeFresnel(metallic, albedo, NdotV);
+    vec3 F = computeFresnel(metallic, albedo, NdotV, specular);
     float D = computeDGGX(roughness, NdotH);
     float G = computeGGX(roughness, NdotL, NdotV);
 

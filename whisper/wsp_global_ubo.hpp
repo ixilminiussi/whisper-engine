@@ -51,11 +51,13 @@ struct Material
     float _pad0;
     glm::vec3 fresnelColor{1.f};
     float _pad1;
+    glm::vec3 specularColor{.04f};
+    float _pad2;
 
     float roughness{0.f};
     float metallic{0.f};
     float anisotropy{0.f};
-    float _pad2;
+    int specularTex = INVALID_ID;
 };
 
 struct Ubo

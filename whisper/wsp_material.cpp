@@ -44,6 +44,10 @@ void Material::PropagateFormatFromGlTF(cgltf_material const *material, cgltf_tex
         populateInfo(material->pbr_metallic_roughness.metallic_roughness_texture.texture, vk::Format::eR8G8B8Unorm);
         populateInfo(material->pbr_metallic_roughness.base_color_texture.texture, vk::Format::eR8G8B8Srgb);
     }
+    if (material->has_specular)
+    {
+        populateInfo(material->specular.specular_color_texture.texture, vk::Format::eR8G8B8Unorm);
+    }
 
     populateInfo(material->normal_texture.texture, vk::Format::eR8G8B8Unorm);
     populateInfo(material->occlusion_texture.texture, vk::Format::eR8G8B8Unorm);
@@ -81,6 +85,11 @@ Material::CreateInfo Material::GetCreateInfoFromGlTF(cgltf_material const *mater
 
         createInfo.albedo = getTexture(material->pbr_metallic_roughness.base_color_texture.texture);
     }
+    if (material->has_specular)
+    {
+        createInfo.specular = getTexture(material->specular.specular_color_texture.texture);
+        createInfo.specularColor = *(glm::vec3 *)(material->specular.specular_color_factor);
+    }
 
     if (material->has_anisotropy)
     {
@@ -96,8 +105,10 @@ Material::CreateInfo Material::GetCreateInfoFromGlTF(cgltf_material const *mater
 Material::Material(CreateInfo const &createInfo)
     : _ID{INVALID_ID}, _albedoTexture{createInfo.albedo}, _normalTexture{createInfo.normal},
       _metallicRoughnessTexture{createInfo.metallicRoughness}, _occlusionTexture{createInfo.occlusion},
-      _albedoColor{createInfo.albedoColor}, _fresnelColor{createInfo.fresnelColor}, _roughness{createInfo.roughness},
-      _metallic{createInfo.metallic}, _anisotropy{createInfo.anisotropy}, _name{createInfo.name}
+      _specularTexture{createInfo.specular}, _albedoColor{createInfo.albedoColor},
+      _fresnelColor{createInfo.fresnelColor}, _specularColor{createInfo.specularColor},
+      _roughness{createInfo.roughness}, _metallic{createInfo.metallic}, _anisotropy{createInfo.anisotropy},
+      _name{createInfo.name}
 {
     spdlog::debug("Material: <{}>", _name);
 }
@@ -110,8 +121,10 @@ void Material::GetInfo(ubo::Material *info) const
     info->normalMap = GetID(_normalTexture);
     info->metallicRoughnessMap = GetID(_metallicRoughnessTexture);
     info->occlusionMap = GetID(_occlusionTexture);
+    info->specularTex = GetID(_specularTexture);
     info->albedoColor = _albedoColor;
     info->fresnelColor = _fresnelColor;
+    info->specularColor = _specularColor;
     info->roughness = _roughness;
     info->metallic = _metallic;
     info->anisotropy = _anisotropy;

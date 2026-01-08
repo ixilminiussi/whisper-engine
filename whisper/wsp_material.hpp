@@ -27,9 +27,11 @@ class Material
         TextureID normal{};
         TextureID metallicRoughness{};
         TextureID occlusion{};
+        TextureID specular{};
 
         glm::vec3 albedoColor{};
         glm::vec3 fresnelColor{};
+        glm::vec3 specularColor{.04};
 
         float roughness{0.};
         float metallic{0.};
@@ -67,11 +69,15 @@ class Material
     TextureID _metallicRoughnessTexture;
     WPROPERTY()
     TextureID _occlusionTexture;
+    WPROPERTY()
+    TextureID _specularTexture;
 
     WPROPERTY(eColor)
     glm::vec3 _albedoColor;
     WPROPERTY(eColor)
     glm::vec3 _fresnelColor;
+    WPROPERTY(eColor)
+    glm::vec3 _specularColor;
 
     WPROPERTY(eSlider, 0.f, 1.f)
     float _roughness;

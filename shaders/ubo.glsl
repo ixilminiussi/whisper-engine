@@ -33,10 +33,13 @@ struct Material
 
     vec3 albedoColor;
     vec3 fresnelColor;
+    vec3 specularColor;
 
     float roughness;
     float metallic;
     float anisotropy;
+
+    int specularTex;
 };
 
 layout(set = 0, binding = 0) uniform Ubo
