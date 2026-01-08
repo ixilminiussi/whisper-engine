@@ -33,7 +33,7 @@ struct Material
 
     vec3 albedoColor;
     vec3 fresnelColor;
-    vec3 specularColor;
+    vec4 specularColor; // ior on a
 
     float roughness;
     float metallic;

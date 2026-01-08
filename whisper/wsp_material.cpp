@@ -90,6 +90,10 @@ Material::CreateInfo Material::GetCreateInfoFromGlTF(cgltf_material const *mater
         createInfo.specular = getTexture(material->specular.specular_color_texture.texture);
         createInfo.specularColor = *(glm::vec3 *)(material->specular.specular_color_factor);
     }
+    if (material->has_ior)
+    {
+        createInfo.ior = material->ior.ior;
+    }
 
     if (material->has_anisotropy)
     {
@@ -108,7 +112,7 @@ Material::Material(CreateInfo const &createInfo)
       _specularTexture{createInfo.specular}, _albedoColor{createInfo.albedoColor},
       _fresnelColor{createInfo.fresnelColor}, _specularColor{createInfo.specularColor},
       _roughness{createInfo.roughness}, _metallic{createInfo.metallic}, _anisotropy{createInfo.anisotropy},
-      _name{createInfo.name}
+      _ior{createInfo.ior}, _name{createInfo.name}
 {
     spdlog::debug("Material: <{}>", _name);
 }
@@ -125,6 +129,7 @@ void Material::GetInfo(ubo::Material *info) const
     info->albedoColor = _albedoColor;
     info->fresnelColor = _fresnelColor;
     info->specularColor = _specularColor;
+    info->ior = _ior;
     info->roughness = _roughness;
     info->metallic = _metallic;
     info->anisotropy = _anisotropy;

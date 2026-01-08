@@ -36,6 +36,7 @@ class Material
         float roughness{0.};
         float metallic{0.};
         float anisotropy{0.};
+        float ior{-1.};
 
         std::string name{""};
     };
@@ -85,6 +86,8 @@ class Material
     float _metallic;
     WPROPERTY(eSlider, 0.f, 1.f)
     float _anisotropy;
+    WPROPERTY(eSlider, 0.f, 100.f)
+    float _ior;
 };
 
 } // namespace wsp
