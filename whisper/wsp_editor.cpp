@@ -78,21 +78,21 @@ Editor::Editor() : _scene{nullptr}
     Graph *graph = renderManager->GetGraph(_windowID);
 
     _environments.emplace_back(
-        "puresky day",
-        std::make_unique<Environment>(
-            (std::filesystem::path{WSP_ENGINE_ASSETS} / std::filesystem::path{"puresky-day-skybox.exr"})
-                .lexically_normal(),
-            (std::filesystem::path{WSP_ENGINE_ASSETS} / std::filesystem::path{"puresky-day-irradiance_2.exr"})
-                .lexically_normal(),
-            glm::vec2{-.66f, -.97f}, glm::vec3{1.f, 1.f, 1.f}, 8.f));
-
-    _environments.emplace_back(
         "alpes",
         std::make_unique<Environment>(
             (std::filesystem::path{WSP_ENGINE_ASSETS} / std::filesystem::path{"alpes-skybox.exr"}).lexically_normal(),
             (std::filesystem::path{WSP_ENGINE_ASSETS} / std::filesystem::path{"alpes-irradiance.exr"})
                 .lexically_normal(),
             glm::vec2{3.35f, .87f}, glm::vec3{1.f, 1.f, 1.f}, 8.f));
+
+    _environments.emplace_back(
+        "puresky day",
+        std::make_unique<Environment>(
+            (std::filesystem::path{WSP_ENGINE_ASSETS} / std::filesystem::path{"puresky-day-skybox.exr"})
+                .lexically_normal(),
+            (std::filesystem::path{WSP_ENGINE_ASSETS} / std::filesystem::path{"puresky-day-irradiance.exr"})
+                .lexically_normal(),
+            glm::vec2{-.66f, -.97f}, glm::vec3{1.f, 1.f, 1.f}, 8.f));
 
     _environments.emplace_back(
         "venice sunset",
