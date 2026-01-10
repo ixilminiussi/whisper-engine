@@ -12,10 +12,9 @@
 using namespace wsp;
 
 Environment::Environment(std::filesystem::path const &skyboxPath, std::filesystem::path const &irradiancePath,
-                         glm::vec2 const &sunDirection, glm::vec3 const &color, float sunIntensity,
-                         float shadowMapRadius)
+                         glm::vec2 const &sunDirection, glm::vec3 const &color, float sunIntensity)
     : _skyboxPath{skyboxPath}, _irradiancePath{irradiancePath}, _sunDirection{sunDirection}, _sunColor{color},
-      _sunIntensity{sunIntensity}, _shadowMapRadius{shadowMapRadius}, _skyboxTexture{0}, _irradianceTexture{0}
+      _sunIntensity{sunIntensity}, _shadowMapRadius{30.f}, _skyboxTexture{0}, _irradianceTexture{0}
 {
     Refresh();
 }
@@ -72,6 +71,7 @@ void Environment::PopulateUbo(ubo::Ubo *ubo) const
     ubo->light.sun.viewProjection = _shadowMapCamera.GetProjection() * _shadowMapCamera.GetView();
     ubo->light.skybox = staticCubemaps->GetID(_skyboxTexture);
     ubo->light.irradiance = staticCubemaps->GetID(_irradianceTexture);
+    ubo->light.rotation = glm::radians(_rotation);
 }
 
 void Environment::SetShadowMapRadius(float shadowMapRadius)
@@ -82,8 +82,17 @@ void Environment::SetShadowMapRadius(float shadowMapRadius)
 
 void Environment::Refresh()
 {
-    glm::vec4 const source =
-        glm::quat(glm::vec3{0.f, _sunDirection.x, _sunDirection.y}) * glm::vec4{1.f, 0.f, 0.f, 1.f};
+    glm::vec3 source =
+        (glm::vec3)(glm::quat(glm::vec3{0.f, _sunDirection.x, _sunDirection.y}) * glm::vec4{1.f, 0.f, 0.f, 1.f});
+
+    glm::vec3 const up = glm::vec3{0.f, 1.f, 0.f};
+    float const radiansRotation = glm::radians(_rotation);
+    float const cosX = cos(radiansRotation);
+    float const sinX = sin(radiansRotation);
+
+    source =
+        glm::normalize(cosX * source + (glm::cross(up, source) * sinX) + (up * glm::dot(up, source) * (1.f - cosX)));
+
     _sunSource = source;
     _shadowMapCamera.SetOrthographicProjection(-_shadowMapRadius, _shadowMapRadius, _shadowMapRadius, -_shadowMapRadius,
                                                -_shadowMapRadius, _shadowMapRadius);

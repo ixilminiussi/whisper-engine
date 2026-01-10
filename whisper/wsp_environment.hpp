@@ -22,7 +22,7 @@ class Environment
 {
   public:
     Environment(std::filesystem::path const &skyboxPath, std::filesystem::path const &irradiancePath,
-                glm::vec2 const &sunDirection, glm::vec3 const &color, float sunIntensity, float shadowMapRadius);
+                glm::vec2 const &sunDirection, glm::vec3 const &color, float sunIntensity);
     ~Environment() = default;
 
     void Load();
@@ -36,20 +36,23 @@ class Environment
     WREFRESH()
     void Refresh();
 
-    WPROPERTY(eDrag)
     glm::vec2 _sunDirection;
     glm::vec3 _sunSource;
 
+    WPROPERTY(eSlider, 1.f, 100.f)
     float _shadowMapRadius;
     Camera _shadowMapCamera;
 
     WPROPERTY(eColor)
     glm::vec3 _sunColor;
-    WPROPERTY(eDrag, 0.f, 10.f)
+    WPROPERTY(eSlider, 0.f, 10.f)
     float _sunIntensity;
 
     TextureID _skyboxTexture;
     TextureID _irradianceTexture;
+
+    WPROPERTY(eSlider, 0.f, 360.f, 1.f)
+    float _rotation;
 
     std::filesystem::path _skyboxPath;
     std::filesystem::path _irradiancePath;

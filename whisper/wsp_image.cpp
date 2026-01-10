@@ -342,8 +342,9 @@ void Image::CopyFaceToFace(uint32_t left, uint32_t top, uint32_t faceID, void *s
     {
         int const faceOffset = faceID * t_width * t_height;
 
-        uint32_t const minChannels = std::min(t_channels, s_channels);
-
+        int const s_pixel = s_channels * size;
+        int const t_pixel = t_channels * size;
+        int const diff = t_pixel - s_pixel;
         for (int y = 0; y < t_height; y++)
         {
             for (int x = 0; x < t_width; x++)
@@ -351,8 +352,15 @@ void Image::CopyFaceToFace(uint32_t left, uint32_t top, uint32_t faceID, void *s
                 uint32_t const s_offset = ((top * t_height + y) * s_width + (left * t_width + x)) * s_channels * size;
                 uint32_t const t_offset = (faceOffset + y * t_height + x) * t_channels * size;
 
-                int const pixel = minChannels * size;
-                memcpy((std::byte *)target + t_offset, (std::byte *)source + s_offset, pixel);
+                if (s_channels < t_channels)
+                {
+                    memcpy((std::byte *)target + t_offset, (std::byte *)source + s_offset, s_pixel);
+                    memset((std::byte *)target + t_offset + s_pixel, 0xFF, diff);
+                }
+                else
+                {
+                    memcpy((std::byte *)target + t_offset, (std::byte *)source + s_offset, t_pixel);
+                }
             }
         }
     }

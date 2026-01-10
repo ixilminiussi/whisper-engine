@@ -41,16 +41,16 @@ void Material::PropagateFormatFromGlTF(cgltf_material const *material, cgltf_tex
 
     if (material->has_pbr_metallic_roughness)
     {
-        populateInfo(material->pbr_metallic_roughness.metallic_roughness_texture.texture, vk::Format::eR8G8B8Unorm);
-        populateInfo(material->pbr_metallic_roughness.base_color_texture.texture, vk::Format::eR8G8B8Srgb);
+        populateInfo(material->pbr_metallic_roughness.metallic_roughness_texture.texture, vk::Format::eR8G8B8A8Unorm);
+        populateInfo(material->pbr_metallic_roughness.base_color_texture.texture, vk::Format::eR8G8B8A8Srgb);
     }
     if (material->has_specular)
     {
-        populateInfo(material->specular.specular_color_texture.texture, vk::Format::eR8G8B8Unorm);
+        populateInfo(material->specular.specular_color_texture.texture, vk::Format::eR8G8B8A8Unorm);
     }
 
-    populateInfo(material->normal_texture.texture, vk::Format::eR8G8B8Unorm);
-    populateInfo(material->occlusion_texture.texture, vk::Format::eR8G8B8Unorm);
+    populateInfo(material->normal_texture.texture, vk::Format::eR8G8B8A8Unorm);
+    populateInfo(material->occlusion_texture.texture, vk::Format::eR8G8B8A8Unorm);
 }
 
 Material::CreateInfo Material::GetCreateInfoFromGlTF(cgltf_material const *material, cgltf_texture const *pTexture,

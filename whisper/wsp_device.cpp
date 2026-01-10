@@ -172,6 +172,11 @@ QueueFamilyIndices Device::FindQueueFamilies(vk::SurfaceKHR surface) const
     return indices;
 }
 
+std::string Device::GetDeviceName() const
+{
+    return _physicalDevice.getProperties().deviceName.data();
+}
+
 QueueFamilyIndices Device::FindQueueFamilies(vk::PhysicalDevice device, vk::SurfaceKHR surface)
 {
     QueueFamilyIndices indices;

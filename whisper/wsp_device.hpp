@@ -60,6 +60,7 @@ class Device
     void EndSingleTimeCommand(vk::CommandBuffer commandBuffer) const;
 
     QueueFamilyIndices FindQueueFamilies(vk::SurfaceKHR) const;
+    std::string GetDeviceName() const;
 
     void ResetFences(std::vector<vk::Fence> const &) const;
     void WaitForFences(std::vector<vk::Fence> const &, bool waitAll = true, uint64_t timer = UINT64_MAX) const;

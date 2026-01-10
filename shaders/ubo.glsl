@@ -22,6 +22,7 @@ struct Light
     Sun sun;
     int skyboxTex;
     int irradianceTex;
+    float rotation;
 };
 
 struct Material

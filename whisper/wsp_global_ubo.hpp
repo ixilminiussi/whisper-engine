@@ -37,7 +37,8 @@ struct Light
     Sun sun;
     int skybox = INVALID_ID;
     int irradiance = INVALID_ID;
-    float _pad0, _pad1;
+    float rotation;
+    float _pad0;
 };
 
 struct Material

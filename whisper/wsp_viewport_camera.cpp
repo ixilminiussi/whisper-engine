@@ -14,9 +14,8 @@
 using namespace wsp;
 
 ViewportCamera::ViewportCamera(glm::vec3 const &orbitPoint, float distance, glm::vec2 const &rotation)
-    : _orbitDistance{distance}, _rotation{rotation}, _orbitTarget{orbitPoint}, _orbitPoint{orbitPoint},
-      _orbitLerp{0.1f}, _possessionMode{eReleased}, _mouseSensitivity{2.f, 1.5f}, _movementSpeed{10.f},
-      _viewDistance{1000.f}
+    : _orbitDistance{distance}, _rotation{rotation}, _orbitPoint{orbitPoint}, _orbitLerp{0.1f},
+      _possessionMode{eReleased}, _mouseSensitivity{2.f, 1.5f}, _movementSpeed{100.f}, _viewDistance{1000.f}
 {
     SetOrbitDistance(_orbitDistance);
 
@@ -46,14 +45,14 @@ void ViewportCamera::SetOrbitDistance(float distance)
     _camera.SetFar(_orbitDistance);
 }
 
-void ViewportCamera::SetOrbitTarget(glm::vec3 const &target)
+void ViewportCamera::SetOrbitPoint(glm::vec3 const &target)
 {
-    _orbitTarget = target;
+    _orbitPoint = target;
 }
 
-glm::vec3 const &ViewportCamera::GetOrbitTarget() const
+glm::vec3 const &ViewportCamera::GetOrbitPoint() const
 {
-    return _orbitTarget;
+    return _orbitPoint;
 }
 
 void ViewportCamera::Zoom(float value)
@@ -92,7 +91,6 @@ void ViewportCamera::Rotate(glm::vec2 value)
     forward = glm::normalize(qPitch * forward);
 
     _orbitPoint = _position - forward * _orbitDistance;
-    _orbitTarget = _orbitPoint;
 }
 
 void ViewportCamera::Orbit(glm::vec2 value)
@@ -195,8 +193,6 @@ void ViewportCamera::OnKeyboardMovement(double dt, glm::vec2 value)
 
         _orbitPoint += forward * 0.01f * -value.y;
         _orbitPoint += right * 0.01f * value.x;
-
-        _orbitTarget = _orbitPoint;
     }
 }
 
@@ -207,8 +203,6 @@ void ViewportCamera::Lift(double dt, int value)
         glm::vec3 constexpr up = glm::vec3{0.f, 1.f, 0.f};
 
         _orbitPoint += up * 0.01f * _movementSpeed * (float)dt;
-
-        _orbitTarget = _orbitPoint;
     }
 }
 
@@ -219,7 +213,5 @@ void ViewportCamera::Sink(double dt, int value)
         glm::vec3 constexpr down = glm::vec3{0.f, -1.f, 0.f};
 
         _orbitPoint += down * 0.01f * _movementSpeed * (float)dt;
-
-        _orbitTarget = _orbitPoint;
     }
 }

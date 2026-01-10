@@ -29,8 +29,8 @@ class ViewportCamera
 
     void SetOrbitDistance(float);
 
-    void SetOrbitTarget(glm::vec3 const &target);
-    glm::vec3 const &GetOrbitTarget() const;
+    void SetOrbitPoint(glm::vec3 const &target);
+    glm::vec3 const &GetOrbitPoint() const;
 
     void Zoom(float);
 
@@ -67,7 +67,6 @@ class ViewportCamera
     Camera _camera;
 
     glm::vec3 _orbitPoint;
-    glm::vec3 _orbitTarget;
     float _orbitLerp;
 
     WPROPERTY(Edit::eDrag, 0.01f, 1000000.f, 0.01f)

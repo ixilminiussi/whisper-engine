@@ -83,16 +83,16 @@ Editor::Editor() : _scene{nullptr}
             (std::filesystem::path{WSP_ENGINE_ASSETS} / std::filesystem::path{"alpes-skybox.exr"}).lexically_normal(),
             (std::filesystem::path{WSP_ENGINE_ASSETS} / std::filesystem::path{"alpes-irradiance.exr"})
                 .lexically_normal(),
-            glm::vec2{3.35f, .87f}, glm::vec3{1.f, 1.f, 1.f}, 8.f, 20.f));
+            glm::vec2{3.35f, .87f}, glm::vec3{1.f, 1.f, 1.f}, 8.f));
 
     _environments.emplace_back(
         "puresky day",
         std::make_unique<Environment>(
             (std::filesystem::path{WSP_ENGINE_ASSETS} / std::filesystem::path{"puresky-day-skybox.exr"})
                 .lexically_normal(),
-            (std::filesystem::path{WSP_ENGINE_ASSETS} / std::filesystem::path{"puresky-day-irradiance.exr"})
+            (std::filesystem::path{WSP_ENGINE_ASSETS} / std::filesystem::path{"puresky-day-irradiance_2.exr"})
                 .lexically_normal(),
-            glm::vec2{-.66f, -.97f}, glm::vec3{1.f, 1.f, 1.f}, 8.f, 20.f));
+            glm::vec2{-.66f, -.97f}, glm::vec3{1.f, 1.f, 1.f}, 8.f));
 
     _environments.emplace_back(
         "venice sunset",
@@ -101,7 +101,7 @@ Editor::Editor() : _scene{nullptr}
                 .lexically_normal(),
             (std::filesystem::path{WSP_ENGINE_ASSETS} / std::filesystem::path{"venice-sunset-irradiance.exr"})
                 .lexically_normal(),
-            glm::vec2{4.08f, 3.04f}, glm::vec3{1.f, .406, .177}, 4.7f, 20.f));
+            glm::vec2{4.08f, 3.04f}, glm::vec3{1.f, .406, .177}, 4.7f));
 
     _environments.emplace_back(
         "workshop", std::make_unique<Environment>(
@@ -109,7 +109,7 @@ Editor::Editor() : _scene{nullptr}
                             .lexically_normal(),
                         (std::filesystem::path{WSP_ENGINE_ASSETS} / std::filesystem::path{"workshop-irradiance.exr"})
                             .lexically_normal(),
-                        glm::vec2{3.35f, .87f}, glm::vec3{1.f, 1.f, 1.f}, 0.f, 20.f));
+                        glm::vec2{3.35f, .87f}, glm::vec3{1.f, 1.f, 1.f}, 0.f));
 
     AssetsManager::Get()->LoadDefaults();
 
@@ -613,7 +613,7 @@ void Editor::RenderContentBrowser(bool *show)
                             {
                                 _scene = assetsManager->ImportGlTF(relativePath);
 
-                                _viewportCamera->SetOrbitTarget({0.f, 0.f, 0.f});
+                                _viewportCamera->SetOrbitPoint({0.f, 0.f, 0.f});
 
                                 _environments[_selectedEnvironment].second->SetShadowMapRadius(100.f);
                             }
@@ -673,7 +673,9 @@ void Editor::RenderFrameInfoMenuBar() const
 {
     vk::PhysicalDeviceMemoryProperties2 memProps2{};
     vk::PhysicalDeviceMemoryBudgetPropertiesEXT budgetProps{};
-    SafeDeviceAccessor::Get()->GetMemoryProperties(&memProps2, &budgetProps);
+    Device const *device = SafeDeviceAccessor::Get();
+
+    device->GetMemoryProperties(&memProps2, &budgetProps);
 
     auto const &heaps = memProps2.memoryProperties.memoryHeaps;
 
@@ -718,6 +720,9 @@ void Editor::RenderFrameInfoMenuBar() const
 
         break; // one heap only
     }
+
+    ImGui::SameLine();
+    wsp::YellowText(device->GetDeviceName().c_str());
 }
 
 void Editor::SelectEnvironment(int i)

@@ -28,14 +28,23 @@ push;
 vec4 getSky(in vec3 ray, in float mipLevel)
 {
     int skyboxTexID = ubo.light.skyboxTex;
-    return skyboxTexID != INVALID_ID ? texture(sCubemaps[skyboxTexID], ray, mipLevel * 7.)
+    const vec3 up = vec3(0., -1., 0.);
+    const float cosX = cos(ubo.light.rotation);
+    const float sinX = sin(ubo.light.rotation);
+    const vec3 rotatedRay = normalize(cosX * ray + (cross(up, ray) * sinX) + (up * dot(up, ray) * (1. - cosX)));
+    return skyboxTexID != INVALID_ID ? texture(sCubemaps[skyboxTexID], rotatedRay, mipLevel * 7.)
                                      : vec4(ubo.light.sun.color.rgb, 0.);
 }
 
 vec4 getIrradiance(in vec3 ray)
 {
     int irradianceTexID = ubo.light.irradianceTex;
-    return irradianceTexID != INVALID_ID ? texture(sCubemaps[irradianceTexID], ray) : vec4(ubo.light.sun.color.rgb, 0.);
+    const vec3 up = vec3(0., -1., 0.);
+    const float cosX = cos(ubo.light.rotation);
+    const float sinX = sin(ubo.light.rotation);
+    const vec3 rotatedRay = normalize(cosX * ray + (cross(up, ray) * sinX) + (up * dot(up, ray) * (1. - cosX)));
+    return irradianceTexID != INVALID_ID ? texture(sCubemaps[irradianceTexID], rotatedRay)
+                                         : vec4(ubo.light.sun.color.rgb, 0.);
 }
 
 vec3 getNormal()
@@ -182,17 +191,29 @@ float computeGGX(in float roughness, in float NdotL, in float NdotV)
     return computeGGX1(a2, NdotL) * computeGGX1(a2, NdotV);
 }
 
-float isOccluded(in vec3 sc_position)
+float isOccluded(in vec3 sc_position, in vec2 randOffset)
 {
     vec2 uv = 0.5 * sc_position.xy + 0.5;
-    float depth = texture(sShadowMap, uv).r;
+    vec2 textureSize = textureSize(sShadowMap, 0).xy;
 
-    if (depth < sc_position.z - 0.025)
+    const vec2 OFFSETS[9] = {vec2(-1., -1.), vec2(0., -1.), vec2(1., -1.), vec2(-1, 0.), vec2(0., 0.),
+                             vec2(1., 0.),   vec2(-1, 1.),  vec2(0., 1.),  vec2(1., 1.)};
+
+    randOffset /= textureSize * 5.;
+
+    float average = 0.f;
+    for (int i = 0; i < 9; i++)
     {
-        return 0.0f;
+        vec2 offsetUV = OFFSETS[i] / textureSize * .5;
+        vec2 randUV = randOffset + uv + offsetUV;
+        float depth = texture(sShadowMap, randUV).r;
+        if (depth > sc_position.z - 0.001)
+        {
+            average++;
+        }
     }
 
-    return 1.0f;
+    return pow(average / 9., 2.);
 }
 
 void main()
@@ -209,9 +230,11 @@ void main()
 
     vec3 lightColor = ubo.light.sun.color.rgb * ubo.light.sun.color.a;
 
+    vec3 random = getRandom();
+
     // TEXTURE SAMPLES
     vec3 albedo = getAlbedo(material, i.uv);
-    float occlusion = getOcclusion(material, i.uv); // * computeSSAO(getRandom(), .1);
+    float occlusion = getOcclusion(material, i.uv) * computeSSAO(random, .1);
 
     // PBR PARAMETERS
     vec3 PBRParams = getPBRParams(material, i.uv);
@@ -245,14 +268,17 @@ void main()
     // bentNormal = (ubo.camera.inverseView * vec4(bentNormal, 0.)).xyz;
     vec4 irradiance = getIrradiance(-N);
 
-    vec3 specularIBL = getSky(-R, roughness).rgb * kS;
+    vec3 prefittedColor = getSky(-R, roughness).rgb;
+    vec2 brdf = texture(sNoises[1], vec2(NdotV, roughness)).xy;
+    vec3 specularIBL = getSky(-R, roughness).rgb * (kS * brdf.x + brdf.y);
     vec3 diffuseIBL = (albedo * irradiance.rgb * irradiance.a) * kD * occlusion;
     vec3 IBLColor = specularIBL + diffuseIBL;
 
     // Direct lighting
     vec3 Ld = kD * (albedo / PI) * NdotL * lightColor;
     vec3 Ls = kS * ((D * G * F) / (4. * NdotL * NdotV)) * lightColor * NdotL;
-    vec3 directColor = (Ld + Ls) * isOccluded(i.sc_position);
+    vec2 randUV = texture(sNoises[0], i.uv).rg;
+    vec3 directColor = (Ld + Ls) * isOccluded(i.sc_position, randUV);
 
     out_color = vec4(directColor + IBLColor, 1.);
     // out_color = vec4(bentNormal, 1.);

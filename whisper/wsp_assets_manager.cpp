@@ -45,7 +45,7 @@ AssetsManager *AssetsManager::Get()
 AssetsManager::AssetsManager() : _fileRoot{WSP_ASSETS}
 {
     _staticTextures = new StaticTextures{MAX_DYNAMIC_TEXTURES, false, "static 2d textures"};
-    _staticNoises = new StaticTextures{1, false, "static 2d noises"};
+    _staticNoises = new StaticTextures{2, false, "static 2d noises"};
     _staticCubemaps = new StaticTextures{10, true, "static cube textures"};
 
     _meshes.reserve(1024);
@@ -64,7 +64,7 @@ void AssetsManager::LoadDefaults()
     Image::CreateInfo rgbNoiseImageInfo{};
     rgbNoiseImageInfo.filepath =
         (std::filesystem::path(WSP_ENGINE_ASSETS) / std::filesystem::path("rgb-noise.png")).lexically_normal();
-    rgbNoiseImageInfo.format = vk::Format::eR8G8B8Srgb;
+    rgbNoiseImageInfo.format = vk::Format::eR8G8B8A8Srgb;
     Image const *rgbNoiseImage = RequestImage(rgbNoiseImageInfo);
 
     Texture::CreateInfo rgbNoiseTextureInfo{};
@@ -76,10 +76,25 @@ void AssetsManager::LoadDefaults()
 
     _staticNoises->Push({rgbNoiseTexture});
 
+    Image::CreateInfo LUTImageInfo{};
+    LUTImageInfo.filepath =
+        (std::filesystem::path(WSP_ENGINE_ASSETS) / std::filesystem::path("brdfLUT.png")).lexically_normal();
+    LUTImageInfo.format = vk::Format::eR8G8B8A8Srgb;
+    Image const *LUTImage = RequestImage(LUTImageInfo);
+
+    Texture::CreateInfo LUTTextureInfo{};
+    LUTTextureInfo.pImage = LUTImage;
+    LUTTextureInfo.pSampler = RequestSampler();
+    LUTTextureInfo.name = "lut";
+
+    TextureID const LUTTexture = LoadTexture(LUTTextureInfo);
+
+    _staticNoises->Push({LUTTexture});
+
     Image::CreateInfo missingImageInfo{};
     missingImageInfo.filepath =
         (std::filesystem::path(WSP_ENGINE_ASSETS) / std::filesystem::path("missing-texture.png")).lexically_normal();
-    missingImageInfo.format = vk::Format::eR8G8B8Srgb;
+    missingImageInfo.format = vk::Format::eR8G8B8A8Srgb;
     Image const *missingImage = RequestImage(missingImageInfo);
 
     Texture::CreateInfo missingTextureInfo{};
@@ -95,7 +110,7 @@ void AssetsManager::LoadDefaults()
 
     missingImageInfo.filepath =
         (std::filesystem::path(WSP_ENGINE_ASSETS) / std::filesystem::path("missing-texture.png")).lexically_normal();
-    missingImageInfo.format = vk::Format::eR8G8B8Srgb;
+    missingImageInfo.format = vk::Format::eR8G8B8A8Srgb;
     missingImageInfo.cubemap = true;
     Image const *missingCubemapImage = RequestImage(missingImageInfo);
 
