@@ -3,3 +3,6 @@ assets/
 .cache/
 .clangd/
 *.generated/
+!assets/Avocado
+!assets/Boombox
+!assets/Sponza
