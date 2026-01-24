@@ -1,10 +1,10 @@
 #ifndef WSP_DEVICE
 #define WSP_DEVICE
 
+#include <vulkan/vulkan.hpp>
+
 #include <wsp_constants.hpp>
 #include <wsp_devkit.hpp>
-
-#include <vulkan/vulkan.hpp>
 
 #include <tracy/TracyVulkan.hpp>
 
@@ -142,7 +142,7 @@ class Device
     void CreateCommandPool(vk::PhysicalDevice, vk::SurfaceKHR, std::string const &name);
     vk::CommandPool _commandPool;
 
-    vk::DispatchLoaderDynamic _debugDispatch;
+    vk::detail::DispatchLoaderDynamic _debugDispatch;
 
     bool _freed;
 };

@@ -10,6 +10,7 @@
 #include <vulkan/vulkan.h>
 #include <vulkan/vulkan.hpp>
 #include <vulkan/vulkan_core.h>
+#include <vulkan/vulkan_enums.hpp>
 #include <vulkan/vulkan_handles.hpp>
 #include <vulkan/vulkan_structs.hpp>
 
@@ -44,20 +45,20 @@ inline glm::vec4 decodeSRGB(glm::vec4 const &srgb)
 
 static vk::DebugUtilsMessengerEXT debugMessenger{nullptr};
 
-inline VKAPI_ATTR vk::Bool32 VKAPI_CALL DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
-                                                      VkDebugUtilsMessageTypeFlagsEXT messageType,
-                                                      VkDebugUtilsMessengerCallbackDataEXT const *pCallbackData,
+inline VKAPI_ATTR vk::Bool32 VKAPI_CALL DebugCallback(vk::DebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+                                                      vk::DebugUtilsMessageTypeFlagsEXT messageType,
+                                                      vk::DebugUtilsMessengerCallbackDataEXT const *pCallbackData,
                                                       void *pUserData)
 {
     switch (messageSeverity)
     {
-    case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT:
+    case vk::DebugUtilsMessageSeverityFlagBitsEXT::eError:
         spdlog::error("Validation layer: {0}", pCallbackData->pMessage);
         break;
-    case VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT:
+    case vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning:
         spdlog::warn("Validation layer: {0}", pCallbackData->pMessage);
         break;
-    case VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT:
+    case vk::DebugUtilsMessageSeverityFlagBitsEXT::eInfo:
         spdlog::info("Validation layer: {0}", pCallbackData->pMessage);
         break;
     default:

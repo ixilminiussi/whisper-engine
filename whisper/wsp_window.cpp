@@ -7,7 +7,7 @@
 #include <wsp_renderer.hpp>
 #include <wsp_swapchain.hpp>
 
-#include <vulkan/vulkan_handles.hpp>
+#include <vulkan/vulkan.hpp>
 
 #include <spdlog/spdlog.h>
 

@@ -9,10 +9,10 @@
 
 #include <imgui_impl_vulkan.h>
 
-#include <vulkan/vulkan.hpp>
-
 #include <set>
 #include <stdexcept>
+
+VULKAN_HPP_DEFAULT_DISPATCH_LOADER_DYNAMIC_STORAGE
 
 using namespace wsp;
 
@@ -55,11 +55,15 @@ void Device::Initialize(std::vector<char const *> const requiredExtensions, vk::
 {
     _freed = false;
 
-    _debugDispatch = vk::DispatchLoaderDynamic(instance, vkGetInstanceProcAddr);
+    _debugDispatch = vk::detail::DispatchLoaderDynamic(instance, vkGetInstanceProcAddr);
+    _debugDispatch.init(instance);
 
     PickPhysicalDevice(requiredExtensions, instance, surface);
     CreateLogicalDevice(requiredExtensions, _physicalDevice, surface, "main logical device");
     CreateCommandPool(_physicalDevice, surface, "main command pool");
+
+    vk::detail::defaultDispatchLoaderDynamic.init(instance, _device);
+    _debugDispatch.init(instance, _device);
 }
 
 void Device::Free()

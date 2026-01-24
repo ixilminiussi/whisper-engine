@@ -139,18 +139,13 @@ void RenderManager::CreateInstance()
 {
     ZoneScopedN("create vulkan instance");
 
-#ifndef NDEBUG
-    if (!CheckValidationLayerSupport())
-    {
-        throw std::runtime_error("RenderManager: validation layers requested, but not available!");
-    }
-#endif
+    vk::detail::defaultDispatchLoaderDynamic.init(vkGetInstanceProcAddr);
 
     vk::ApplicationInfo appInfo = {};
     appInfo.pApplicationName = "Whisper App";
-    appInfo.applicationVersion = VK_MAKE_VERSION(0, 1, 1);
+    appInfo.applicationVersion = VK_MAKE_VERSION(1, 2, 7);
     appInfo.pEngineName = "Whisper Engine";
-    appInfo.engineVersion = VK_MAKE_VERSION(0, 1, 1);
+    appInfo.engineVersion = VK_MAKE_VERSION(1, 2, 7);
     appInfo.apiVersion = VK_API_VERSION_1_3;
 
     vk::InstanceCreateInfo createInfo = {};
@@ -167,28 +162,37 @@ void RenderManager::CreateInstance()
     createInfo.ppEnabledExtensionNames = extensions.data();
 
 #ifndef NDEBUG
-    createInfo.enabledLayerCount = static_cast<uint32_t>(_validationLayers.size());
-    createInfo.ppEnabledLayerNames = _validationLayers.data();
-
     vk::DebugUtilsMessengerCreateInfoEXT debugCreateInfo{};
-    debugCreateInfo.messageSeverity = vk::DebugUtilsMessageSeverityFlagBitsEXT::eInfo |
-                                      vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning |
-                                      vk::DebugUtilsMessageSeverityFlagBitsEXT::eError;
-    debugCreateInfo.messageType = vk::DebugUtilsMessageTypeFlagBitsEXT::eGeneral |
-                                  vk::DebugUtilsMessageTypeFlagBitsEXT::eValidation |
-                                  vk::DebugUtilsMessageTypeFlagBitsEXT::ePerformance;
-    debugCreateInfo.pfnUserCallback = DebugCallback;
 
-    debugCreateInfo.pNext = nullptr;
+    // Only enable validation layers if they're available
+    if (CheckValidationLayerSupport())
+    {
+        spdlog::info("RenderManager: Validation layers enabled");
+        createInfo.enabledLayerCount = static_cast<uint32_t>(_validationLayers.size());
+        createInfo.ppEnabledLayerNames = _validationLayers.data();
 
-    createInfo.pNext = &debugCreateInfo;
+        debugCreateInfo.messageSeverity = vk::DebugUtilsMessageSeverityFlagBitsEXT::eInfo |
+                                          vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning |
+                                          vk::DebugUtilsMessageSeverityFlagBitsEXT::eError;
+        debugCreateInfo.messageType = vk::DebugUtilsMessageTypeFlagBitsEXT::eGeneral |
+                                      vk::DebugUtilsMessageTypeFlagBitsEXT::eValidation |
+                                      vk::DebugUtilsMessageTypeFlagBitsEXT::ePerformance;
+        debugCreateInfo.pfnUserCallback = DebugCallback;
+        createInfo.pNext = &debugCreateInfo;
+    }
+    else
+    {
+        spdlog::warn("RenderManager: validation layers requested, but not available!");
+        createInfo.enabledLayerCount = 0;
+        createInfo.pNext = nullptr;
+    }
 #else
     createInfo.enabledLayerCount = 0;
     createInfo.pNext = nullptr;
 #endif
 
-    spdlog::info("VK_ICD_FILENAMES = {}", std::getenv("VK_ICD_FILENAMES"));
-    spdlog::info("VK_LAYER_PATH = {}", std::getenv("VK_LAYER_PATH"));
+    spdlog::info("VK_ICD_FILENAMES = {}", std::getenv("VK_ICD_FILENAMES") ?: "not set");
+    spdlog::info("VK_LAYER_PATH = {}", std::getenv("VK_LAYER_PATH") ?: "not set");
 
     if (vk::Result const result = vk::createInstance(&createInfo, nullptr, &_vkInstance);
         result != vk::Result::eSuccess)
@@ -197,12 +201,19 @@ void RenderManager::CreateInstance()
                                              vk::to_string(static_cast<vk::Result>(result))));
     }
 
+    vk::detail::defaultDispatchLoaderDynamic.init(_vkInstance);
+
 #ifndef NDEBUG
-    if (const vk::Result result = CreateDebugUtilsMessengerEXT(_vkInstance, &debugCreateInfo, nullptr, &debugMessenger);
-        result != vk::Result::eSuccess)
+    // Only set up debug messenger if validation layers are available
+    if (CheckValidationLayerSupport())
     {
-        throw std::runtime_error(fmt::format("RenderManager: failed to set up debug messenger : {}",
-                                             vk::to_string(static_cast<vk::Result>(result))));
+        if (vk::Result const result =
+                CreateDebugUtilsMessengerEXT(_vkInstance, &debugCreateInfo, nullptr, &debugMessenger);
+            result != vk::Result::eSuccess)
+        {
+            throw std::runtime_error(fmt::format("RenderManager: failed to set up debug messenger : {}",
+                                                 vk::to_string(static_cast<vk::Result>(result))));
+        }
     }
 #endif
 

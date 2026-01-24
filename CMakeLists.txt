@@ -15,10 +15,11 @@ endif()
 include(FetchContent)
 
 add_compile_definitions(VULKAN_HPP_TYPESAFE_CONVERSION)
+add_compile_definitions(VULKAN_HPP_DISPATCH_LOADER_DYNAMIC)
 
 cmake_policy(VERSION 3.12...3.31)
 
-# -- tracy: Try to use system Tracy first
+# -- tracy
 set(TRACY_ENABLE ON)
 set(TRACY_VK_ENABLE ON)
 set(TRACY_NO_CONTEXT_SWITCH ON)
@@ -27,125 +28,89 @@ set(TRACY_NO_SAMPLING ON)
 
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 
-find_package(Tracy QUIET)
-message(CHECK_START "Find Tracy")
-if(NOT Tracy_FOUND)
-  message(STATUS "System Tracy not found, fetching from GitHub")
-  FetchContent_Declare(
-    Tracy URL https://github.com/wolfpld/tracy/archive/refs/tags/v0.12.2.zip)
-  FetchContent_MakeAvailable(Tracy)
-else()
-  message(CHECK_PASS "Found system Tracy")
-endif()
+message(STATUS "Using vendored Tracy")
+FetchContent_Declare(
+  Tracy
+  SOURCE_DIR ${CMAKE_SOURCE_DIR}/vendor/tracy)
+FetchContent_MakeAvailable(Tracy)
 
-# -- tinyxml2: Try to use system tinyxml2 first
-find_package(tinyxml2 QUIET)
-message(CHECK_START "Find tinyxml2")
-if(NOT tinyxml2_FOUND)
-  message(STATUS "System tinyxml2 not found, fetching from GitHub")
-  FetchContent_Declare(
-    tinyxml2
-    URL https://github.com/leethomason/tinyxml2/archive/refs/tags/11.0.0.zip)
-  FetchContent_MakeAvailable(tinyxml2)
-else()
-  message(CHECK_PASS "Found system tinyxml2")
-endif()
+# -- tinyxml2
+message(STATUS "Using vendored tinyxml2")
+FetchContent_Declare(
+  tinyxml2
+  SOURCE_DIR ${CMAKE_SOURCE_DIR}/vendor/tinyxml2)
+FetchContent_MakeAvailable(tinyxml2)
 
-# -- glm: Try to use system glm first
-find_package(glm QUIET)
-message(CHECK_START "Find glm")
-if(NOT glm_FOUND)
-  message(STATUS "System glm not found, fetching from GitHub")
-  FetchContent_Declare(
-    glm URL https://github.com/g-truc/glm/archive/refs/tags/1.0.1.zip)
-  FetchContent_MakeAvailable(glm)
-else()
-  message(CHECK_PASS "Found system glm")
-endif()
+# -- glm
+message(STATUS "Using vendored glm")
+FetchContent_Declare(
+  glm
+  SOURCE_DIR ${CMAKE_SOURCE_DIR}/vendor/glm)
+FetchContent_MakeAvailable(glm)
 
 # -- stb_image
 FetchContent_Declare(
   stb_image
-  GIT_REPOSITORY https://github.com/nothings/stb.git
-  GIT_TAG master)
+  SOURCE_DIR ${CMAKE_SOURCE_DIR}/vendor/stb_image)
 FetchContent_MakeAvailable(stb_image)
 
 add_library(stb_image INTERFACE)
 target_include_directories(stb_image INTERFACE ${stb_image_SOURCE_DIR})
 
-# -- tinyexr: Try to use system tinyexr first
-find_package(tinyexr QUIET)
-message(CHECK_START "Find tinyexr")
-if(NOT tinyexr_FOUND)
-  message(STATUS "System tinyexr not found, fetching from GitHub")
-  FetchContent_Declare(
-    tinyexr URL https://github.com/syoyo/tinyexr/archive/refs/tags/v1.0.12.zip)
-  FetchContent_MakeAvailable(tinyexr)
-else()
-  message(CHECK_PASS "Found system tinyexr")
-endif()
+# -- tinyexr
+message(STATUS "Using vendored tinyexr")
+FetchContent_Declare(
+  tinyexr
+  SOURCE_DIR ${CMAKE_SOURCE_DIR}/vendor/tinyexr)
+FetchContent_MakeAvailable(tinyexr)
 
 target_include_directories(tinyexr INTERFACE ${tinyexr_SOURCE_DIR})
 
 # -- cgltf
 FetchContent_Declare(
-  cgltf URL https://github.com/jkuhlmann/cgltf/archive/refs/tags/v1.15.zip)
+  cgltf
+  SOURCE_DIR ${CMAKE_SOURCE_DIR}/vendor/cgltf)
 FetchContent_MakeAvailable(cgltf)
 
 add_library(cgltf INTERFACE)
 target_include_directories(cgltf INTERFACE ${cgltf_SOURCE_DIR})
 
-# -- Vulkan: Try to use system Vulkan first
-find_package(Vulkan QUIET)
-message(CHECK_START "Find Vulkan")
-if(NOT Vulkan_FOUND)
-  message(STATUS "System Vulkan not found, fetching from GitHub")
-  FetchContent_Declare(
-    VulkanHeaders
-    URL https://github.com/KhronosGroup/Vulkan-Headers/archive/refs/tags/v1.4.320.zip
-    GIT_SHALLOW TRUE)
-  FetchContent_MakeAvailable(VulkanHeaders)
+# -- Vulkan
+message(STATUS "Using vendored Vulkan")
+FetchContent_Declare(
+  VulkanHeaders
+  SOURCE_DIR ${CMAKE_SOURCE_DIR}/vendor/vulkanheaders)
+FetchContent_MakeAvailable(VulkanHeaders)
 
-  FetchContent_Declare(
-    VulkanLoader
-    URL https://github.com/KhronosGroup/Vulkan-Loader/archive/refs/tags/v1.4.320.zip
-    GIT_SHALLOW TRUE)
-  set(VULKAN_HEADERS_INSTALL_DIR
-      ${vulkanheaders_SOURCE_DIR}/include
-      CACHE PATH "" FORCE)
-  FetchContent_MakeAvailable(VulkanLoader)
-else()
-  message(CHECK_PASS "Found system Vulkan")
-endif()
+FetchContent_Declare(
+  VulkanLoader
+  SOURCE_DIR ${CMAKE_SOURCE_DIR}/vendor/vulkanloader)
+set(VULKAN_HEADERS_INSTALL_DIR
+  ${vulkanheaders_SOURCE_DIR}/include
+  CACHE PATH "" FORCE)
+FetchContent_MakeAvailable(VulkanLoader)
 
-# -- GLFW: Try to use system glfw3 first
-find_package(glfw3 QUIET)
-message(CHECK_START "Find glfw3")
-if(NOT glfw3_FOUND)
-  message(STATUS "System glfw3 not found, fetching from GitHub")
-  FetchContent_Declare(
-    glfw URL https://github.com/glfw/glfw/archive/refs/tags/3.4.zip)
-  FetchContent_MakeAvailable(glfw)
-else()
-  message(CHECK_PASS "Found system glfw3")
-endif()
+# Create an alias for consistency
+add_library(Vulkan::Vulkan ALIAS vulkan)
 
-# -- spdlog: Try to use system spdlog first
-find_package(spdlog QUIET)
-message(CHECK_START "Find spdlog")
-if(NOT spdlog_FOUND)
-  message(STATUS "System spdlog not found, fetching from GitHub")
-  FetchContent_Declare(
-    spdlog URL https://github.com/gabime/spdlog/archive/refs/tags/v1.15.3.zip)
-  FetchContent_MakeAvailable(spdlog)
-else()
-  message(CHECK_PASS "Found system spdlog")
-endif()
+# -- GLFW
+message(STATUS "Using vendored glfw3")
+FetchContent_Declare(
+  glfw
+  SOURCE_DIR ${CMAKE_SOURCE_DIR}/vendor/glfw)
+FetchContent_MakeAvailable(glfw)
+
+# -- spdlog
+message(STATUS "Using vendored spdlog")
+FetchContent_Declare(
+  spdlog
+  SOURCE_DIR ${CMAKE_SOURCE_DIR}/vendor/spdlog)
+FetchContent_MakeAvailable(spdlog)
 
 # -- imgui
 FetchContent_Declare(
   imgui
-  URL https://github.com/ocornut/imgui/archive/refs/tags/v1.92.0-docking.zip)
+  SOURCE_DIR ${CMAKE_SOURCE_DIR}/vendor/imgui)
 
 FetchContent_MakeAvailable(imgui)
 
