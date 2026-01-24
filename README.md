@@ -32,6 +32,8 @@ cmake ..
 cmake --build .
 ```
 
+*the executable can then be found in ./build/demo/demo*
+
 *All dependencies are vendored in the vendor/ directory—no external downloads required.*
 
 ## Post-Mortem: Lessons Learned
