@@ -2,10 +2,11 @@
 *A Vulkan-based rendering engine for glTF format, built as a learning project in computer graphics and engine architecture.
 Features*
 
-<img width="1454" height="1454" alt="image" src="https://github.com/user-attachments/assets/21521dfd-1218-4b58-a249-99198d638c25" />
-<img width="1451" height="1451" alt="image" src="https://github.com/user-attachments/assets/2c90d0f0-0127-412b-9f8f-7289d93e397f" />
-<img width="1456" height="1456" alt="image" src="https://github.com/user-attachments/assets/0a818938-0f10-4c53-b0b2-4cdc5995a23c" />
-
+<p align="center">
+  <img width="32%" alt="image" src="https://github.com/user-attachments/assets/21521dfd-1218-4b58-a249-99198d638c25" />
+  <img width="32%" alt="image" src="https://github.com/user-attachments/assets/2c90d0f0-0127-412b-9f8f-7289d93e397f" />
+  <img width="32%" alt="image" src="https://github.com/user-attachments/assets/0a818938-0f10-4c53-b0b2-4cdc5995a23c" />
+</p>
 
 # Rendering
 * PBR (Physically Based Rendering) with metallic-roughness workflow
