@@ -92,7 +92,7 @@ void ButtonAction::Poll(GLFWwindow *handle, double dt)
     {
         for (std::function<void(float, int)> const func : _functions)
         {
-            func(dt, newStatus);
+            func((float)dt, newStatus);
         }
     }
 }
@@ -186,7 +186,7 @@ void AxisAction::Poll(GLFWwindow *handle, double dt)
         glm::vec2 const modifierApplied{_value.x * _modifierX, _value.y * _modifierY};
         for (std::function<void(float, glm::vec2)> const func : _functions)
         {
-            func(dt, modifierApplied);
+            func((float)dt, modifierApplied);
         }
     }
 }

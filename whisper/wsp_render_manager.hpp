@@ -9,7 +9,7 @@
 
 #include <vulkan/vulkan.hpp>
 
-class GLFWwindow;
+struct GLFWwindow;
 
 namespace wsp
 {

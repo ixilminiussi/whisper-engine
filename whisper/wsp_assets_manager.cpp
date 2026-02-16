@@ -310,7 +310,7 @@ Scene *AssetsManager::ImportGlTF(std::filesystem::path const &relativePath)
         Mesh *mesh = Mesh::BuildGlTF(device, data->meshes + i, data->materials, materials, false);
 
         _meshes.push_back(mesh);
-        meshes.push_back(_meshes.size() - 1);
+        meshes.push_back(static_cast<int32_t>(meshes.size()) - 1);
     }
     // Meshes END ======================================
 

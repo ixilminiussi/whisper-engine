@@ -38,7 +38,7 @@ void Environment::Load()
     Texture::CreateInfo skyboxTextureInfo{};
     skyboxTextureInfo.pImage = skyboxImage;
     skyboxTextureInfo.pSampler = assetsManager->RequestSampler();
-    skyboxTextureInfo.name = _skyboxPath.filename();
+    skyboxTextureInfo.name = _skyboxPath.filename().string();
 
     _skyboxTexture = assetsManager->LoadTexture(skyboxTextureInfo);
 
@@ -51,7 +51,7 @@ void Environment::Load()
     Texture::CreateInfo irradianceTextureInfo{};
     irradianceTextureInfo.pImage = irradianceImage;
     irradianceTextureInfo.pSampler = assetsManager->RequestSampler();
-    irradianceTextureInfo.name = _skyboxPath.filename();
+    irradianceTextureInfo.name = _skyboxPath.filename().string();
 
     _irradianceTexture = assetsManager->LoadTexture(irradianceTextureInfo);
 

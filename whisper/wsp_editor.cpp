@@ -679,7 +679,7 @@ void Editor::RenderFrameInfoMenuBar() const
 
     auto const &heaps = memProps2.memoryProperties.memoryHeaps;
 
-    float const FPS = 1. / _deltaTime;
+    float const FPS = 1. / (float)_deltaTime;
     ImGui::TextUnformatted("FPS:");
     ImGui::SameLine();
     if (FPS > 60.f)
@@ -727,7 +727,7 @@ void Editor::RenderFrameInfoMenuBar() const
 
 void Editor::SelectEnvironment(int i)
 {
-    check(_selectedEnvironment < _environments.size());
+    check(i < _environments.size());
     _selectedEnvironment = i;
 
     _environments[i].second->Load();

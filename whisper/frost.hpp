@@ -175,14 +175,14 @@ inline bool RenderNode<int>(char const *label, int *address, Edit edit, float mi
     switch (edit)
     {
     case eInput:
-        return ImGui::InputInt(label, address, step, max);
+        return ImGui::InputInt(label, address, (int)step, (int)max);
         break;
     case eSlider:
-        return ImGui::SliderInt(label, address, min, max);
+        return ImGui::SliderInt(label, address, (int)min, (int)max);
         break;
     case eDrag:
     case eColor:
-        return ImGui::DragInt(label, address, step, min, max);
+        return ImGui::DragInt(label, address, step, (int)min, (int)max);
         break;
     }
 

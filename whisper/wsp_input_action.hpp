@@ -16,7 +16,7 @@
 
 #include <.generated/wsp_input_action.generated.hpp>
 
-class GLFWwindow;
+struct GLFWwindow;
 
 namespace wsp
 {

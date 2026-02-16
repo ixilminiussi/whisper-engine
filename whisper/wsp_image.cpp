@@ -15,7 +15,7 @@
 using namespace wsp;
 
 Image::Image(Device const *device, CreateInfo const &createInfo)
-    : _name{createInfo.filepath.filename()}, _cubemap{createInfo.cubemap}
+    : _name{createInfo.filepath.filename().string()}, _cubemap{createInfo.cubemap}
 {
     check(device);
 
@@ -55,7 +55,7 @@ Image::Image(Device const *device, CreateInfo const &createInfo)
     if (createInfo.filepath.extension().compare(".png") == 0 || createInfo.filepath.extension().compare(".jpg") == 0 ||
         createInfo.filepath.extension().compare(".jpeg") == 0)
     {
-        stbi_uc *pixels = stbi_load(createInfo.filepath.c_str(), &width, &height, &channels, STBI_rgb);
+        stbi_uc *pixels = stbi_load(createInfo.filepath.u8string().c_str(), &width, &height, &channels, STBI_rgb);
 
         size = 1;
         channels = 3;
@@ -72,7 +72,7 @@ Image::Image(Device const *device, CreateInfo const &createInfo)
         channels = 4;
         size = 4;
 
-        LoadEXR(&pixels, &width, &height, createInfo.filepath.c_str(), &err);
+        LoadEXR(&pixels, &width, &height, createInfo.filepath.u8string().c_str(), &err);
 
         build(pixels);
 

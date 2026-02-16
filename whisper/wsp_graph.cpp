@@ -24,7 +24,13 @@
 
 #include <optional>
 #include <stdexcept>
-#include <unistd.h>
+#ifdef _WIN32
+  #include <windows.h>
+  #include <direct.h>
+  #include <io.h>
+#else
+  #include <unistd.h>
+#endif
 #include <variant>
 
 using namespace wsp;

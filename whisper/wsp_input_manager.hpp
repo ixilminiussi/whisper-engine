@@ -19,7 +19,7 @@
 
 #include <.generated/wsp_input_manager.generated.hpp>
 
-class GLFWwindow;
+struct GLFWwindow;
 
 namespace wsp
 {

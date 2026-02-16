@@ -21,7 +21,7 @@ namespace wsp
 
 namespace ubo
 {
-class Ubo;
+struct Ubo;
 }
 
 class Editor

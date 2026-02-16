@@ -26,7 +26,7 @@ void Material::PropagateFormatFromGlTF(cgltf_material const *material, cgltf_tex
         }
 
         long const index = gltfTexture - pTexture;
-        if (!inbetween<long>(index, 0, createInfos->size()))
+        if (!inbetween<long>(index, 0, (long)createInfos->size()))
         {
             throw std::invalid_argument(fmt::format("Material: gltf material has invalid texture index: {}", index));
         }
@@ -119,7 +119,7 @@ Material::Material(CreateInfo const &createInfo)
 
 void Material::GetInfo(ubo::Material *info) const
 {
-    auto GetID = [](TextureID id) -> size_t { return AssetsManager::Get()->GetStaticTextures()->GetID(id); };
+    auto GetID = [](TextureID id) -> int { return static_cast<int>(AssetsManager::Get()->GetStaticTextures()->GetID(id)); };
     check(info);
     info->albedoTex = GetID(_albedoTexture);
     info->normalMap = GetID(_normalTexture);

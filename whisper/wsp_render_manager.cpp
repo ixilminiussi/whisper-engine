@@ -42,10 +42,7 @@ RenderManager *RenderManager::Get()
 
 vk::Instance RenderManager::_vkInstance{};
 
-namespace wsp
-{
-TracyVkCtx TRACY_CTX;
-}
+TracyVkCtx TRACY_CTX = nullptr;
 
 RenderManager::RenderManager()
     : _validationLayers{"VK_LAYER_KHRONOS_validation"},
@@ -191,8 +188,8 @@ void RenderManager::CreateInstance()
     createInfo.pNext = nullptr;
 #endif
 
-    spdlog::info("VK_ICD_FILENAMES = {}", std::getenv("VK_ICD_FILENAMES") ?: "not set");
-    spdlog::info("VK_LAYER_PATH = {}", std::getenv("VK_LAYER_PATH") ?: "not set");
+    spdlog::info("VK_ICD_FILENAMES = {}", std::getenv("VK_ICD_FILENAMES") ? std::getenv("VK_ICD_FILENAMES") : "not set");
+    spdlog::info("VK_LAYER_PATH = {}", std::getenv("VK_LAYER_PATH") ? std::getenv("VK_LAYER_PATH") : "not set");
 
     if (vk::Result const result = vk::createInstance(&createInfo, nullptr, &_vkInstance);
         result != vk::Result::eSuccess)
@@ -366,7 +363,7 @@ void RenderManager::InitImGui(WindowID windowID)
 
     vk::DescriptorPoolCreateInfo poolInfo{};
     poolInfo.flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet;
-    poolInfo.maxSets = 1000 * poolSizes.size();
+    poolInfo.maxSets = 1000u * static_cast<uint32_t>(poolSizes.size());
     poolInfo.poolSizeCount = (uint32_t)poolSizes.size();
     poolInfo.pPoolSizes = poolSizes.data();
 
