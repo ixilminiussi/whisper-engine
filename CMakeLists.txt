@@ -80,9 +80,11 @@ message(STATUS "Using vendored Vulkan")
 FetchContent_Declare(
   VulkanHeaders
   SOURCE_DIR ${CMAKE_SOURCE_DIR}/vendor/vulkanheaders)
-FetchContent_MakeAvailable(VulkanHeaders)
+FetchContent_MakeAvailable(VulkanHeaders) 
 
-FetchContent_Declare(
+set(VulkanHeaders_FOUND TRUE)
+
+FetchContent_Declare( 
   VulkanLoader
   SOURCE_DIR ${CMAKE_SOURCE_DIR}/vendor/vulkanloader)
 set(VULKAN_HEADERS_INSTALL_DIR
@@ -130,7 +132,7 @@ target_compile_definitions(imgui PUBLIC IMGUI_ENABLE_DOCKING
 target_include_directories(imgui PUBLIC ${imgui_SOURCE_DIR}
                                         ${imgui_SOURCE_DIR}/backends)
 
-target_link_libraries(imgui PUBLIC glfw Vulkan::Vulkan)
+target_link_libraries(imgui PUBLIC glfw Vulkan::Vulkan Vulkan::Headers)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(

@@ -100,11 +100,11 @@ inline bool RenderNode<TextureID>(char const *label, TextureID *address, Edit ed
     wsp::AssetsManager *assetsManager = wsp::AssetsManager::Get();
     check(assetsManager);
 
-    Texture const *texture = assetsManager->GetTexture(*address);
+    wsp::Texture const *texture = assetsManager->GetTexture(*address);
 
     if (texture)
     {
-        Image const *image = texture->GetImage();
+        wsp::Image const *image = texture->GetImage();
 
         if (image)
         {

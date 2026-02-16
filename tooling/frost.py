@@ -1,5 +1,9 @@
 import re
 import argparse
+
+import sys
+sys.path.insert(0, "third_party")
+
 from jinja2 import Template
 from pprint import pprint
 

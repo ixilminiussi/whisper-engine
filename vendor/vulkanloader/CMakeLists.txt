@@ -52,7 +52,9 @@ if(WIN32)
     set(BUILD_DLL_VERSIONINFO "" CACHE STRING "Set the version to be used in the loader.rc file. Default value is the currently generated header version")
 endif()
 
-find_package(VulkanHeaders CONFIG QUIET)
+if(NOT TARGET Vulkan::Headers)
+    find_package(VulkanHeaders REQUIRED)
+endif()
 
 include(GNUInstallDirs)
 

@@ -232,7 +232,7 @@ Scene *AssetsManager::ImportGlTF(std::filesystem::path const &relativePath)
     cgltf_data *data = NULL;
     cgltf_options const options{};
 
-    if (cgltf_result const result = cgltf_parse_file(&options, filepath.c_str(), &data);
+    if (cgltf_result const result = cgltf_parse_file(&options, filepath.u8string().c_str(), &data);
 
         result != cgltf_result_success)
     {
@@ -240,7 +240,7 @@ Scene *AssetsManager::ImportGlTF(std::filesystem::path const &relativePath)
             fmt::format("AssetsManager: asset '{}' parse error ({})", filepath.filename().string(), ToString(result)));
     }
 
-    if (cgltf_result const result = cgltf_load_buffers(&options, data, filepath.c_str());
+    if (cgltf_result const result = cgltf_load_buffers(&options, data, filepath.u8string().c_str());
         result != cgltf_result_success)
     {
         throw std::invalid_argument(
