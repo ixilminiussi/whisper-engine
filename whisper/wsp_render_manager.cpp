@@ -42,7 +42,14 @@ RenderManager *RenderManager::Get()
 
 vk::Instance RenderManager::_vkInstance{};
 
+#ifdef _WIN32
 TracyVkCtx TRACY_CTX = nullptr;
+#else
+namespace wsp
+{
+TracyVkCtx TRACY_CTX = nullptr;
+}
+#endif
 
 RenderManager::RenderManager()
     : _validationLayers{"VK_LAYER_KHRONOS_validation"},
@@ -188,7 +195,8 @@ void RenderManager::CreateInstance()
     createInfo.pNext = nullptr;
 #endif
 
-    spdlog::info("VK_ICD_FILENAMES = {}", std::getenv("VK_ICD_FILENAMES") ? std::getenv("VK_ICD_FILENAMES") : "not set");
+    spdlog::info("VK_ICD_FILENAMES = {}",
+                 std::getenv("VK_ICD_FILENAMES") ? std::getenv("VK_ICD_FILENAMES") : "not set");
     spdlog::info("VK_LAYER_PATH = {}", std::getenv("VK_LAYER_PATH") ? std::getenv("VK_LAYER_PATH") : "not set");
 
     if (vk::Result const result = vk::createInstance(&createInfo, nullptr, &_vkInstance);
