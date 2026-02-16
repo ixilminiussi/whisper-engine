@@ -46,7 +46,7 @@ Scene *Scene::BuildGlTF(cgltf_scene const *scene, cgltf_mesh const *pMesh, std::
                     uint32_t const meshID = node->mesh - pMesh;
                     check(meshID < meshes.size());
                     mesh = meshes.at(meshID);
-                    drawList.emplace_back(transform, meshes.at(meshID));
+                    drawList.emplace_back(transform, mesh);
                 }
 
                 for (int i = 0; i < node->children_count; i++)
