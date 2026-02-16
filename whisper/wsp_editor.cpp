@@ -277,8 +277,6 @@ void Editor::Render()
         extern TracyVkCtx TRACY_CTX;
         TracyVkZone(TRACY_CTX, commandBuffer, "editor");
 
-        _deferredQueue.clear();
-
         ImGui_ImplVulkan_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
@@ -387,9 +385,11 @@ void Editor::Update(double dt)
     {
         func();
     }
+    _deferredQueue.clear();
 
     _deltaTime = dt;
 
+    _viewportCamera->Orbit({60.f * dt, 0.});
     _viewportCamera->Refresh();
 }
 

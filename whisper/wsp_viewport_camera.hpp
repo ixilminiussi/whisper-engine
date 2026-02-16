@@ -52,15 +52,15 @@ class ViewportCamera
 
     static void OnResizeCallback(void *camera, uint32_t width, uint32_t height);
 
+    void Rotate(glm::vec2);
+    void Orbit(glm::vec2);
+
     WREFRESH()
     void Refresh();
 
     WCLASS_BODY$ViewportCamera();
 
   protected:
-    void Rotate(glm::vec2);
-    void Orbit(glm::vec2);
-
     void RefreshView();
 
     WPROPERTY()
