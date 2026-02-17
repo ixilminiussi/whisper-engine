@@ -119,7 +119,9 @@ Material::Material(CreateInfo const &createInfo)
 
 void Material::GetInfo(ubo::Material *info) const
 {
-    auto GetID = [](TextureID id) -> int { return static_cast<int>(AssetsManager::Get()->GetStaticTextures()->GetID(id)); };
+    auto GetID = [](TextureID id) -> int {
+        return static_cast<int>(AssetsManager::Get()->GetStaticTextures()->GetID(id));
+    };
     check(info);
     info->albedoTex = GetID(_albedoTexture);
     info->normalMap = GetID(_normalTexture);
