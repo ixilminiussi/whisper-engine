@@ -55,10 +55,9 @@ Image::Image(Device const *device, CreateInfo const &createInfo)
     if (createInfo.filepath.extension().compare(".png") == 0 || createInfo.filepath.extension().compare(".jpg") == 0 ||
         createInfo.filepath.extension().compare(".jpeg") == 0)
     {
-        stbi_uc *pixels = stbi_load(createInfo.filepath.u8string().c_str(), &width, &height, &channels, STBI_rgb);
+        stbi_uc *pixels = stbi_load(createInfo.filepath.u8string().c_str(), &width, &height, &channels, 0);
 
         size = 1;
-        channels = 3;
 
         build(pixels);
 
@@ -331,8 +330,8 @@ void Image::CopyFaceToFace(uint32_t left, uint32_t top, uint32_t faceID, void *s
 
         for (int y = 0; y < t_height; y++)
         {
-            uint32_t const s_offset = ((top * t_height + y) * s_width + (left * t_width)) * channels * size;
-            uint32_t const t_offset = (faceOffset + y * t_height) * channels * size;
+            uint32_t const s_offset = ((top * t_width + y) * s_width + (left * t_width)) * channels * size;
+            uint32_t const t_offset = (faceOffset + y * t_width) * channels * size;
 
             int const strip = t_width * channels * size;
             memcpy((std::byte *)target + t_offset, (std::byte *)source + s_offset, strip);
@@ -349,8 +348,8 @@ void Image::CopyFaceToFace(uint32_t left, uint32_t top, uint32_t faceID, void *s
         {
             for (int x = 0; x < t_width; x++)
             {
-                uint32_t const s_offset = ((top * t_height + y) * s_width + (left * t_width + x)) * s_channels * size;
-                uint32_t const t_offset = (faceOffset + y * t_height + x) * t_channels * size;
+                uint32_t const s_offset = ((top * t_width + y) * s_width + (left * t_width + x)) * s_channels * size;
+                uint32_t const t_offset = (faceOffset + y * t_width + x) * t_channels * size;
 
                 if (s_channels < t_channels)
                 {

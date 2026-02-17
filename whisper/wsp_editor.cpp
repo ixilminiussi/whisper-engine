@@ -624,7 +624,7 @@ void Editor::RenderContentBrowser(bool *show)
                         };
                     });
                 }
-                ImGui::Text("%s", path.filename().c_str());
+                ImGui::Text("%s", path.filename().u8string().c_str());
             }
             ImGui::NextColumn();
             ImGui::PopID();

@@ -884,6 +884,9 @@ void Graph::Build(Pass pass)
     std::vector<vk::AttachmentDescription> attachmentDescriptions{};
     attachmentDescriptions.reserve(createInfo.writes.size());
 
+    bool absoluteFirstWriter = true;
+    bool absoluteLastWriter = true;
+
     int i = 0;
     for (Resource const resource : createInfo.writes)
     {
@@ -907,6 +910,9 @@ void Graph::Build(Pass pass)
         {
             nextIsRead = true;
         }
+
+        absoluteFirstWriter &= firstWriter;
+        absoluteLastWriter &= !nextIsRead;
 
         std::array<vk::ImageMemoryBarrier, MAX_FRAMES_IN_FLIGHT> imageMemoryBarriers;
         vk::ImageMemoryBarrier imageMemoryBarrier{};
@@ -1012,14 +1018,48 @@ void Graph::Build(Pass pass)
     subpass.pipelineBindPoint = vk::PipelineBindPoint::eGraphics;
     subpass.colorAttachmentCount = colorAttachmentReferences.size();
     subpass.pColorAttachments = colorAttachmentReferences.data();
-    subpass.pDepthStencilAttachment =
-        depthAttachmentReference.has_value() ? &depthAttachmentReference.value() : nullptr;
+    subpass.pDepthStencilAttachment = depthAttachmentReference.has_value() ? &depthAttachmentReference.value() : nullptr;
+
+    std::vector<vk::SubpassDependency> dependencies{};
+
+    if (absoluteFirstWriter) {
+        vk::SubpassDependency subpassDependency;
+
+        subpassDependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+        subpassDependency.dstSubpass = 0;
+        subpassDependency.srcStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput 
+                                    | vk::PipelineStageFlagBits::eEarlyFragmentTests;
+        subpassDependency.dstStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput 
+                                    | vk::PipelineStageFlagBits::eEarlyFragmentTests;
+        subpassDependency.srcAccessMask = vk::AccessFlagBits::eNone;
+        subpassDependency.dstAccessMask = vk::AccessFlagBits::eColorAttachmentWrite 
+                                    | vk::AccessFlagBits::eDepthStencilAttachmentWrite;
+
+        dependencies.push_back(subpassDependency);
+    }
+
+    if (absoluteLastWriter) {
+        vk::SubpassDependency subpassDependency;
+
+        subpassDependency.srcSubpass = 0;
+        subpassDependency.dstSubpass = VK_SUBPASS_EXTERNAL;
+        subpassDependency.srcStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput 
+                                    | vk::PipelineStageFlagBits::eEarlyFragmentTests;
+        subpassDependency.dstStageMask = vk::PipelineStageFlagBits::eFragmentShader;
+        subpassDependency.srcAccessMask = vk::AccessFlagBits::eColorAttachmentWrite 
+                                    | vk::AccessFlagBits::eDepthStencilAttachmentWrite;
+        subpassDependency.dstAccessMask = vk::AccessFlagBits::eShaderRead;
+
+        dependencies.push_back(subpassDependency);
+    }
 
     vk::RenderPassCreateInfo renderPassCreateInfo{};
     renderPassCreateInfo.attachmentCount = attachmentDescriptions.size();
     renderPassCreateInfo.pAttachments = attachmentDescriptions.data();
     renderPassCreateInfo.subpassCount = 1;
     renderPassCreateInfo.pSubpasses = &subpass;
+    renderPassCreateInfo.dependencyCount = dependencies.size();
+    renderPassCreateInfo.pDependencies = dependencies.data();
 
     vk::RenderPass renderPass;
     device->CreateRenderPass(renderPassCreateInfo, &renderPass, createInfo.debugName + "<render_pass>");
