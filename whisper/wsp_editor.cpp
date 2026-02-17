@@ -574,7 +574,7 @@ void Editor::RenderContentBrowser(bool *show)
                 {
                     _currentDirectory = directory.path();
                 }
-                ImGui::Text("%s", path.filename().c_str());
+                ImGui::Text("%s", path.filename().u8string().c_str());
             }
             else
             {
