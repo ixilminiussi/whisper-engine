@@ -25,11 +25,11 @@
 #include <optional>
 #include <stdexcept>
 #ifdef _WIN32
-  #include <windows.h>
-  #include <direct.h>
-  #include <io.h>
+#include <direct.h>
+#include <io.h>
+#include <windows.h>
 #else
-  #include <unistd.h>
+#include <unistd.h>
 #endif
 #include <variant>
 
@@ -354,10 +354,10 @@ void Graph::BuildPipeline(Pass pass)
     rasterizationInfo.lineWidth = 1.0f;
     rasterizationInfo.cullMode = vk::CullModeFlagBits::eBack;
     rasterizationInfo.frontFace = vk::FrontFace::eClockwise;
-    rasterizationInfo.depthBiasEnable = vk::False;
-    rasterizationInfo.depthBiasConstantFactor = 0.0f;
+    rasterizationInfo.depthBiasEnable = vk::True;
+    rasterizationInfo.depthBiasConstantFactor = 1.0f;
     rasterizationInfo.depthBiasClamp = 0.0f;
-    rasterizationInfo.depthBiasSlopeFactor = 0.0f;
+    rasterizationInfo.depthBiasSlopeFactor = 2.0f;
 
     vk::PipelineMultisampleStateCreateInfo multisampleInfo{};
     multisampleInfo.sampleShadingEnable = vk::False;
