@@ -225,8 +225,11 @@ void main()
         out_color = vec4(1., 0., 0., 1.);
         return;
     }
-
+    // materialID = 0;
     Material material = ubo.materials[materialID];
+
+    // out_color = vec4(float(material.normalTex), 0., 0., 1.);
+    // return;
 
     vec3 lightColor = ubo.light.sun.color.rgb * ubo.light.sun.color.a;
 
