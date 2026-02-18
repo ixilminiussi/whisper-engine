@@ -586,6 +586,7 @@ void Graph::Render(vk::CommandBuffer commandBuffer, uint32_t frameIndex)
             offset++;
         }
 
+        commandBuffer.setDepthBiasEnable(true);
         commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, passHolder.pipeline.pipeline);
         passInfo.execute(commandBuffer, passHolder.pipeline.pipelineLayout);
         commandBuffer.endRenderPass();
@@ -1018,36 +1019,39 @@ void Graph::Build(Pass pass)
     subpass.pipelineBindPoint = vk::PipelineBindPoint::eGraphics;
     subpass.colorAttachmentCount = colorAttachmentReferences.size();
     subpass.pColorAttachments = colorAttachmentReferences.data();
-    subpass.pDepthStencilAttachment = depthAttachmentReference.has_value() ? &depthAttachmentReference.value() : nullptr;
+    subpass.pDepthStencilAttachment =
+        depthAttachmentReference.has_value() ? &depthAttachmentReference.value() : nullptr;
 
     std::vector<vk::SubpassDependency> dependencies{};
 
-    if (absoluteFirstWriter) {
+    if (absoluteFirstWriter)
+    {
         vk::SubpassDependency subpassDependency;
 
         subpassDependency.srcSubpass = VK_SUBPASS_EXTERNAL;
         subpassDependency.dstSubpass = 0;
-        subpassDependency.srcStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput 
-                                    | vk::PipelineStageFlagBits::eEarlyFragmentTests;
-        subpassDependency.dstStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput 
-                                    | vk::PipelineStageFlagBits::eEarlyFragmentTests;
+        subpassDependency.srcStageMask =
+            vk::PipelineStageFlagBits::eColorAttachmentOutput | vk::PipelineStageFlagBits::eEarlyFragmentTests;
+        subpassDependency.dstStageMask =
+            vk::PipelineStageFlagBits::eColorAttachmentOutput | vk::PipelineStageFlagBits::eEarlyFragmentTests;
         subpassDependency.srcAccessMask = vk::AccessFlagBits::eNone;
-        subpassDependency.dstAccessMask = vk::AccessFlagBits::eColorAttachmentWrite 
-                                    | vk::AccessFlagBits::eDepthStencilAttachmentWrite;
+        subpassDependency.dstAccessMask =
+            vk::AccessFlagBits::eColorAttachmentWrite | vk::AccessFlagBits::eDepthStencilAttachmentWrite;
 
         dependencies.push_back(subpassDependency);
     }
 
-    if (absoluteLastWriter) {
+    if (absoluteLastWriter)
+    {
         vk::SubpassDependency subpassDependency;
 
         subpassDependency.srcSubpass = 0;
         subpassDependency.dstSubpass = VK_SUBPASS_EXTERNAL;
-        subpassDependency.srcStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput 
-                                    | vk::PipelineStageFlagBits::eEarlyFragmentTests;
+        subpassDependency.srcStageMask =
+            vk::PipelineStageFlagBits::eColorAttachmentOutput | vk::PipelineStageFlagBits::eEarlyFragmentTests;
         subpassDependency.dstStageMask = vk::PipelineStageFlagBits::eFragmentShader;
-        subpassDependency.srcAccessMask = vk::AccessFlagBits::eColorAttachmentWrite 
-                                    | vk::AccessFlagBits::eDepthStencilAttachmentWrite;
+        subpassDependency.srcAccessMask =
+            vk::AccessFlagBits::eColorAttachmentWrite | vk::AccessFlagBits::eDepthStencilAttachmentWrite;
         subpassDependency.dstAccessMask = vk::AccessFlagBits::eShaderRead;
 
         dependencies.push_back(subpassDependency);
