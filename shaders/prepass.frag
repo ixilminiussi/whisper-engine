@@ -21,7 +21,7 @@ push;
 
 void main()
 {
-    Material material = ubo.materials[int(i.materialID)];
+    Material material = ubo.materials[int(i.materialID + 0.01)];
 
     int normalTexID = material.normalTex;
     vec3 normal = normalTexID != INVALID_ID

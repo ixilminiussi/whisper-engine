@@ -354,10 +354,7 @@ void Graph::BuildPipeline(Pass pass)
     rasterizationInfo.lineWidth = 1.0f;
     rasterizationInfo.cullMode = vk::CullModeFlagBits::eBack;
     rasterizationInfo.frontFace = vk::FrontFace::eClockwise;
-    rasterizationInfo.depthBiasEnable = vk::True;
-    rasterizationInfo.depthBiasConstantFactor = 1.0f;
-    rasterizationInfo.depthBiasClamp = 0.0f;
-    rasterizationInfo.depthBiasSlopeFactor = 2.0f;
+    rasterizationInfo.depthBiasEnable = vk::False;
 
     vk::PipelineMultisampleStateCreateInfo multisampleInfo{};
     multisampleInfo.sampleShadingEnable = vk::False;
@@ -586,7 +583,6 @@ void Graph::Render(vk::CommandBuffer commandBuffer, uint32_t frameIndex)
             offset++;
         }
 
-        commandBuffer.setDepthBiasEnable(true);
         commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, passHolder.pipeline.pipeline);
         passInfo.execute(commandBuffer, passHolder.pipeline.pipelineLayout);
         commandBuffer.endRenderPass();
