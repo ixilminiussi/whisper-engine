@@ -1,7 +1,3 @@
 build/
-assets/*
 .cache/
 .clangd/
-!assets/Avocado
-!assets/Boombox
-!assets/Sponza
