@@ -132,7 +132,7 @@ void Swapchain::PopulateImGuiInitInfo(ImGui_ImplVulkan_InitInfo *initInfo) const
     initInfo->RenderPass = _renderPass;
 }
 
-void Swapchain::SubmitCommandBuffer(vk::CommandBuffer commandBuffers)
+bool Swapchain::SubmitCommandBuffer(vk::CommandBuffer commandBuffers)
 {
     Device const *device = SafeDeviceAccessor::Get();
     check(device);
@@ -172,8 +172,7 @@ void Swapchain::SubmitCommandBuffer(vk::CommandBuffer commandBuffers)
     presentInfo.pImageIndices = &_currentImageIndex;
 
     _currentFrameIndex = (_currentFrameIndex + 1) % MAX_FRAMES_IN_FLIGHT;
-
-    device->PresentKHR(&presentInfo);
+    return device->PresentKHR(&presentInfo);
 }
 
 [[nodiscard]] vk::CommandBuffer Swapchain::NextCommandBuffer()
@@ -181,7 +180,6 @@ void Swapchain::SubmitCommandBuffer(vk::CommandBuffer commandBuffers)
     Device const *device = SafeDeviceAccessor::Get();
     check(device);
 
-    AcquireNextImage();
     vk::CommandBuffer commandBuffer = _commandBuffers[_currentFrameIndex];
 
     vk::CommandBufferBeginInfo const beginInfo{};
@@ -198,7 +196,7 @@ void Swapchain::SubmitCommandBuffer(vk::CommandBuffer commandBuffers)
     return commandBuffer;
 }
 
-void Swapchain::AcquireNextImage()
+bool Swapchain::AcquireNextImage()
 {
     Device const *device = SafeDeviceAccessor::Get();
     check(device);
@@ -208,13 +206,18 @@ void Swapchain::AcquireNextImage()
         device->WaitForFences({_inFlightFences[_currentFrameIndex]});
     }
 
-    device->AcquireNextImageKHR(_swapchain, _imageAvailableSemaphores[_currentFrameIndex], VK_NULL_HANDLE,
-                                &_currentImageIndex);
+    if (!device->AcquireNextImageKHR(_swapchain, _imageAvailableSemaphores[_currentFrameIndex], VK_NULL_HANDLE,
+                                     &_currentImageIndex))
+    {
+        return false;
+    }
 
     if (_imagesInFlight[_currentImageIndex] != VK_NULL_HANDLE)
     {
         device->WaitForFences({_imagesInFlight[_currentImageIndex]});
     }
+
+    return true;
 }
 
 vk::SwapchainKHR Swapchain::GetHandle() const

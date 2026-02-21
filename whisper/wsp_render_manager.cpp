@@ -60,6 +60,10 @@ RenderManager::RenderManager()
     ZoneScopedN("initialize");
     spdlog::info("RenderManager: began initialization");
 
+    if (getenv("RENDERDOC_CAPFILE") || dlopen("librenderdoc.so", RTLD_NOW | RTLD_NOLOAD))
+    {
+        glfwInitHint(GLFW_PLATFORM, GLFW_PLATFORM_X11);
+    }
     if (!glfwInit())
     {
         throw std::runtime_error("RenderManager: GLFW failed to initialize!");

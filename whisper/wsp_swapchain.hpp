@@ -25,8 +25,9 @@ class Swapchain
 
     void PopulateImGuiInitInfo(ImGui_ImplVulkan_InitInfo *initInfo) const;
 
-    void SubmitCommandBuffer(vk::CommandBuffer commandBuffer);
+    bool SubmitCommandBuffer(vk::CommandBuffer commandBuffer);
 
+    bool AcquireNextImage();
     [[nodiscard]] vk::CommandBuffer NextCommandBuffer();
 
     vk::SwapchainKHR GetHandle() const;
@@ -37,8 +38,6 @@ class Swapchain
     void SkipBlit(vk::CommandBuffer) const;
 
   protected:
-    void AcquireNextImage();
-
     static vk::SurfaceFormatKHR ChooseSwapSurfaceFormat(std::vector<vk::SurfaceFormatKHR> const &);
     static vk::PresentModeKHR ChooseSwapPresentMode(std::vector<vk::PresentModeKHR> const &);
     static vk::Extent2D ChooseSwapExtent(vk::Extent2D, vk::SurfaceCapabilitiesKHR const &);

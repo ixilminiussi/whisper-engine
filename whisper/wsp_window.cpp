@@ -121,6 +121,12 @@ vk::CommandBuffer Window::NextCommandBuffer(uint32_t *frameIndex)
 {
     check(frameIndex);
 
+    if (!_swapchain->AcquireNextImage())
+    {
+        BuildSwapchain();
+        _swapchain->AcquireNextImage();
+    }
+
     *frameIndex = _swapchain->GetCurrentFrameIndex();
     return _swapchain->NextCommandBuffer();
 }
@@ -151,7 +157,10 @@ void Window::SwapchainFlush(vk::CommandBuffer commandBuffer)
     commandBuffer.endRenderPass();
     commandBuffer.end();
 
-    _swapchain->SubmitCommandBuffer(commandBuffer);
+    if (!_swapchain->SubmitCommandBuffer(commandBuffer))
+    {
+        BuildSwapchain();
+    }
 }
 
 bool Window::ShouldClose() const

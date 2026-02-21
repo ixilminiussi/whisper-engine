@@ -408,15 +408,16 @@ void Device::SubmitToGraphicsQueue(std::vector<vk::SubmitInfo *> const &submits,
     }
 }
 
-void Device::PresentKHR(vk::PresentInfoKHR const *presentInfo) const
+bool Device::PresentKHR(vk::PresentInfoKHR const *presentInfo) const
 {
     check(_device && "Device: Must initialize device sooner");
 
     if (vk::Result const result = _presentQueue.presentKHR(presentInfo); result != vk::Result::eSuccess)
     {
-        throw std::runtime_error(
-            fmt::format("Device: failed to present KHR : {}", vk::to_string(static_cast<vk::Result>(result))));
+        return false;
     }
+
+    return true;
 }
 
 void Device::CreateSemaphore(vk::SemaphoreCreateInfo const &createInfo, vk::Semaphore *semaphore,
@@ -906,15 +907,16 @@ void Device::FreeCommandBuffers(std::vector<vk::CommandBuffer> *commandBuffers) 
     _device.freeCommandBuffers(_commandPool, static_cast<uint32_t>(commandBuffers->size()), commandBuffers->data());
 }
 
-void Device::AcquireNextImageKHR(vk::SwapchainKHR swapchain, vk::Semaphore semaphore, vk::Fence fence,
+bool Device::AcquireNextImageKHR(vk::SwapchainKHR swapchain, vk::Semaphore semaphore, vk::Fence fence,
                                  uint32_t *imageIndex, uint64_t timeout) const
 {
     if (vk::Result const result = _device.acquireNextImageKHR(swapchain, timeout, semaphore, fence, imageIndex);
         result != vk::Result::eSuccess)
     {
-        throw std::runtime_error(fmt::format("Device: failed to acquire next imageKHR : {}",
-                                             vk::to_string(static_cast<vk::Result>(result))));
+        return false;
     }
+
+    return true;
 }
 
 std::vector<vk::Image> Device::GetSwapchainImagesKHR(vk::SwapchainKHR swapchain, uint32_t minImageCount) const

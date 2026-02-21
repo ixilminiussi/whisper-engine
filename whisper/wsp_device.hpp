@@ -66,7 +66,7 @@ class Device
     void WaitForFences(std::vector<vk::Fence> const &, bool waitAll = true, uint64_t timer = UINT64_MAX) const;
 
     void SubmitToGraphicsQueue(std::vector<vk::SubmitInfo *> const &, vk::Fence) const;
-    void PresentKHR(vk::PresentInfoKHR const *) const;
+    bool PresentKHR(vk::PresentInfoKHR const *) const;
 
     void CreateSemaphore(vk::SemaphoreCreateInfo const &, vk::Semaphore *, std::string const &name) const;
     void CreateFence(vk::FenceCreateInfo const &, vk::Fence *, std::string const &name) const;
@@ -122,7 +122,7 @@ class Device
     void GetMemoryProperties(vk::PhysicalDeviceMemoryProperties2 *,
                              vk::PhysicalDeviceMemoryBudgetPropertiesEXT *) const;
 
-    void AcquireNextImageKHR(vk::SwapchainKHR, vk::Semaphore, vk::Fence, uint32_t *imageIndex,
+    bool AcquireNextImageKHR(vk::SwapchainKHR, vk::Semaphore, vk::Fence, uint32_t *imageIndex,
                              uint64_t timeout = UINT64_MAX) const;
     std::vector<vk::Image> GetSwapchainImagesKHR(vk::SwapchainKHR, uint32_t minImageCount) const;
 
