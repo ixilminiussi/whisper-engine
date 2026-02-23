@@ -117,38 +117,38 @@ inline std::vector<char> ReadShaderFile(std::string const &filepath)
 
 inline vk::Format SelectFormat(uint32_t channels, size_t size, bool normalized = false)
 {
-    if (size == 1 && channels == 4)
+    if (size == 1 && channels >= 3)
     {
         return !normalized ? vk::Format::eR8G8B8A8Srgb : vk::Format::eR8G8B8A8Snorm;
     }
-    if (size == 2 && channels == 4)
+    if (size == 2 && channels >= 3)
     {
         return !normalized ? vk::Format::eR16G16B16A16Sfloat : vk::Format::eR16G16B16A16Snorm;
     }
-    if (size == 4 && channels == 4)
+    if (size == 4 && channels >= 3)
     {
         return vk::Format::eR32G32B32A32Sfloat;
     }
-    if (size == 8 && channels == 4)
+    if (size == 8 && channels >= 3)
     {
         return vk::Format::eR64G64B64A64Sfloat;
     }
-    if (size == 1 && channels == 3)
-    {
-        return !normalized ? vk::Format::eR8G8B8Srgb : vk::Format::eR8G8B8Snorm;
-    }
-    if (size == 2 && channels == 3)
-    {
-        return !normalized ? vk::Format::eR16G16B16Sfloat : vk::Format::eR16G16B16Snorm;
-    }
-    if (size == 4 && channels == 3)
-    {
-        return vk::Format::eR32G32B32Sfloat;
-    }
-    if (size == 8 && channels == 3)
-    {
-        return vk::Format::eR64G64B64Sfloat;
-    }
+    // if (size == 1 && channels == 3)
+    // {
+    //     return !normalized ? vk::Format::eR8G8B8Srgb : vk::Format::eR8G8B8Snorm;
+    // }
+    // if (size == 2 && channels == 3)
+    // {
+    //     return !normalized ? vk::Format::eR16G16B16Sfloat : vk::Format::eR16G16B16Snorm;
+    // }
+    // if (size == 4 && channels == 3)
+    // {
+    //     return vk::Format::eR32G32B32Sfloat;
+    // }
+    // if (size == 8 && channels == 3)
+    // {
+    //     return vk::Format::eR64G64B64Sfloat;
+    // }
     if (size == 1 && channels == 2)
     {
         return !normalized ? vk::Format::eR8G8Srgb : vk::Format::eR8G8Snorm;

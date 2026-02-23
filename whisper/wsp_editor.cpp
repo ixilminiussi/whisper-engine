@@ -389,7 +389,7 @@ void Editor::Update(double dt)
 
     _deltaTime = dt;
 
-    _viewportCamera->Orbit({40.f * dt, 0.});
+    // _viewportCamera->Orbit({40.f * dt, 0.});
     _viewportCamera->Refresh();
 }
 
