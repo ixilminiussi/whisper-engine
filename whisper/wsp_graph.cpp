@@ -986,7 +986,11 @@ void Graph::Build(Pass pass)
                 attachment.loadOp = vk::AttachmentLoadOp::eLoad;
                 attachment.initialLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
             }
-            attachment.storeOp = vk::AttachmentStoreOp::eDontCare;
+            {
+                bool const isLastWriter = (resourceHolder.writers.back() == pass);
+                attachment.storeOp =
+                    (nextIsRead || !isLastWriter) ? vk::AttachmentStoreOp::eStore : vk::AttachmentStoreOp::eDontCare;
+            }
             if (nextIsRead)
             {
                 attachment.finalLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
