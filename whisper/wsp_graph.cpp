@@ -911,6 +911,7 @@ void Graph::Build(Pass pass)
 
         absoluteFirstWriter &= firstWriter;
         absoluteLastWriter &= !nextIsRead;
+        anyNextIsRead |= nextIsRead;
 
         std::array<vk::ImageMemoryBarrier, MAX_FRAMES_IN_FLIGHT> imageMemoryBarriers;
         vk::ImageMemoryBarrier imageMemoryBarrier{};
@@ -1042,14 +1043,14 @@ void Graph::Build(Pass pass)
         dependencies.push_back(subpassDependency);
     }
 
-    if (absoluteLastWriter)
+    if (anyNextIsRead)
     {
         vk::SubpassDependency subpassDependency;
 
         subpassDependency.srcSubpass = 0;
         subpassDependency.dstSubpass = VK_SUBPASS_EXTERNAL;
         subpassDependency.srcStageMask =
-            vk::PipelineStageFlagBits::eColorAttachmentOutput | vk::PipelineStageFlagBits::eEarlyFragmentTests;
+            vk::PipelineStageFlagBits::eColorAttachmentOutput | vk::PipelineStageFlagBits::eLateFragmentTests;
         subpassDependency.dstStageMask = vk::PipelineStageFlagBits::eFragmentShader;
         subpassDependency.srcAccessMask =
             vk::AccessFlagBits::eColorAttachmentWrite | vk::AccessFlagBits::eDepthStencilAttachmentWrite;
