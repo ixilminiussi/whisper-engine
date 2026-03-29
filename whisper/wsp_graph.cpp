@@ -883,6 +883,7 @@ void Graph::Build(Pass pass)
 
     bool absoluteFirstWriter = true;
     bool absoluteLastWriter = true;
+    bool anyNextIsRead = false;
 
     int i = 0;
     for (Resource const resource : createInfo.writes)
